@@ -1,0 +1,28 @@
+linters:
+  presets:
+    - "bugs"
+    - "comment"
+    - "error"
+    - "format"
+    - "import"
+    - "metalinter"
+    - "performance"
+    - "sql"
+    - "style"
+    - "unused"
+  disable:
+    # These are deprecated
+    - "scopelint"
+    - "golint"
+    - "maligned"
+    - "interfacer"
+    # Annoying or not needed
+    - "exhaustivestruct"
+    - "gochecknoglobals"
+    - "noctx"
+    # Duplicate
+    - "gofmt"
+linters-settings:
+  gofumpt:
+    lang-version: "1.17"
+    extra-rules: true
