@@ -1,6 +1,7 @@
 # Meteorae
 
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/meteorae/server/main) ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/meteorae/server) ![GitHub release (latest by SemVer)](https://img.shields.io/github/downloads/meteorae/server/latest/total) ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/meteorae/server) ![GitHub](https://img.shields.io/github/license/meteorae/server)  
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/meteorae/server/main) ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/meteorae/server) ![GitHub release (latest by SemVer)](https://img.shields.io/github/downloads/meteorae/server/latest/total) ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/meteorae/server) ![GitHub](https://img.shields.io/github/license/meteorae/server) [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fmeteorae%2Fserver.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fmeteorae%2Fserver?ref=badge_shield)
+ 
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=meteorae_server&metric=coverage)](https://sonarcloud.io/summary/new_code?id=meteorae_server) [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=meteorae_server&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=meteorae_server) [![Technical Debt](https://sonarcloud.io/api/project_badges/measure?project=meteorae_server&metric=sqale_index)](https://sonarcloud.io/summary/new_code?id=meteorae_server) [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=meteorae_server&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=meteorae_server)
 
 ## What is Meteorae
@@ -33,3 +34,7 @@ For the short version, here are some ways you can help:
 - If you're a developer, check out [our roadmap](https://github.com/meteorae/server/blob/master/README.md) or [take on an issue](https://github.com/meteorae/server/labels/good%20first%20issue).
 - If you're a translator or speak multiple languages, help us get Meteorae translated.
 - You can also help [triage issues](https://github.com/meteorae/server/issues).
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fmeteorae%2Fserver.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fmeteorae%2Fserver?ref=badge_large)
