@@ -1,6 +1,7 @@
 # Meteorae
 
-![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/meteorae/server) ![GitHub branch checks state](https://img.shields.io/github/checks-status/meteorae/server/master) ![GitHub release (latest by SemVer)](https://img.shields.io/github/downloads/meteorae/server/latest/total) ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/meteorae/server) ![GitHub](https://img.shields.io/github/license/meteorae/server)
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/meteorae/server/main) ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/meteorae/server) ![GitHub release (latest by SemVer)](https://img.shields.io/github/downloads/meteorae/server/latest/total) ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/meteorae/server) ![GitHub](https://img.shields.io/github/license/meteorae/server)  
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=meteorae_server&metric=coverage)](https://sonarcloud.io/summary/new_code?id=meteorae_server) [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=meteorae_server&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=meteorae_server) [![Technical Debt](https://sonarcloud.io/api/project_badges/measure?project=meteorae_server&metric=sqale_index)](https://sonarcloud.io/summary/new_code?id=meteorae_server) [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=meteorae_server&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=meteorae_server)
 
 ## What is Meteorae
 
