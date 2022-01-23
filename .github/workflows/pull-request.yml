@@ -22,8 +22,8 @@ jobs:
         with:
           version: latest
           only-new-issues: true
-  build:
-    name: build
+  test:
+    name: Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2.4.0
@@ -34,3 +34,44 @@ jobs:
         run: sudo apt update && sudo apt install libsqlite3-dev libmagickcore-dev libmagickwand-dev
       - name: Build
         run: make build
+      - name: Test
+        run: go test -coverprofile=coverage.out
+      - name: Convert coverage to lcov
+        uses: jandelgado/gcov2lcov-action@v1.0.5
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.organization=meteorae
+            -Dsonar.projectKey=meteorae_server
+            -Dsonar.javascript.lcov.reportPaths=coverage.lcov
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ["go"]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: "^1.17.3"
+      - name: Install dependencies
+        run: sudo apt update && sudo apt install libsqlite3-dev libmagickcore-dev libmagickwand-dev
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v1
+        with:
+          languages: ${{ matrix.language }}
+      - name: Build
+        run: make build
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v1
