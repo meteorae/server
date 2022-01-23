@@ -18,7 +18,7 @@ import (
 	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/database/models"
 	"github.com/rs/zerolog/log"
-	"gopkg.in/gographics/imagick.v3/imagick"
+	"gopkg.in/gographics/imagick.v2/imagick"
 )
 
 type ImageQuery struct {
@@ -198,7 +198,7 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 			newWidth := uint(float64(sourceWidth) * bestRatio)
 			newHeight := uint(float64(sourceHeight) * bestRatio)
 
-			err = magickWand.ResizeImage(newWidth, newHeight, imagick.FILTER_LANCZOS2_SHARP)
+			err = magickWand.ResizeImage(newWidth, newHeight, imagick.FILTER_LANCZOS2_SHARP, 0)
 			if err != nil {
 				log.Err(err).Msg("Failed to resize image")
 				http.Error(writer, "Failed to resize image", http.StatusInternalServerError)

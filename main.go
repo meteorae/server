@@ -17,7 +17,7 @@ import (
 	"github.com/panjf2000/ants/v2"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"gopkg.in/gographics/imagick.v3/imagick"
+	"gopkg.in/gographics/imagick.v2/imagick"
 )
 
 var serverShutdownTimeout = 10 * time.Second

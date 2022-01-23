@@ -18,7 +18,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/ryanbradynd05/go-tmdb"
 	"golang.org/x/text/language"
-	"gopkg.in/gographics/imagick.v3/imagick"
+	"gopkg.in/gographics/imagick.v2/imagick"
 )
 
 var errNoResultsFound = fmt.Errorf("no results found")
