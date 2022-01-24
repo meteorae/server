@@ -1,20 +1,12 @@
 package themoviedb
 
 import (
-	"bytes"
-	"encoding/hex"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"net/http"
-	"os"
-	"path/filepath"
 	"regexp"
 	"time"
 
-	"github.com/adrg/xdg"
-	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/meteorae/meteorae-server/database/models"
+	"github.com/meteorae/meteorae-server/helpers"
 	"github.com/meteorae/meteorae-server/utils"
 	PTN "github.com/middelink/go-parse-torrent-name"
 	"github.com/rs/zerolog/log"
@@ -24,7 +16,7 @@ import (
 
 var errNoResultsFound = fmt.Errorf("no results found")
 
-var apiKey = "c9ae218044f9b20a4fcbba36d543a730"
+var apiKey = "c9ae218044f9b20a4fcbba36d543a730" //#nosec
 
 var config = tmdb.Config{
 	APIKey:   apiKey,
@@ -79,112 +71,24 @@ func GetMovieInfoFromTmdb(movie *PTN.TorrentInfo, mediaPart *models.MediaPart) (
 		}
 
 		var artHash string
-		if movieData.BackdropPath != "" {
-			var artBuffer bytes.Buffer
 
+		if movieData.BackdropPath != "" {
 			artPath := fmt.Sprintf("https://image.tmdb.org/t/p/original/%s", movieData.BackdropPath)
 
-			response, err := http.Get(artPath)
+			artHash, err = helpers.SaveExternalImageToCache(artPath)
 			if err != nil {
-				return nil, fmt.Errorf("failed to fetch art for movie \"%s\": %w", movie.Title, err)
-			}
-			defer response.Body.Close()
-
-			_, err = io.Copy(&artBuffer, response.Body)
-			if err != nil {
-				return nil, fmt.Errorf("failed to copy art for movie \"%s\": %w", movie.Title, err)
-			}
-
-			hash, err := utils.HashFileBytes(artBuffer.Bytes())
-			if err != nil {
-				return nil, fmt.Errorf("failed to hash art for movie \"%s\": %w", movie.Title, err)
-			}
-
-			artHash = hex.EncodeToString(hash)
-			prefix := artHash[0:2]
-
-			imageCachePath, err := xdg.CacheFile("meteorae/images")
-			if err != nil {
-				return nil, fmt.Errorf("failed to get image cache path: %w", err)
-			}
-
-			image, err := vips.NewImageFromReader(&artBuffer)
-			if err != nil {
-				return nil, fmt.Errorf("failed to read art for movie \"%s\": %w", movie.Title, err)
-			}
-
-			export, _, err := image.ExportWebp(vips.NewWebpExportParams())
-			if err != nil {
-				return nil, fmt.Errorf("failed to set image format: %w", err)
-			}
-
-			filePath := filepath.Join(imageCachePath, prefix, artHash)
-
-			err = os.MkdirAll(filePath, 0o755)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create image cache directory: %w", err)
-			}
-
-			filePath = filepath.Join(filePath, "0x0.webp")
-
-			err = ioutil.WriteFile(filePath, export, 0644)
-			if err != nil {
-				return nil, fmt.Errorf("failed to write image to disk: %w", err)
+				return nil, fmt.Errorf("failed to download backdrop art for movie \"%s\": %w", movie.Title, err)
 			}
 		}
 
 		var posterHash string
+
 		if movieData.PosterPath != "" {
-			var posterBuffer bytes.Buffer
+			posterPath := fmt.Sprintf("https://image.tmdb.org/t/p/original/%s", movieData.PosterPath)
 
-			artPath := fmt.Sprintf("https://image.tmdb.org/t/p/original/%s", movieData.PosterPath)
-
-			response, err := http.Get(artPath)
+			posterHash, err = helpers.SaveExternalImageToCache(posterPath)
 			if err != nil {
-				return nil, fmt.Errorf("failed to fetch poster for movie \"%s\": %w", movie.Title, err)
-			}
-			defer response.Body.Close()
-
-			_, err = io.Copy(&posterBuffer, response.Body)
-			if err != nil {
-				return nil, fmt.Errorf("failed to copy poster for movie \"%s\": %w", movie.Title, err)
-			}
-
-			hash, err := utils.HashFileBytes(posterBuffer.Bytes())
-			if err != nil {
-				return nil, fmt.Errorf("failed to hash poster for movie \"%s\": %w", movie.Title, err)
-			}
-
-			posterHash = hex.EncodeToString(hash)
-			prefix := posterHash[0:2]
-
-			imageCachePath, err := xdg.CacheFile("meteorae/images")
-			if err != nil {
-				return nil, fmt.Errorf("failed to get image cache path: %w", err)
-			}
-
-			image, err := vips.NewImageFromReader(&posterBuffer)
-			if err != nil {
-				return nil, fmt.Errorf("failed to read art for movie \"%s\": %w", movie.Title, err)
-			}
-
-			export, _, err := image.ExportWebp(vips.NewWebpExportParams())
-			if err != nil {
-				return nil, fmt.Errorf("failed to set image format: %w", err)
-			}
-
-			filePath := filepath.Join(imageCachePath, prefix, posterHash)
-
-			err = os.MkdirAll(filePath, 0o755)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create image cache directory: %w", err)
-			}
-
-			filePath = filepath.Join(filePath, "0x0.webp")
-
-			err = ioutil.WriteFile(filePath, export, 0644)
-			if err != nil {
-				return nil, fmt.Errorf("failed to write image to disk: %w", err)
+				return nil, fmt.Errorf("failed to download poster art for movie \"%s\": %w", movie.Title, err)
 			}
 		}
 

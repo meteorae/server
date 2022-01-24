@@ -31,9 +31,11 @@ func main() {
 
 	err := sentry.Init(sentry.ClientOptions{
 		Dsn: "https://9ad21ea087cb4de1a5d2cfb6f36d354b@o725130.ingest.sentry.io/61632320",
-	});
+	})
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to initialize Sentry")
+		log.Error().Err(err).Msg("Failed to initialize Sentry")
+
+		return
 	}
 
 	vips.Startup(nil)

@@ -50,12 +50,14 @@ func ScanDirectory(directory string, database *gorm.DB, libraryType models.Libra
 			Size:     fileInfo.Size(),
 		}
 
-		// TODO: Maybe batching these into one query is faster? But we may run into issues when something is resolved but the create failed and/or conccurency issues
+		// TODO: Maybe batching these into one query is faster?
+		// We may run into issues when something is resolved but the create failed and/or conccurency issues
 		result := database.Clauses(clause.OnConflict{DoNothing: true}).Create(&newMediaPart)
 		// TODO: Check for the actual error type
 		if result.Error != nil {
 			// If the record exist, we already have it, just skip it to save time
-			// TODO: To handle refreshing directories, we'll probably want to get all the existing stuff first, then scan for new files
+			// TODO: To handle refreshing directories, we'll probably want to
+			// get all the existing stuff first, then scan for new files
 			return fmt.Errorf("failed to create media part: %w", result.Error)
 		}
 

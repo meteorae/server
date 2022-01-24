@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -85,9 +86,15 @@ func setupHandler(writer http.ResponseWriter, request *http.Request) {
 	}
 
 	if userCount == 0 {
-		writer.Write([]byte("true"))
+		_, err := writer.Write([]byte("true"))
+		if err != nil {
+			log.Error().Msg(err.Error())
+		}
 	} else {
-		writer.Write([]byte("false"))
+		_, err := writer.Write([]byte("false"))
+		if err != nil {
+			log.Error().Msg(err.Error())
+		}
 	}
 }
 
@@ -99,7 +106,7 @@ func GetWebServer() (*http.Server, error) {
 
 	transcodeHandler, err := transcode.NewImageHandler()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create image handler: %w", err)
 	}
 
 	router.Handle("/setup", http.HandlerFunc(setupHandler)).Methods("GET")

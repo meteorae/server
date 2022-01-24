@@ -20,6 +20,7 @@ linters:
     - "exhaustivestruct"
     - "gochecknoglobals"
     - "noctx"
+    - "godox"
     # Duplicate
     - "gofmt"
 linters-settings:

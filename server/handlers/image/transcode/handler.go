@@ -19,6 +19,8 @@ import (
 	"github.com/gorilla/schema"
 	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/database/models"
+	"github.com/meteorae/meteorae-server/helpers"
+	"github.com/meteorae/meteorae-server/utils"
 	"github.com/rs/zerolog/log"
 )
 
@@ -47,10 +49,10 @@ func NewImageHandler() (*ImageHandler, error) {
 
 func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *http.Request) {
 	// Require authentication, to avoid non-users slamming the API with external image requests
-	/*user := utils.GetUserFromContext(request.Context())
+	user := utils.GetUserFromContext(request.Context())
 	if user == nil {
 		http.Error(writer, "Unauthorized", http.StatusUnauthorized)
-	}*/
+	}
 
 	isCached := false
 	shouldCache := false
@@ -71,7 +73,6 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 		var buffer bytes.Buffer
 
 		// If it's an external URL, we can download it, check if it's an image, and then transcode it
-		// TODO: We probably want a whitelist of domains, to cases where an attacker would request tons of large files to cause a DOS
 		parsedURL, err := url.ParseRequestURI(imageQuery.URL)
 		if err != nil {
 			log.Err(err).Msg("Failed to parse URL")
@@ -127,15 +128,18 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 			if imageQuery.Height != 0 && imageQuery.Width != 0 {
 				imagePath = filepath.Join(baseDirectory, fmt.Sprintf("%dx%d.webp", imageQuery.Width, imageQuery.Height))
 
-				if _, err := os.Stat(imagePath); err == nil {
+				_, err := os.Stat(imagePath)
+
+				switch {
+				case errors.Is(err, nil):
 					isCached = true
-				} else if errors.Is(err, os.ErrNotExist) {
+				case errors.Is(err, os.ErrNotExist):
 					isCached = false
 					shouldCache = true
 
 					// Set this back to the original, since we need to generate the image with the proper size
 					imagePath = filepath.Join(baseDirectory, "0x0.webp")
-				} else {
+				default:
 					http.Error(writer, "Failed to stat image", http.StatusInternalServerError)
 
 					return
@@ -223,7 +227,7 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 					http.Error(writer, "Failed to set image format", http.StatusInternalServerError)
 				}
 
-				err = ioutil.WriteFile(imagePath, export, 0644)
+				err = ioutil.WriteFile(imagePath, export, helpers.BaseFilePermissions)
 				if err != nil {
 					log.Err(err).Msg("Failed to write image")
 					http.Error(writer, "Failed to write image", http.StatusInternalServerError)

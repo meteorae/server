@@ -1,14 +1,31 @@
 package helpers
 
 import (
+	"bytes"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"io/fs"
+	"io/ioutil"
+	"net/http"
 	"os"
+	"path/filepath"
 
+	"github.com/adrg/xdg"
 	"github.com/bmatcuk/doublestar/v4"
+	"github.com/davidbyttow/govips/v2/vips"
+	"github.com/meteorae/meteorae-server/utils"
 )
 
-var baseDirectoryPermissions = os.FileMode(0o755)
+var (
+	BaseDirectoryMode = 0o755
+	BaseFileMode      = 0o600
+)
+
+var (
+	BaseDirectoryPermissions = os.FileMode(BaseDirectoryMode)
+	BaseFilePermissions      = os.FileMode(BaseFileMode)
+)
 
 var VideoFileExtensions = []string{
 	".m4v",
@@ -230,5 +247,59 @@ func ShouldIgnore(path string, d fs.DirEntry) bool {
 }
 
 func EnsurePathExists(path string) error {
-	return fmt.Errorf("failed to ensure path exists: %w", os.MkdirAll(path, baseDirectoryPermissions))
+	return fmt.Errorf("failed to ensure path exists: %w", os.MkdirAll(path, BaseDirectoryPermissions))
+}
+
+func SaveExternalImageToCache(filePath string) (string, error) {
+	var fileBuffer bytes.Buffer
+
+	response, err := http.Get(filePath) //#nosec
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch image \"%s\": %w", filePath, err)
+	}
+	defer response.Body.Close()
+
+	_, err = io.Copy(&fileBuffer, response.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to copy image \"%s\": %w", filePath, err)
+	}
+
+	hash, err := utils.HashFileBytes(fileBuffer.Bytes())
+	if err != nil {
+		return "", fmt.Errorf("failed to hash image \"%s\": %w", filePath, err)
+	}
+
+	fileHash := hex.EncodeToString(hash)
+	prefix := fileHash[0:2]
+
+	imageCachePath, err := xdg.CacheFile("meteorae/images")
+	if err != nil {
+		return "", fmt.Errorf("failed to get image cache path: %w", err)
+	}
+
+	image, err := vips.NewImageFromReader(&fileBuffer)
+	if err != nil {
+		return "", fmt.Errorf("failed to read image \"%s\": %w", filePath, err)
+	}
+
+	export, _, err := image.ExportWebp(vips.NewWebpExportParams())
+	if err != nil {
+		return "", fmt.Errorf("failed to set image format: %w", err)
+	}
+
+	cachedFilePath := filepath.Join(imageCachePath, prefix, fileHash)
+
+	err = os.MkdirAll(cachedFilePath, BaseDirectoryPermissions)
+	if err != nil {
+		return "", fmt.Errorf("failed to create image cache directory: %w", err)
+	}
+
+	cachedFilePath = filepath.Join(cachedFilePath, "0x0.webp")
+
+	err = ioutil.WriteFile(cachedFilePath, export, BaseFilePermissions)
+	if err != nil {
+		return "", fmt.Errorf("failed to write image to disk: %w", err)
+	}
+
+	return fileHash, nil
 }
