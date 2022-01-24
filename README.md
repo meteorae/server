@@ -19,8 +19,8 @@ You will need [Go](https://go.dev/doc/install) in order to build the Meteorae se
 
 Additional dependencies are required:
 
-- For Debian, Ubuntu and derivatives: `libsqlite3-dev libmagickcore-dev libmagickwand-dev`
-- For Fedora and derivatives: `sqlite-devel ImageMagick-devel`
+- For Debian, Ubuntu and derivatives: `libsqlite3-dev libvips-dev`
+- For Fedora and derivatives: `sqlite-devel libvips-devel`
 
 In order to build binaries, simply run `make build`.
 

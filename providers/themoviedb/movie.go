@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -12,13 +13,13 @@ import (
 	"time"
 
 	"github.com/adrg/xdg"
+	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/meteorae/meteorae-server/database/models"
 	"github.com/meteorae/meteorae-server/utils"
 	PTN "github.com/middelink/go-parse-torrent-name"
 	"github.com/rs/zerolog/log"
 	"github.com/ryanbradynd05/go-tmdb"
 	"golang.org/x/text/language"
-	"gopkg.in/gographics/imagick.v2/imagick"
 )
 
 var errNoResultsFound = fmt.Errorf("no results found")
@@ -77,9 +78,6 @@ func GetMovieInfoFromTmdb(movie *PTN.TorrentInfo, mediaPart *models.MediaPart) (
 			languageTag = language.Und
 		}
 
-		magickWand := imagick.NewMagickWand()
-		defer magickWand.Destroy()
-
 		var artHash string
 		if movieData.BackdropPath != "" {
 			var artBuffer bytes.Buffer
@@ -110,12 +108,12 @@ func GetMovieInfoFromTmdb(movie *PTN.TorrentInfo, mediaPart *models.MediaPart) (
 				return nil, fmt.Errorf("failed to get image cache path: %w", err)
 			}
 
-			err = magickWand.ReadImageBlob(artBuffer.Bytes())
+			image, err := vips.NewImageFromReader(&artBuffer)
 			if err != nil {
 				return nil, fmt.Errorf("failed to read art for movie \"%s\": %w", movie.Title, err)
 			}
 
-			err = magickWand.SetImageFormat("webp")
+			export, _, err := image.ExportWebp(vips.NewWebpExportParams())
 			if err != nil {
 				return nil, fmt.Errorf("failed to set image format: %w", err)
 			}
@@ -129,7 +127,7 @@ func GetMovieInfoFromTmdb(movie *PTN.TorrentInfo, mediaPart *models.MediaPart) (
 
 			filePath = filepath.Join(filePath, "0x0.webp")
 
-			err = magickWand.WriteImage(filePath)
+			err = ioutil.WriteFile(filePath, export, 0644)
 			if err != nil {
 				return nil, fmt.Errorf("failed to write image to disk: %w", err)
 			}
@@ -165,12 +163,12 @@ func GetMovieInfoFromTmdb(movie *PTN.TorrentInfo, mediaPart *models.MediaPart) (
 				return nil, fmt.Errorf("failed to get image cache path: %w", err)
 			}
 
-			err = magickWand.ReadImageBlob(posterBuffer.Bytes())
+			image, err := vips.NewImageFromReader(&posterBuffer)
 			if err != nil {
-				return nil, fmt.Errorf("failed to read poster for movie \"%s\": %w", movie.Title, err)
+				return nil, fmt.Errorf("failed to read art for movie \"%s\": %w", movie.Title, err)
 			}
 
-			err = magickWand.SetImageFormat("webp")
+			export, _, err := image.ExportWebp(vips.NewWebpExportParams())
 			if err != nil {
 				return nil, fmt.Errorf("failed to set image format: %w", err)
 			}
@@ -184,7 +182,7 @@ func GetMovieInfoFromTmdb(movie *PTN.TorrentInfo, mediaPart *models.MediaPart) (
 
 			filePath = filepath.Join(filePath, "0x0.webp")
 
-			err = magickWand.WriteImage(filePath)
+			err = ioutil.WriteFile(filePath, export, 0644)
 			if err != nil {
 				return nil, fmt.Errorf("failed to write image to disk: %w", err)
 			}

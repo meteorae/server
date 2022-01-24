@@ -31,13 +31,13 @@ download-external:
 build-spellfix:
 	@echo "Building spellfix extension for SQLite"
 ifeq ($(OS),Windows_NT)
-	gcc -shared -I. spellfix.c -o libgo-sqlite3-spellfix.dll
+	gcc -shared spellfix.c -o libgo-sqlite3-spellfix.dll
 else
 ifeq ($(UNAME_S),Linux)
 	gcc -fPIC -shared spellfix.c -o libgo-sqlite3-spellfix.so
 endif
 ifeq ($(UNAME_S),Darwin)
-	gcc -fPIC -dynamiclib -I src spellfix.c -o libgo-sqlite3-spellfix.dylib
+	gcc -fPIC -dynamiclib spellfix.c -o libgo-sqlite3-spellfix.dylib
 endif
 endif
 

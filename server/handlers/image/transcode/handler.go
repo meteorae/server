@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math"
 	"net/http"
 	"net/url"
@@ -14,11 +15,11 @@ import (
 	"strings"
 
 	"github.com/adrg/xdg"
+	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/gorilla/schema"
 	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/database/models"
 	"github.com/rs/zerolog/log"
-	"gopkg.in/gographics/imagick.v2/imagick"
 )
 
 type ImageQuery struct {
@@ -67,9 +68,6 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 	acceptList := strings.Split(accept, ",")
 
 	if imageQuery.URL != "" {
-		magickWand := imagick.NewMagickWand()
-		defer magickWand.Destroy()
-
 		var buffer bytes.Buffer
 
 		// If it's an external URL, we can download it, check if it's an image, and then transcode it
@@ -178,27 +176,35 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 			}
 		}
 
-		err = magickWand.ReadImageBlob(buffer.Bytes())
+		image, err := vips.NewImageFromReader(&buffer)
 		if err != nil {
-			log.Err(err).Msg("Failed to read image into MagickWand")
-			http.Error(writer, "Failed to read image into MagickWand", http.StatusInternalServerError)
+			log.Err(err).Msg("Failed to read image into VIPS")
+			http.Error(writer, "Failed to read image into VIPS", http.StatusInternalServerError)
 
 			return
 		}
 
+		export, err := image.ToBytes()
+		if err != nil {
+			log.Err(err).Msg("Failed to convert image to bytes")
+			http.Error(writer, "Failed to convert image to bytes", http.StatusInternalServerError)
+		}
+
+		buffer = *bytes.NewBuffer(export)
+
 		// If the request wants a specific size, resize the image
 		if imageQuery.Height != 0 && imageQuery.Width != 0 {
-			sourceWidth := magickWand.GetImageWidth()
-			sourceHeight := magickWand.GetImageHeight()
+			sourceWidth := image.Width()
+			sourceHeight := image.Height()
 
 			widthRatio := float64(imageQuery.Width) / float64(sourceWidth)
 			heightRatio := float64(imageQuery.Height) / float64(sourceHeight)
 			bestRatio := math.Min(widthRatio, heightRatio)
 
-			newWidth := uint(float64(sourceWidth) * bestRatio)
-			newHeight := uint(float64(sourceHeight) * bestRatio)
+			newWidth := float64(sourceWidth) * bestRatio
+			newHeight := float64(sourceHeight) * bestRatio
 
-			err = magickWand.ResizeImage(newWidth, newHeight, imagick.FILTER_LANCZOS2_SHARP, 0)
+			err = image.Thumbnail(int(newWidth), int(newHeight), vips.InterestingNone)
 			if err != nil {
 				log.Err(err).Msg("Failed to resize image")
 				http.Error(writer, "Failed to resize image", http.StatusInternalServerError)
@@ -211,13 +217,13 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 				baseDirectory := filepath.Join(handler.imageCachePath, prefix, imageHash)
 				imagePath := filepath.Join(baseDirectory, fmt.Sprintf("%dx%d.webp", imageQuery.Width, imageQuery.Height))
 
-				err = magickWand.SetFormat("webp")
+				export, _, err := image.ExportWebp(vips.NewWebpExportParams())
 				if err != nil {
 					log.Err(err).Msg("Failed to set image format")
 					http.Error(writer, "Failed to set image format", http.StatusInternalServerError)
 				}
 
-				err = magickWand.WriteImage(imagePath)
+				err = ioutil.WriteFile(imagePath, export, 0644)
 				if err != nil {
 					log.Err(err).Msg("Failed to write image")
 					http.Error(writer, "Failed to write image", http.StatusInternalServerError)
@@ -226,22 +232,24 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 				}
 
 				isCached = true
+
+				buffer = *bytes.NewBuffer(export)
 			}
 		}
 
 		// We store images internally in WebP for size and quality reasons.
 		// If the client doesn't support it, we convert it to JPEG
 		if isCached && !supportsWebP(acceptList) {
-			err = magickWand.SetImageFormat("jpg")
+			export, _, err := image.ExportJpeg(vips.NewJpegExportParams())
 			if err != nil {
 				log.Err(err).Msg("Failed to set image format")
 				http.Error(writer, "Failed to set image format", http.StatusInternalServerError)
 
 				return
 			}
-		}
 
-		buffer = *bytes.NewBuffer(magickWand.GetImageBlob())
+			buffer = *bytes.NewBuffer(export)
+		}
 
 		filetype := http.DetectContentType(buffer.Bytes())
 

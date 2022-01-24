@@ -18,6 +18,8 @@ require (
 require (
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
 	github.com/kylelemons/go-gypsy v1.0.0 // indirect
+	golang.org/x/image v0.0.0-20200927104501-e162460cd6b5 // indirect
+	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect
 	golang.org/x/sys v0.0.0-20211025201205-69cdffdb9359 // indirect
 	gorm.io/driver/mysql v1.2.2 // indirect
 )
@@ -26,7 +28,9 @@ require (
 	github.com/adrg/xdg v0.4.0
 	github.com/alexedwards/argon2id v0.0.0-20211130144151-3585854a6387
 	github.com/bmatcuk/doublestar/v4 v4.0.2
+	github.com/davidbyttow/govips/v2 v2.10.0
 	github.com/dhowden/tag v0.0.0-20201120070457-d52dcb253c63
+	github.com/getsentry/sentry-go v0.12.0
 	github.com/go-gormigrate/gormigrate/v2 v2.0.0
 	github.com/golang-jwt/jwt/v4 v4.2.0
 	github.com/gorilla/schema v1.2.0
@@ -36,5 +40,4 @@ require (
 	github.com/rs/zerolog v1.26.1
 	golang.org/x/crypto v0.0.0-20211215165025-cf75a172585e // indirect
 	golang.org/x/text v0.3.7
-	gopkg.in/gographics/imagick.v2 v2.6.0
 )

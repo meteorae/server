@@ -11,13 +11,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davidbyttow/govips/v2/vips"
+	"github.com/getsentry/sentry-go"
 	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/helpers"
 	"github.com/meteorae/meteorae-server/server"
 	"github.com/panjf2000/ants/v2"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"gopkg.in/gographics/imagick.v2/imagick"
 )
 
 var serverShutdownTimeout = 10 * time.Second
@@ -28,19 +29,24 @@ func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
+	err := sentry.Init(sentry.ClientOptions{
+		Dsn: "https://9ad21ea087cb4de1a5d2cfb6f36d354b@o725130.ingest.sentry.io/61632320",
+	});
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize Sentry")
+	}
+
+	vips.Startup(nil)
+	defer vips.Shutdown()
+
 	log.Info().Msgf("Starting Meteorae %s", helpers.Version)
 	log.Info().Msgf("Build Date: %s", helpers.BuildDate)
 	log.Info().Msgf("Git Commit: %s", helpers.GitCommit)
 	log.Info().Msgf("Go Version: %s", helpers.GoVersion)
 	log.Info().Msgf("OS / Arch: %s", helpers.OsArch)
 
-	imagick.Initialize()
-	defer imagick.Terminate()
-	imageMagickVersion, _ := imagick.GetVersion()
-	log.Info().Msgf("ImageMagick Version: %s", imageMagickVersion)
-
 	// Initialize the database
-	err := database.GetDatabase(log.Logger)
+	err = database.GetDatabase(log.Logger)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to initialize database")
 
