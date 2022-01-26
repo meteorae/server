@@ -5,6 +5,7 @@ import "C"
 import (
 	"context"
 	"errors"
+	stdlog "log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -29,6 +30,9 @@ func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
+	stdlog.SetFlags(0)
+	stdlog.SetOutput(log.Logger)
+
 	err := sentry.Init(sentry.ClientOptions{
 		Dsn: "https://9ad21ea087cb4de1a5d2cfb6f36d354b@o725130.ingest.sentry.io/61632320",
 	})
@@ -37,9 +41,6 @@ func main() {
 
 		return
 	}
-
-	vips.Startup(nil)
-	defer vips.Shutdown()
 
 	log.Info().Msgf("Starting Meteorae %s", helpers.Version)
 	log.Info().Msgf("Build Date: %s", helpers.BuildDate)
@@ -108,6 +109,9 @@ func main() {
 
 		return
 	}
+
+	vips.Startup(nil)
+	defer vips.Shutdown()
 
 	srv, err := server.GetWebServer()
 	if err != nil {

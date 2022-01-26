@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/justinas/alice"
 	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/database/models"
 	"github.com/meteorae/meteorae-server/graphql"
@@ -15,6 +16,7 @@ import (
 	"github.com/meteorae/meteorae-server/server/handlers/image/transcode"
 	"github.com/meteorae/meteorae-server/server/handlers/library"
 	"github.com/meteorae/meteorae-server/utils"
+	"github.com/rs/zerolog/hlog"
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 )
@@ -25,11 +27,10 @@ var (
 )
 
 func LoggingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Do stuff here
-		log.Debug().Msg(r.RequestURI)
-		// Call the next handler, which can be another middleware in the chain, or the final handler.
-		next.ServeHTTP(w, r)
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		hlog.FromRequest(request).Info()
+
+		next.ServeHTTP(writer, request)
 	})
 }
 
@@ -37,7 +38,6 @@ func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		auth := request.Header.Get("Authorization")
 
-		// If there's no authorization header, we don't need to do anything
 		if auth == "" {
 			log.Debug().Msg("No authorization header")
 			next.ServeHTTP(writer, request)
@@ -109,10 +109,27 @@ func GetWebServer() (*http.Server, error) {
 		return nil, fmt.Errorf("failed to create image handler: %w", err)
 	}
 
-	router.Handle("/setup", http.HandlerFunc(setupHandler)).Methods("GET")
-	router.Handle("/graphql", graphQlHandler)
-	router.Handle("/image/transcode", http.HandlerFunc(transcodeHandler.HTTPHandler))
-	router.Handle("/library/{metadata}/{part}/file.{ext}", http.HandlerFunc(library.MediaPartHTTPHandler))
+	loggingHandler := alice.New()
+	loggingHandler = loggingHandler.Append(hlog.NewHandler(log.Logger))
+	loggingHandler = loggingHandler.Append(hlog.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
+		hlog.FromRequest(r).Info().
+			Str("method", r.Method).
+			Stringer("url", r.URL).
+			Int("status", status).
+			Int("size", size).
+			Dur("duration", duration).
+			Msg("")
+	}))
+	loggingHandler = loggingHandler.Append(hlog.RemoteAddrHandler("ip"))
+	loggingHandler = loggingHandler.Append(hlog.UserAgentHandler("user_agent"))
+	loggingHandler = loggingHandler.Append(hlog.RefererHandler("referer"))
+	loggingHandler = loggingHandler.Append(hlog.RequestIDHandler("req_id", "Request-Id"))
+
+	router.Handle("/setup", loggingHandler.Then(http.HandlerFunc(setupHandler))).Methods("GET")
+	router.Handle("/graphql", loggingHandler.Then(graphQlHandler))
+	router.Handle("/image/transcode", loggingHandler.Then(http.HandlerFunc(transcodeHandler.HTTPHandler)))
+	router.Handle("/library/{metadata}/{part}/file.{ext}",
+		loggingHandler.Then(http.HandlerFunc(library.MediaPartHTTPHandler)))
 	router.Use(LoggingMiddleware)
 	router.Use(AuthMiddleware)
 

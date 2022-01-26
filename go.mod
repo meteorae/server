@@ -18,6 +18,7 @@ require (
 require (
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
 	github.com/kylelemons/go-gypsy v1.0.0 // indirect
+	github.com/rs/xid v1.3.0 // indirect
 	golang.org/x/image v0.0.0-20200927104501-e162460cd6b5 // indirect
 	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect
 	golang.org/x/sys v0.0.0-20211025201205-69cdffdb9359 // indirect
@@ -36,6 +37,7 @@ require (
 	github.com/gorilla/schema v1.2.0
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.4 // indirect
+	github.com/justinas/alice v1.2.0
 	github.com/mattn/go-sqlite3 v1.14.9
 	github.com/rs/zerolog v1.26.1
 	golang.org/x/crypto v0.0.0-20211215165025-cf75a172585e // indirect
