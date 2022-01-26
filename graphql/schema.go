@@ -199,7 +199,7 @@ var mutationType = graphql.NewObject(graphql.ObjectConfig{
 		// Register a new user
 		// TODO: This should be admin-only
 		"registerAccount": &graphql.Field{
-			Type:        TokenType,
+			Type:        LoginType,
 			Description: "Register a new user",
 			Args: graphql.FieldConfigArgument{
 				"username": &graphql.ArgumentConfig{
@@ -251,11 +251,12 @@ var mutationType = graphql.NewObject(graphql.ObjectConfig{
 
 				return map[string]interface{}{
 					"token": token,
+					"user":  newAccount,
 				}, nil
 			},
 		},
-		"loginAccount": &graphql.Field{
-			Type:        TokenType,
+		"login": &graphql.Field{
+			Type:        LoginType,
 			Description: "Login to an existing account",
 			Args: graphql.FieldConfigArgument{
 				"username": &graphql.ArgumentConfig{
@@ -298,6 +299,7 @@ var mutationType = graphql.NewObject(graphql.ObjectConfig{
 
 					return map[string]interface{}{
 						"token": token,
+						"user":  account,
 					}, nil
 				}
 

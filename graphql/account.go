@@ -22,11 +22,14 @@ var AccountType = graphql.NewObject(graphql.ObjectConfig{
 	},
 })
 
-var TokenType = graphql.NewObject(graphql.ObjectConfig{
-	Name: "Token",
+var LoginType = graphql.NewObject(graphql.ObjectConfig{
+	Name: "Login",
 	Fields: graphql.Fields{
 		"token": &graphql.Field{
 			Type: graphql.String,
+		},
+		"user": &graphql.Field{
+			Type: AccountType,
 		},
 	},
 })
