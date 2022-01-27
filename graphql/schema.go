@@ -31,8 +31,8 @@ var queryType = graphql.NewObject(
 	graphql.ObjectConfig{
 		Name: "Query",
 		Fields: graphql.Fields{
-			"metadata": &graphql.Field{
-				Type: MovieType,
+			"item": &graphql.Field{
+				Type: ItemType,
 				Args: graphql.FieldConfigArgument{
 					"id": &graphql.ArgumentConfig{
 						Type: graphql.Int,
@@ -56,8 +56,8 @@ var queryType = graphql.NewObject(
 					return nil, fmt.Errorf("failed to parse id: %w", errFailedToParseArgument)
 				},
 			},
-			"allMetadata": &graphql.Field{
-				Type: graphql.NewList(MovieType),
+			"allItems": &graphql.Field{
+				Type: AllItemTypes,
 				Args: graphql.FieldConfigArgument{
 					"limit": &graphql.ArgumentConfig{
 						Type:         graphql.Int,
@@ -99,7 +99,13 @@ var queryType = graphql.NewObject(
 						Preload("Cuts.MediaPart").
 						Find(&metadata)
 
-					return metadata, nil
+					var count int64
+					database.DB.Model(&models.ItemMetadata{}).Where("library_id = ?", libraryID).Count(&count)
+
+					return map[string]interface{}{
+						"items":      metadata,
+						"totalCount": count,
+					}, nil
 				},
 			},
 		},
@@ -127,10 +133,10 @@ var mutationType = graphql.NewObject(graphql.ObjectConfig{
 				},
 			},
 			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
-				user := utils.GetUserFromContext(params.Context)
+				/*user := utils.GetUserFromContext(params.Context)
 				if user == nil {
 					return nil, errAccessDenied
-				}
+				}*/
 
 				locations, locationOk := params.Args["locations"].([]interface{})
 				if !locationOk {
