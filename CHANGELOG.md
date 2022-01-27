@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/meteorae/server/compare/v1.0.0...v1.1.0) (2022-01-27)
+
+
+### Features
+
+* **server:** embed web client ([dc060ba](https://github.com/meteorae/server/commit/dc060ba561bb9c9cb7fabcc9eb485895f2613e24))
+
 # 1.0.0 (2022-01-27)
 
 
