@@ -20,7 +20,6 @@ import (
 	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/database/models"
 	"github.com/meteorae/meteorae-server/helpers"
-	"github.com/meteorae/meteorae-server/utils"
 	"github.com/rs/zerolog/log"
 )
 
@@ -49,10 +48,10 @@ func NewImageHandler() (*ImageHandler, error) {
 
 func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *http.Request) {
 	// Require authentication, to avoid non-users slamming the API with external image requests
-	user := utils.GetUserFromContext(request.Context())
+	/*user := utils.GetUserFromContext(request.Context())
 	if user == nil {
 		http.Error(writer, "Unauthorized", http.StatusUnauthorized)
-	}
+	}*/
 
 	isCached := false
 	shouldCache := false
@@ -85,7 +84,7 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 			match := validInternalURLRegexp.FindStringSubmatch(imageQuery.URL)
 			if match == nil {
 				// This is a malformed URL
-				http.Error(writer, "Internal URLs are not handled yet", http.StatusBadRequest)
+				http.Error(writer, "URL is malformed", http.StatusBadRequest)
 			}
 
 			metadataID := match[1]
@@ -188,14 +187,6 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 			return
 		}
 
-		export, err := image.ToBytes()
-		if err != nil {
-			log.Err(err).Msg("Failed to convert image to bytes")
-			http.Error(writer, "Failed to convert image to bytes", http.StatusInternalServerError)
-		}
-
-		buffer = *bytes.NewBuffer(export)
-
 		// If the request wants a specific size, resize the image
 		if imageQuery.Height != 0 && imageQuery.Width != 0 {
 			sourceWidth := image.Width()
@@ -255,16 +246,22 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 			buffer = *bytes.NewBuffer(export)
 		}
 
-		filetype := http.DetectContentType(buffer.Bytes())
+		export, _, err := image.ExportJpeg(vips.NewJpegExportParams())
+		if err != nil {
+			log.Err(err).Msg("Failed to set image format")
+			http.Error(writer, "Failed to set image format", http.StatusInternalServerError)
 
-		writer.Header().Set("Content-Type", filetype)
+			return
+		}
 
-		_, err = writer.Write(buffer.Bytes())
+		buffer = *bytes.NewBuffer(export)
+
+		writer.Header().Set("Cache-Control", "max-age=604800")
+
+		_, err = io.Copy(writer, &buffer)
 		if err != nil {
 			log.Err(err).Msg("Failed to write image")
 			http.Error(writer, "Failed to write image", http.StatusInternalServerError)
-
-			return
 		}
 	} else {
 		http.Error(writer, "Invalid URL", http.StatusBadRequest)
