@@ -1,0 +1,13 @@
+# 1.0.0 (2022-01-27)
+
+
+### Bug Fixes
+
+* **graphql:** add totalCount to allItems mutation ([d4c4fd4](https://github.com/meteorae/server/commit/d4c4fd4d62c957792a7eb4e7087016afca5f2b82))
+* improve login payload ([d4633aa](https://github.com/meteorae/server/commit/d4633aa6b39e6bdc9f1966ac31322ff1fe3273a5))
+* **transcode:** remove useless buffer to byte conversion ([e94327e](https://github.com/meteorae/server/commit/e94327e421557669fdbcf1405f479a110828144b))
+
+
+### Features
+
+* improve request logging ([7edf1f0](https://github.com/meteorae/server/commit/7edf1f0ea5cdbe9dda01544e469dfb660d9a374c))
