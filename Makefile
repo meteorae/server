@@ -11,12 +11,14 @@ BUILD_DATE = $(shell date '+%Y-%m-%d-%H:%M:%S')
 TAGS = json1,icu
 
 clean:
+	rm -f spellfix.so
+	rm -f $(BIN_NAME)-linux-x64
 	rm -rf bin
-	rm -f spellfix.c
 
 build:
 	make clean
 	make download-spellfix
+	make download-web
 	@echo "Building ${BIN_NAME}"
 ifeq ($(UNAME_S),Darwin)
 	export CGO_CFLAGS_ALLOW="-Xpreprocessor"
@@ -36,7 +38,14 @@ endif
 
 run-linux:
 	make build
-	./bin/linux-x64/$(BIN_NAME)
+	cp bin/linux-x64/$(BIN_NAME)-linux-x64 .
+	cp bin/linux-x64/spellfix.so .
+	./$(BIN_NAME)-linux-x64
+
+download-web:
+	curl -L https://github.com/meteorae/web/releases/latest/download/web.zip > server/handlers/web/web.zip
+	unzip -o server/handlers/web/web.zip -d server/handlers/web/client/
+	rm server/handlers/web/web.zip
 
 download-spellfix:
 	@echo "Downloading spellfix extension for SQLite"

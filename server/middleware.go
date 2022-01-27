@@ -15,6 +15,7 @@ import (
 	"github.com/meteorae/meteorae-server/helpers"
 	"github.com/meteorae/meteorae-server/server/handlers/image/transcode"
 	"github.com/meteorae/meteorae-server/server/handlers/library"
+	"github.com/meteorae/meteorae-server/server/handlers/web"
 	"github.com/meteorae/meteorae-server/utils"
 	"github.com/rs/zerolog/hlog"
 	"github.com/rs/zerolog/log"
@@ -111,25 +112,29 @@ func GetWebServer() (*http.Server, error) {
 
 	loggingHandler := alice.New()
 	loggingHandler = loggingHandler.Append(hlog.NewHandler(log.Logger))
-	loggingHandler = loggingHandler.Append(hlog.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
-		hlog.FromRequest(r).Info().
-			Str("method", r.Method).
-			Stringer("url", r.URL).
-			Int("status", status).
-			Int("size", size).
-			Dur("duration", duration).
-			Msg("")
-	}))
+	loggingHandler = loggingHandler.Append(hlog.AccessHandler(
+		func(r *http.Request, status, size int, duration time.Duration) {
+			hlog.FromRequest(r).Info().
+				Str("method", r.Method).
+				Stringer("url", r.URL).
+				Int("status", status).
+				Int("size", size).
+				Dur("duration", duration).
+				Msg("")
+		}))
 	loggingHandler = loggingHandler.Append(hlog.RemoteAddrHandler("ip"))
 	loggingHandler = loggingHandler.Append(hlog.UserAgentHandler("user_agent"))
 	loggingHandler = loggingHandler.Append(hlog.RefererHandler("referer"))
 	loggingHandler = loggingHandler.Append(hlog.RequestIDHandler("req_id", "Request-Id"))
+
+	spa := web.SPAHandler{}
 
 	router.Handle("/setup", loggingHandler.Then(http.HandlerFunc(setupHandler))).Methods("GET")
 	router.Handle("/graphql", loggingHandler.Then(graphQlHandler))
 	router.Handle("/image/transcode", loggingHandler.Then(http.HandlerFunc(transcodeHandler.HTTPHandler)))
 	router.Handle("/library/{metadata}/{part}/file.{ext}",
 		loggingHandler.Then(http.HandlerFunc(library.MediaPartHTTPHandler)))
+	router.PathPrefix("/").Handler(loggingHandler.Then(spa))
 	router.Use(LoggingMiddleware)
 	router.Use(AuthMiddleware)
 

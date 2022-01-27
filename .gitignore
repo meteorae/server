@@ -1,7 +1,13 @@
 ### Meteorae ###
 bin/
 meteorae.db
-spellfix.c
+spellfix.dll
+spellfix.dylib
+spellfix.so
+meteorae-linux-x64
+meteorae-windows-x64.exe
+meteorae-darwin-intel
+meteorae-darwin-apple
 
 ### Go ###
 # Binaries for programs and plugins
