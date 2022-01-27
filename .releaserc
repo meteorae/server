@@ -1,0 +1,38 @@
+{
+  "branches": [
+    "master"
+  ],
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    [
+      "@semantic-release/changelog",
+      {
+        "changelogFile": "CHANGELOG.md"
+      }
+    ],
+    [
+      "@semantic-release/git",
+      {
+        "assets": [
+          "CHANGELOG.md"
+        ]
+      }
+    ],
+    [
+      "@semantic-release/github",
+      {
+        "assets": [
+          {
+            "path": "bin/linux-x64.zip",
+            "label": "Linux (x64)"
+          },
+          {
+            "path": "bin/windows-x64.zip",
+            "label": "Windows (x64)"
+          }
+        ]
+      }
+    ]
+  ]
+}

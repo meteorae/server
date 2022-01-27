@@ -24,10 +24,12 @@ type entrypoint struct {
 }
 
 var libNames = []entrypoint{
-	{"./libgo-sqlite3-spellfix", "sqlite3_spellfix_init"},
+	{"./spellfix.dll", "sqlite3_spellfix_init"},
+	{"./spellfix.so", "sqlite3_spellfix_init"},
+	{"./spellfix.dylib", "sqlite3_spellfix_init"},
 }
 
-var errLibraryNotFound = errors.New("libgo-sqlite3-spellfix not found")
+var errLibraryNotFound = errors.New("spellfix not found")
 
 func GetDatabase(zerologger zerolog.Logger) error {
 	newLogger := logger.New(
