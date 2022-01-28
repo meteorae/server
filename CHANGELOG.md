@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/meteorae/server/compare/v1.1.0...v1.2.0) (2022-01-28)
+
+
+### Features
+
+* **graphql:** add library-related queries ([2bf648f](https://github.com/meteorae/server/commit/2bf648fd2a71ecb3b90949fd0e90281b6aad4c66))
+
 # [1.1.0](https://github.com/meteorae/server/compare/v1.0.0...v1.1.0) (2022-01-27)
 
 
