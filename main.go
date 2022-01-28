@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	_ "github.com/99designs/gqlgen/cmd"
 	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/getsentry/sentry-go"
 	"github.com/meteorae/meteorae-server/database"

@@ -1,0 +1,78 @@
+schema {
+  query: Query
+  mutation: Mutation
+}
+
+type Query {
+  user(id: ID!): User
+  users(limit: Int, offset: Int): UsersResult
+  item(id: ID!): Metadata
+  items(limit: Int, offset: Int, libraryId: ID!): ItemsResult
+}
+
+type Mutation {
+  login(username: String!, password: String!): AuthPayload!
+  register(username: String!, password: String!): AuthPayload!
+  addLibrary(
+    type: String!
+    name: String!
+    language: String!
+    locations: [String!]!
+  ): Library!
+}
+
+"Authentication payload returned on successful login."
+type AuthPayload {
+  token: String!
+  user: User!
+}
+
+type UsersResult {
+  users: [User]
+  total: Int
+}
+
+type ItemsResult {
+  items: [Metadata]
+  total: Int
+}
+
+"User model"
+type User {
+  id: ID!
+  username: String!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+type Library {
+  id: ID!
+  name: String!
+  type: String!
+  language: String!
+  locations: [String!]!
+  createdAt: Time!
+  updatedAt: Time!
+  scannedAt: Time!
+}
+
+interface Item {
+  id: ID!
+  title: String!
+}
+
+type Movie implements Item {
+  id: ID!
+  title: String!
+  releaseDate: Int!
+  plot: String!
+  thumb: String!
+  art: String!
+  createdAt: Time!
+  updatedAt: Time!
+  library: Library!
+}
+
+union Metadata = Movie
+
+scalar Time

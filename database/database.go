@@ -74,7 +74,7 @@ func Migrate() error {
 
 	migrations.InitSchema(func(transaction *gorm.DB) error {
 		err := transaction.AutoMigrate(
-			&models.Account{},
+			&models.User{},
 			&models.ExternalIdentifier{},
 			&models.Library{},
 			&models.LibraryLocation{},

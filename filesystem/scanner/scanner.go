@@ -16,7 +16,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func ScanDirectory(directory string, database *gorm.DB, libraryType models.LibraryType) {
+func ScanDirectory(directory string, database *gorm.DB, library models.Library) {
 	err := filepath.WalkDir(directory, func(path string, dirEntry fs.DirEntry, walkErr error) error {
 		// TODO: We should probably handle different types differently
 		log.Debug().Msgf("Found file: %s", path)
@@ -64,7 +64,7 @@ func ScanDirectory(directory string, database *gorm.DB, libraryType models.Libra
 		// Schedule the file resolution job
 		err = ants.Submit(func() {
 			log.Debug().Msgf("Scheduling resolution job for %s", newMediaPart.FilePath)
-			resolvers.ResolveFile(&newMediaPart, database, libraryType)
+			resolvers.ResolveFile(&newMediaPart, database, library)
 		})
 
 		if err != nil {

@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type LibraryType string
 
@@ -11,6 +14,41 @@ const (
 	AnimeTVLibrary    LibraryType = "animeTV"
 	MusicLibrary      LibraryType = "music"
 )
+
+func (l LibraryType) String() string {
+	return string(l)
+}
+
+func LibraryTypeFromString(input string) (l LibraryType, err error) {
+	err = l.UnmarshalText([]byte(input))
+
+	return
+}
+
+func (l *LibraryType) MarshalText() (text []byte, err error) {
+	text = []byte(l.String())
+
+	return
+}
+
+func (l *LibraryType) UnmarshalText(text []byte) (err error) {
+	switch string(text) {
+	case "movie":
+		*l = MovieLibrary
+	case "animeMovie":
+		*l = AnimeMovieLibrary
+	case "tv":
+		*l = TVLibrary
+	case "animeTV":
+		*l = AnimeTVLibrary
+	case "music":
+		*l = MusicLibrary
+	default:
+		return fmt.Errorf("unknown library type: %s", string(text))
+	}
+
+	return
+}
 
 type Library struct {
 	ID               uint64            `gorm:"primary_key" json:"id"`

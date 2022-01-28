@@ -11,6 +11,8 @@ linters:
     - "style"
     - "unused"
   disable:
+    # gqlgen currently breaks this rule and any comment is stripped when regenerating
+    - "ireturn"
     # These are deprecated
     - "scopelint"
     - "golint"

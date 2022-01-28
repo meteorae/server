@@ -11,9 +11,9 @@ import (
 	"gorm.io/gorm"
 )
 
-func ResolveFile(mediaPart *models.MediaPart, database *gorm.DB, libraryType models.LibraryType) {
-	if libraryType == models.MovieLibrary || libraryType == models.TVLibrary ||
-		libraryType == models.AnimeMovieLibrary || libraryType == models.AnimeTVLibrary {
+func ResolveFile(mediaPart *models.MediaPart, database *gorm.DB, library models.Library) {
+	if library.Type == models.MovieLibrary || library.Type == models.TVLibrary ||
+		library.Type == models.AnimeMovieLibrary || library.Type == models.AnimeTVLibrary {
 		// For video-based libraries, we check if it's in our supported video extensions
 		if videoResolver.IsValidVideoFile(mediaPart.FilePath) {
 			// If it's a video file, analyze it early, so the workers run while we're resolving the file itself
@@ -27,10 +27,10 @@ func ResolveFile(mediaPart *models.MediaPart, database *gorm.DB, libraryType mod
 				log.Err(err).Msgf("Could not schedule analyzis job for %s", mediaPart.FilePath)
 			}
 
-			switch libraryType {
+			switch library.Type {
 			case models.MovieLibrary:
 				// TODO: Handle movie extras
-				err := movieResolver.Resolve(mediaPart, database, libraryType)
+				err := movieResolver.Resolve(mediaPart, database, library)
 				if err != nil {
 					log.Error().Err(err).Msg("Could not resolve movie")
 				}
@@ -43,7 +43,7 @@ func ResolveFile(mediaPart *models.MediaPart, database *gorm.DB, libraryType mod
 			case models.MusicLibrary:
 				log.Error().Msg("Music libraries not yet supported")
 			default:
-				log.Error().Msgf("Unhandled video library type %s", libraryType)
+				log.Error().Msgf("Unhandled video library type %s", library.Type)
 			}
 		} else if audioResolver.IsValidAudioFile(mediaPart.FilePath) {
 			// If it's an audio file, analyze it early, so the workers run while we're resolving the file itself

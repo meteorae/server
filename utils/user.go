@@ -10,12 +10,12 @@ type (
 	authString string
 )
 
-func GetContextWithUser(ctx context.Context, user *models.Account) context.Context {
+func GetContextWithUser(ctx context.Context, user *models.User) context.Context {
 	return context.WithValue(ctx, authString("user"), *user)
 }
 
-func GetUserFromContext(ctx context.Context) *models.Account {
-	raw, ok := ctx.Value(authString("user")).(models.Account)
+func GetUserFromContext(ctx context.Context) *models.User {
+	raw, ok := ctx.Value(authString("user")).(models.User)
 	if !ok {
 		return nil
 	}

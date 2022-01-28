@@ -26,7 +26,8 @@ var config = tmdb.Config{
 
 var tmdbAPI *tmdb.TMDb = tmdb.Init(config)
 
-func GetMovieInfoFromTmdb(movie *PTN.TorrentInfo, mediaPart *models.MediaPart) (*models.ItemMetadata, error) {
+func GetMovieInfoFromTmdb(movie *PTN.TorrentInfo, mediaPart *models.MediaPart,
+	library models.Library) (*models.ItemMetadata, error) {
 	// Remove unwanted characters from the title
 	movie.Title = utils.RemoveUnwantedCharacters(movie.Title)
 
@@ -103,6 +104,7 @@ func GetMovieInfoFromTmdb(movie *PTN.TorrentInfo, mediaPart *models.MediaPart) (
 			Thumb:            posterHash,
 			Art:              artHash,
 			MediaPart:        *mediaPart,
+			Library:          library,
 		}, nil
 	}
 

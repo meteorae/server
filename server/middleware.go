@@ -1,17 +1,19 @@
 package server
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/gorilla/mux"
 	"github.com/justinas/alice"
 	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/database/models"
-	"github.com/meteorae/meteorae-server/graphql"
+	"github.com/meteorae/meteorae-server/graph"
+	"github.com/meteorae/meteorae-server/graph/generated"
 	"github.com/meteorae/meteorae-server/helpers"
 	"github.com/meteorae/meteorae-server/server/handlers/image/transcode"
 	"github.com/meteorae/meteorae-server/server/handlers/library"
@@ -49,7 +51,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		bearer := "Bearer "
 		auth = auth[len(bearer):]
 
-		validate, err := helpers.ValidateJwt(context.Background(), auth)
+		validate, err := helpers.ValidateJwt(auth)
 		if err != nil || !validate.Valid {
 			log.Error().Msg("Request attempted with invalid token")
 			http.Error(writer, "Invalid token", http.StatusForbidden)
@@ -59,7 +61,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 
 		customClaim, _ := validate.Claims.(*helpers.JwtClaim)
 
-		var account models.Account
+		var account models.User
 		result := database.DB.Where("id = ?", customClaim.UserID).First(&account)
 		log.Debug().Msgf("Request from %s", account.Username)
 		if result.Error != nil {
@@ -81,7 +83,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 func setupHandler(writer http.ResponseWriter, request *http.Request) {
 	var userCount int64
 
-	result := database.DB.Model(&models.Account{}).Count(&userCount)
+	result := database.DB.Model(&models.User{}).Count(&userCount)
 	if result.Error != nil {
 		http.Error(writer, result.Error.Error(), http.StatusInternalServerError)
 	}
@@ -103,7 +105,7 @@ func GetWebServer() (*http.Server, error) {
 	// Setup webserver and serve GraphQL handler
 	router := mux.NewRouter()
 
-	graphQlHandler := graphql.GetHandler()
+	queryHandler := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: &graph.Resolver{}}))
 
 	transcodeHandler, err := transcode.NewImageHandler()
 	if err != nil {
@@ -130,7 +132,8 @@ func GetWebServer() (*http.Server, error) {
 	spa := web.SPAHandler{}
 
 	router.Handle("/setup", loggingHandler.Then(http.HandlerFunc(setupHandler))).Methods("GET")
-	router.Handle("/graphql", loggingHandler.Then(graphQlHandler))
+	router.Handle("/query", loggingHandler.Then(queryHandler))
+	router.Handle("/playground", loggingHandler.Then(playground.Handler("GraphQL playground", "/query")))
 	router.Handle("/image/transcode", loggingHandler.Then(http.HandlerFunc(transcodeHandler.HTTPHandler)))
 	router.Handle("/library/{metadata}/{part}/file.{ext}",
 		loggingHandler.Then(http.HandlerFunc(library.MediaPartHTTPHandler)))

@@ -1,7 +1,6 @@
 package helpers
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -20,7 +19,7 @@ type JwtClaim struct {
 // TODO: Don't hardcode this, store it in the config file.
 var jwtSecret = []byte("secret")
 
-func GenerateJwt(ctx context.Context, userID string) (string, error) {
+func GenerateJwt(userID string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &JwtClaim{
 		UserID: userID,
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -37,7 +36,7 @@ func GenerateJwt(ctx context.Context, userID string) (string, error) {
 	return tokenString, nil
 }
 
-func ValidateJwt(ctx context.Context, token string) (*jwt.Token, error) {
+func ValidateJwt(token string) (*jwt.Token, error) {
 	parsedToken, err := jwt.ParseWithClaims(token, &JwtClaim{}, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errSigningMethod
