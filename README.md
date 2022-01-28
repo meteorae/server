@@ -1,7 +1,34 @@
-# Meteorae
+<h1 align="center">Meteorae</h1>
 
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/meteorae/server/main) ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/meteorae/server) ![GitHub release (latest by SemVer)](https://img.shields.io/github/downloads/meteorae/server/latest/total) ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/meteorae/server) ![GitHub](https://img.shields.io/github/license/meteorae/server)  
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=meteorae_server&metric=coverage)](https://sonarcloud.io/summary/new_code?id=meteorae_server) [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=meteorae_server&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=meteorae_server) [![Technical Debt](https://sonarcloud.io/api/project_badges/measure?project=meteorae_server&metric=sqale_index)](https://sonarcloud.io/summary/new_code?id=meteorae_server) [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=meteorae_server&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=meteorae_server)
+<p align="center">
+    <img alt="GitHub Workflow Status" src="https://img.shields.io/github/workflow/status/meteorae/server/main">
+    <a href="">
+        <img alt="Discord" src="https://img.shields.io/discord/935381762362712084">
+    </a>
+    <a href="https://github.com/meteorae/server/issues">
+        <img alt="GitHub issues" src="https://img.shields.io/github/issues/meteorae/server">
+    </a>
+    <img alt="GitHub release (latest SemVer)" src="https://img.shields.io/github/v/release/meteorae/server">
+    <img alt="GitHub all releases" src="https://img.shields.io/github/downloads/meteorae/server/total">
+</p>
+<p align="center">
+    <a href="https://sonarcloud.io/summary/new_code?id=meteorae_server">
+        <img alt="Coverage" src="https://sonarcloud.io/api/project_badges/measure?project=meteorae_server&metric=coverage">
+    </a>
+    <a href="https://sonarcloud.io/summary/new_code?id=meteorae_server">
+        <img alt="Maintainability Rating" src="https://sonarcloud.io/api/project_badges/measure?project=meteorae_server&metric=sqale_rating">
+    </a>
+    <a href="https://sonarcloud.io/summary/new_code?id=meteorae_server">
+        <img alt="Technical Debt" src="https://sonarcloud.io/api/project_badges/measure?project=meteorae_server&metric=sqale_index">
+    </a>
+</p>
+<p align="center">
+    <img alt="GitHub" src="https://img.shields.io/github/license/meteorae/server">
+    <img alt="GitHub contributors" src="https://img.shields.io/github/contributors-anon/meteorae/server">
+    <a href="http://commitizen.github.io/cz-cli">
+        <img alt="Commitizen friendly" src="https://img.shields.io/badge/commitizen-friendly-brightgreen.svg">
+    </a>
+</p>
 
 ## What is Meteorae
 
@@ -11,7 +38,11 @@ Meteorae is built from the ground up to support every media type and allow for c
 
 In short, Meteorae helps you explore your content through an extensive relationship graph, making it easier to find movies, series, books or music you want to experience.
 
-But Meteorae is also built with a specific idea of how your media server should work on a technical level. From handling very large playlists, to deeply analyzing your files or shuffling your music in the best way possible, Meteorae makes opinionated choices as to how things _should_ work.
+## Running
+
+Meteorae is still in early development. While the current offering is bare-bones, we provide automated releases for Linux (Ubuntu 20.04) and Windows.
+
+Fully-signed macOS binaries are planned, but require some exploration to figure out how to build them in our CI, while also performing the automated release process.
 
 ## Building
 
