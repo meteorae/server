@@ -5,8 +5,6 @@ go 1.17
 require (
 	github.com/99designs/gqlgen v0.16.0
 	github.com/gorilla/mux v1.8.0
-	github.com/graphql-go/graphql v0.8.0
-	github.com/graphql-go/handler v0.2.3
 	github.com/middelink/go-parse-torrent-name v0.0.0-20190301154245-3ff4efacd4c4
 	github.com/panjf2000/ants/v2 v2.4.7
 	github.com/ryanbradynd05/go-tmdb v0.0.0-20201006144520-c0566c3d1506

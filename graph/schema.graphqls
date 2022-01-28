@@ -4,15 +4,26 @@ schema {
 }
 
 type Query {
+  "Query the specified user."
   user(id: ID!): User
+  "Query all users."
   users(limit: Int, offset: Int): UsersResult
+  "Query the specified item."
   item(id: ID!): Metadata
+  "Query all items."
   items(limit: Int, offset: Int, libraryId: ID!): ItemsResult
+  "Query the specified library."
+  library(id: ID!): Library
+  "Query all libraries."
+  libraries: LibrariesResult
 }
 
 type Mutation {
+  "Authenticate user with the provided username and password."
   login(username: String!, password: String!): AuthPayload!
+  "Create a new user with the provided username and password."
   register(username: String!, password: String!): AuthPayload!
+  "Add a new library of the specified type, with the provided name, language and location. This will trigger a scan for all locations provided."
   addLibrary(
     type: String!
     name: String!
@@ -27,17 +38,25 @@ type AuthPayload {
   user: User!
 }
 
+"Result of a query containing multiple users."
 type UsersResult {
   users: [User]
   total: Int
 }
 
+"Result of a query containing multiple items."
 type ItemsResult {
   items: [Metadata]
   total: Int
 }
 
-"User model"
+"Result of a query containing multiple libraries."
+type LibrariesResult {
+  libraries: [Library]
+  total: Int
+}
+
+"User account information."
 type User {
   id: ID!
   username: String!
@@ -45,6 +64,7 @@ type User {
   updatedAt: Time!
 }
 
+"Library information."
 type Library {
   id: ID!
   name: String!
@@ -56,11 +76,13 @@ type Library {
   scannedAt: Time!
 }
 
+"Item information."
 interface Item {
   id: ID!
   title: String!
 }
 
+"Item information about a movie."
 type Movie implements Item {
   id: ID!
   title: String!

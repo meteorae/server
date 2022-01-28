@@ -38,12 +38,14 @@ func (r *libraryResolver) Locations(ctx context.Context, obj *models.Library) ([
 	return locations, nil
 }
 
-func (r *mutationResolver) Login(ctx context.Context, username, password string) (*model.AuthPayload, error) {
+func (r *mutationResolver) Login(ctx context.Context, username string,
+	password string) (*model.AuthPayload, error) {
 	var account models.User
 
 	result := database.DB.Where("username = ?", username).First(&account)
 	if result.Error != nil {
 		log.Error().Err(result.Error).Msg("Failed to find user")
+
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, errInvalidCredentials
 		}
@@ -109,7 +111,8 @@ func (r *mutationResolver) Register(ctx context.Context, username, password stri
 	}, nil
 }
 
-func (r *mutationResolver) AddLibrary(ctx context.Context, typeArg, name, language string, locations []string) (*models.Library, error) {
+func (r *mutationResolver) AddLibrary(ctx context.Context, typeArg, name,
+	language string, locations []string) (*models.Library, error) {
 	var libraryLocations []models.LibraryLocation //nolint:prealloc
 	for _, location := range locations {
 		libraryLocations = append(libraryLocations, models.LibraryLocation{
@@ -216,6 +219,29 @@ func (r *queryResolver) Items(ctx context.Context, limit, offset *int64, library
 	return &model.ItemsResult{
 		Items: resultItems,
 		Total: &count,
+	}, nil
+}
+
+func (r *queryResolver) Library(ctx context.Context, id string) (*models.Library, error) {
+	var library models.Library
+
+	database.DB.First(&library, id)
+
+	return &library, nil
+}
+
+func (r *queryResolver) Libraries(ctx context.Context) (*model.LibrariesResult, error) {
+	var libraries []*models.Library
+
+	database.DB.Find(&libraries)
+
+	var count int64
+
+	database.DB.Model(&models.Library{}).Count(&count)
+
+	return &model.LibrariesResult{
+		Libraries: libraries,
+		Total:     &count,
 	}, nil
 }
 

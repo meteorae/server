@@ -8,6 +8,7 @@ import (
 	"github.com/meteorae/meteorae-server/database/models"
 )
 
+// Item information.
 type Item interface {
 	IsItem()
 }
@@ -22,11 +23,19 @@ type AuthPayload struct {
 	User  *models.User `json:"user"`
 }
 
+// Result of a query containing multiple items.
 type ItemsResult struct {
 	Items []Metadata `json:"items"`
 	Total *int64     `json:"total"`
 }
 
+// Result of a query containing multiple libraries.
+type LibrariesResult struct {
+	Libraries []*models.Library `json:"libraries"`
+	Total     *int64            `json:"total"`
+}
+
+// Item information about a movie.
 type Movie struct {
 	ID          string          `json:"id"`
 	Title       string          `json:"title"`
@@ -42,6 +51,7 @@ type Movie struct {
 func (Movie) IsItem()     {}
 func (Movie) IsMetadata() {}
 
+// Result of a query containing multiple users.
 type UsersResult struct {
 	Users []*models.User `json:"users"`
 	Total *int64         `json:"total"`
