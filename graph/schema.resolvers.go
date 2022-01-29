@@ -57,7 +57,7 @@ func (r *mutationResolver) Login(ctx context.Context, username, password string)
 		return nil, fmt.Errorf("failed to compare password: %w", err)
 	}
 
-	if !match {
+	if match {
 		token, err := helpers.GenerateJwt(strconv.Itoa(int(account.ID)))
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate JWT: %w", err)
