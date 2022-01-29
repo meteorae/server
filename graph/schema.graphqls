@@ -9,13 +9,15 @@ type Query {
   "Query all users."
   users(limit: Int, offset: Int): UsersResult
   "Query the specified item."
-  item(id: ID!): Metadata
+  item(id: ID!): Item
   "Query all items."
   items(limit: Int, offset: Int, libraryId: ID!): ItemsResult
   "Query the specified library."
   library(id: ID!): Library
   "Query all libraries."
   libraries: LibrariesResult
+  "Query latest content for all libraries."
+  latest(limit: Int): [LatestResult]
 }
 
 type Mutation {
@@ -46,7 +48,7 @@ type UsersResult {
 
 "Result of a query containing multiple items."
 type ItemsResult {
-  items: [Metadata]
+  items: [Item]
   total: Int
 }
 
@@ -76,18 +78,17 @@ type Library {
   scannedAt: Time!
 }
 
+type LatestResult {
+  library: Library!
+  items: [Item]
+}
+
 "Item information."
 interface Item {
   id: ID!
   title: String!
-}
-
-"Item information about a movie."
-type Movie implements Item {
-  id: ID!
-  title: String!
   releaseDate: Int!
-  plot: String!
+  summary: String!
   thumb: String!
   art: String!
   createdAt: Time!
@@ -95,6 +96,17 @@ type Movie implements Item {
   library: Library!
 }
 
-union Metadata = Movie
+"Item information about a movie."
+type Movie implements Item {
+  id: ID!
+  title: String!
+  releaseDate: Int!
+  summary: String!
+  thumb: String!
+  art: String!
+  createdAt: Time!
+  updatedAt: Time!
+  library: Library!
+}
 
 scalar Time

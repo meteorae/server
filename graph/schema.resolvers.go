@@ -38,8 +38,7 @@ func (r *libraryResolver) Locations(ctx context.Context, obj *models.Library) ([
 	return locations, nil
 }
 
-func (r *mutationResolver) Login(ctx context.Context, username string,
-	password string) (*model.AuthPayload, error) {
+func (r *mutationResolver) Login(ctx context.Context, username, password string) (*model.AuthPayload, error) {
 	var account models.User
 
 	result := database.DB.Where("username = ?", username).First(&account)
@@ -177,7 +176,7 @@ func (r *queryResolver) Users(ctx context.Context, limit, offset *int64) (*model
 	}, nil
 }
 
-func (r *queryResolver) Item(ctx context.Context, id string) (model.Metadata, error) {
+func (r *queryResolver) Item(ctx context.Context, id string) (model.Item, error) {
 	var item models.ItemMetadata
 
 	database.DB.First(&item, id)
@@ -205,7 +204,7 @@ func (r *queryResolver) Items(ctx context.Context, limit, offset *int64, library
 
 	database.DB.Model(&models.ItemMetadata{}).Where("library_id = ?", libraryID).Count(&count)
 
-	resultItems := make([]model.Metadata, 0, len(items))
+	resultItems := make([]model.Item, 0, len(items))
 	for _, item := range items {
 		resultItems = append(resultItems, &model.Movie{
 			ID:          strconv.FormatUint(item.ID, 10), //nolint:gomnd
@@ -243,6 +242,54 @@ func (r *queryResolver) Libraries(ctx context.Context) (*model.LibrariesResult, 
 		Libraries: libraries,
 		Total:     &count,
 	}, nil
+}
+
+func (r *queryResolver) Latest(ctx context.Context, limit *int64) ([]*model.LatestResult, error) {
+	var latest []*model.LatestResult
+
+	var libraries []*models.Library
+
+	librariesResult := database.DB.Find(&libraries)
+	if librariesResult.Error != nil {
+		return nil, fmt.Errorf("failed to get libraries: %w", librariesResult.Error)
+	}
+
+	for _, library := range libraries {
+		var items []models.ItemMetadata
+
+		itemsResult := database.DB.
+			Limit(int(*limit)).
+			Where("library_id = (?)", library.ID).
+			Order("created_at desc").
+			Find(&items)
+		if itemsResult.Error != nil {
+			return nil, fmt.Errorf("failed to get items: %w", itemsResult.Error)
+		}
+
+		resultItems := make([]model.Item, 0, len(items))
+		for _, item := range items {
+			resultItems = append(resultItems, &model.Movie{
+				ID:          strconv.FormatUint(item.ID, 10), //nolint:gomnd
+				Title:       item.Title,
+				ReleaseDate: item.ReleaseDate.Unix(),
+				Summary:     item.Summary,
+				Thumb:       fmt.Sprintf("/image/transcode?url=/metadata/%d/thumb", item.ID),
+				Art:         fmt.Sprintf("/image/transcode?url=/metadata/%d/art", item.ID),
+				CreatedAt:   item.CreatedAt,
+				UpdatedAt:   item.UpdatedAt,
+				Library:     library,
+			})
+		}
+
+		if len(items) > 0 {
+			latest = append(latest, &model.LatestResult{
+				Library: library,
+				Items:   resultItems,
+			})
+		}
+	}
+
+	return latest, nil
 }
 
 func (r *userResolver) ID(ctx context.Context, obj *models.User) (string, error) {

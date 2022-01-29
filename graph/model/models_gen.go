@@ -13,10 +13,6 @@ type Item interface {
 	IsItem()
 }
 
-type Metadata interface {
-	IsMetadata()
-}
-
 // Authentication payload returned on successful login.
 type AuthPayload struct {
 	Token string       `json:"token"`
@@ -25,8 +21,13 @@ type AuthPayload struct {
 
 // Result of a query containing multiple items.
 type ItemsResult struct {
-	Items []Metadata `json:"items"`
-	Total *int64     `json:"total"`
+	Items []Item `json:"items"`
+	Total *int64 `json:"total"`
+}
+
+type LatestResult struct {
+	Library *models.Library `json:"library"`
+	Items   []Item          `json:"items"`
 }
 
 // Result of a query containing multiple libraries.
@@ -40,7 +41,7 @@ type Movie struct {
 	ID          string          `json:"id"`
 	Title       string          `json:"title"`
 	ReleaseDate int64           `json:"releaseDate"`
-	Plot        string          `json:"plot"`
+	Summary     string          `json:"summary"`
 	Thumb       string          `json:"thumb"`
 	Art         string          `json:"art"`
 	CreatedAt   time.Time       `json:"createdAt"`
@@ -48,8 +49,7 @@ type Movie struct {
 	Library     *models.Library `json:"library"`
 }
 
-func (Movie) IsItem()     {}
-func (Movie) IsMetadata() {}
+func (Movie) IsItem() {}
 
 // Result of a query containing multiple users.
 type UsersResult struct {

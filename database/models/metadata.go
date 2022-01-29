@@ -23,5 +23,8 @@ type ItemMetadata struct {
 	Art              string    `json:"art"`
 	MediaPart        MediaPart `json:"mediaPart"`
 	LibraryID        uint64
-	Library          Library `gorm:"not null" json:"library"`
+	Library          Library   `gorm:"not null" json:"library"`
+	CreatedAt        time.Time `json:"createdAt"`
+	UpdatedAt        time.Time `json:"updatedAt"`
+	DeleteAt         time.Time `json:"deleteAt"`
 }

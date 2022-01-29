@@ -58,6 +58,11 @@ type ComplexityRoot struct {
 		Total func(childComplexity int) int
 	}
 
+	LatestResult struct {
+		Items   func(childComplexity int) int
+		Library func(childComplexity int) int
+	}
+
 	LibrariesResult struct {
 		Libraries func(childComplexity int) int
 		Total     func(childComplexity int) int
@@ -79,8 +84,8 @@ type ComplexityRoot struct {
 		CreatedAt   func(childComplexity int) int
 		ID          func(childComplexity int) int
 		Library     func(childComplexity int) int
-		Plot        func(childComplexity int) int
 		ReleaseDate func(childComplexity int) int
+		Summary     func(childComplexity int) int
 		Thumb       func(childComplexity int) int
 		Title       func(childComplexity int) int
 		UpdatedAt   func(childComplexity int) int
@@ -95,6 +100,7 @@ type ComplexityRoot struct {
 	Query struct {
 		Item      func(childComplexity int, id string) int
 		Items     func(childComplexity int, limit *int64, offset *int64, libraryID string) int
+		Latest    func(childComplexity int, limit *int64) int
 		Libraries func(childComplexity int) int
 		Library   func(childComplexity int, id string) int
 		User      func(childComplexity int, id string) int
@@ -129,10 +135,11 @@ type MutationResolver interface {
 type QueryResolver interface {
 	User(ctx context.Context, id string) (*models.User, error)
 	Users(ctx context.Context, limit *int64, offset *int64) (*model.UsersResult, error)
-	Item(ctx context.Context, id string) (model.Metadata, error)
+	Item(ctx context.Context, id string) (model.Item, error)
 	Items(ctx context.Context, limit *int64, offset *int64, libraryID string) (*model.ItemsResult, error)
 	Library(ctx context.Context, id string) (*models.Library, error)
 	Libraries(ctx context.Context) (*model.LibrariesResult, error)
+	Latest(ctx context.Context, limit *int64) ([]*model.LatestResult, error)
 }
 type UserResolver interface {
 	ID(ctx context.Context, obj *models.User) (string, error)
@@ -180,6 +187,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.ItemsResult.Total(childComplexity), true
+
+	case "LatestResult.items":
+		if e.complexity.LatestResult.Items == nil {
+			break
+		}
+
+		return e.complexity.LatestResult.Items(childComplexity), true
+
+	case "LatestResult.library":
+		if e.complexity.LatestResult.Library == nil {
+			break
+		}
+
+		return e.complexity.LatestResult.Library(childComplexity), true
 
 	case "LibrariesResult.libraries":
 		if e.complexity.LibrariesResult.Libraries == nil {
@@ -279,19 +300,19 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Movie.Library(childComplexity), true
 
-	case "Movie.plot":
-		if e.complexity.Movie.Plot == nil {
-			break
-		}
-
-		return e.complexity.Movie.Plot(childComplexity), true
-
 	case "Movie.releaseDate":
 		if e.complexity.Movie.ReleaseDate == nil {
 			break
 		}
 
 		return e.complexity.Movie.ReleaseDate(childComplexity), true
+
+	case "Movie.summary":
+		if e.complexity.Movie.Summary == nil {
+			break
+		}
+
+		return e.complexity.Movie.Summary(childComplexity), true
 
 	case "Movie.thumb":
 		if e.complexity.Movie.Thumb == nil {
@@ -373,6 +394,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.Items(childComplexity, args["limit"].(*int64), args["offset"].(*int64), args["libraryId"].(string)), true
+
+	case "Query.latest":
+		if e.complexity.Query.Latest == nil {
+			break
+		}
+
+		args, err := ec.field_Query_latest_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Latest(childComplexity, args["limit"].(*int64)), true
 
 	case "Query.libraries":
 		if e.complexity.Query.Libraries == nil {
@@ -534,13 +567,15 @@ type Query {
   "Query all users."
   users(limit: Int, offset: Int): UsersResult
   "Query the specified item."
-  item(id: ID!): Metadata
+  item(id: ID!): Item
   "Query all items."
   items(limit: Int, offset: Int, libraryId: ID!): ItemsResult
   "Query the specified library."
   library(id: ID!): Library
   "Query all libraries."
   libraries: LibrariesResult
+  "Query latest content for all libraries."
+  latest(limit: Int): [LatestResult]
 }
 
 type Mutation {
@@ -571,7 +606,7 @@ type UsersResult {
 
 "Result of a query containing multiple items."
 type ItemsResult {
-  items: [Metadata]
+  items: [Item]
   total: Int
 }
 
@@ -601,18 +636,17 @@ type Library {
   scannedAt: Time!
 }
 
+type LatestResult {
+  library: Library!
+  items: [Item]
+}
+
 "Item information."
 interface Item {
   id: ID!
   title: String!
-}
-
-"Item information about a movie."
-type Movie implements Item {
-  id: ID!
-  title: String!
   releaseDate: Int!
-  plot: String!
+  summary: String!
   thumb: String!
   art: String!
   createdAt: Time!
@@ -620,7 +654,18 @@ type Movie implements Item {
   library: Library!
 }
 
-union Metadata = Movie
+"Item information about a movie."
+type Movie implements Item {
+  id: ID!
+  title: String!
+  releaseDate: Int!
+  summary: String!
+  thumb: String!
+  art: String!
+  createdAt: Time!
+  updatedAt: Time!
+  library: Library!
+}
 
 scalar Time
 `, BuiltIn: false},
@@ -781,6 +826,21 @@ func (ec *executionContext) field_Query_items_args(ctx context.Context, rawArgs 
 		}
 	}
 	args["libraryId"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_latest_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *int64
+	if tmp, ok := rawArgs["limit"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
+		arg0, err = ec.unmarshalOInt2ᚖint64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["limit"] = arg0
 	return args, nil
 }
 
@@ -973,9 +1033,9 @@ func (ec *executionContext) _ItemsResult_items(ctx context.Context, field graphq
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.([]model.Metadata)
+	res := resTmp.([]model.Item)
 	fc.Result = res
-	return ec.marshalOMetadata2ᚕgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋgraphᚋmodelᚐMetadata(ctx, field.Selections, res)
+	return ec.marshalOItem2ᚕgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋgraphᚋmodelᚐItem(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _ItemsResult_total(ctx context.Context, field graphql.CollectedField, obj *model.ItemsResult) (ret graphql.Marshaler) {
@@ -1008,6 +1068,73 @@ func (ec *executionContext) _ItemsResult_total(ctx context.Context, field graphq
 	res := resTmp.(*int64)
 	fc.Result = res
 	return ec.marshalOInt2ᚖint64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _LatestResult_library(ctx context.Context, field graphql.CollectedField, obj *model.LatestResult) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "LatestResult",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Library, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*models.Library)
+	fc.Result = res
+	return ec.marshalNLibrary2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚋmodelsᚐLibrary(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _LatestResult_items(ctx context.Context, field graphql.CollectedField, obj *model.LatestResult) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "LatestResult",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Items, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]model.Item)
+	fc.Result = res
+	return ec.marshalOItem2ᚕgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋgraphᚋmodelᚐItem(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _LibrariesResult_libraries(ctx context.Context, field graphql.CollectedField, obj *model.LibrariesResult) (ret graphql.Marshaler) {
@@ -1459,7 +1586,7 @@ func (ec *executionContext) _Movie_releaseDate(ctx context.Context, field graphq
 	return ec.marshalNInt2int64(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Movie_plot(ctx context.Context, field graphql.CollectedField, obj *model.Movie) (ret graphql.Marshaler) {
+func (ec *executionContext) _Movie_summary(ctx context.Context, field graphql.CollectedField, obj *model.Movie) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -1477,7 +1604,7 @@ func (ec *executionContext) _Movie_plot(ctx context.Context, field graphql.Colle
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Plot, nil
+		return obj.Summary, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1907,9 +2034,9 @@ func (ec *executionContext) _Query_item(ctx context.Context, field graphql.Colle
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(model.Metadata)
+	res := resTmp.(model.Item)
 	fc.Result = res
-	return ec.marshalOMetadata2githubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋgraphᚋmodelᚐMetadata(ctx, field.Selections, res)
+	return ec.marshalOItem2githubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋgraphᚋmodelᚐItem(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_items(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -2020,6 +2147,45 @@ func (ec *executionContext) _Query_libraries(ctx context.Context, field graphql.
 	res := resTmp.(*model.LibrariesResult)
 	fc.Result = res
 	return ec.marshalOLibrariesResult2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋgraphᚋmodelᚐLibrariesResult(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_latest(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_latest_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Latest(rctx, args["limit"].(*int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.LatestResult)
+	fc.Result = res
+	return ec.marshalOLatestResult2ᚕᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋgraphᚋmodelᚐLatestResult(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -3439,22 +3605,6 @@ func (ec *executionContext) _Item(ctx context.Context, sel ast.SelectionSet, obj
 	}
 }
 
-func (ec *executionContext) _Metadata(ctx context.Context, sel ast.SelectionSet, obj model.Metadata) graphql.Marshaler {
-	switch obj := (obj).(type) {
-	case nil:
-		return graphql.Null
-	case model.Movie:
-		return ec._Movie(ctx, sel, &obj)
-	case *model.Movie:
-		if obj == nil {
-			return graphql.Null
-		}
-		return ec._Movie(ctx, sel, obj)
-	default:
-		panic(fmt.Errorf("unexpected type %T", obj))
-	}
-}
-
 // endregion ************************** interface.gotpl ***************************
 
 // region    **************************** object.gotpl ****************************
@@ -3520,6 +3670,44 @@ func (ec *executionContext) _ItemsResult(ctx context.Context, sel ast.SelectionS
 		case "total":
 			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._ItemsResult_total(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var latestResultImplementors = []string{"LatestResult"}
+
+func (ec *executionContext) _LatestResult(ctx context.Context, sel ast.SelectionSet, obj *model.LatestResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, latestResultImplementors)
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("LatestResult")
+		case "library":
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._LatestResult_library(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "items":
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._LatestResult_items(ctx, field, obj)
 			}
 
 			out.Values[i] = innerFunc(ctx)
@@ -3701,7 +3889,7 @@ func (ec *executionContext) _Library(ctx context.Context, sel ast.SelectionSet, 
 	return out
 }
 
-var movieImplementors = []string{"Movie", "Item", "Metadata"}
+var movieImplementors = []string{"Movie", "Item"}
 
 func (ec *executionContext) _Movie(ctx context.Context, sel ast.SelectionSet, obj *model.Movie) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, movieImplementors)
@@ -3741,9 +3929,9 @@ func (ec *executionContext) _Movie(ctx context.Context, sel ast.SelectionSet, ob
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
-		case "plot":
+		case "summary":
 			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Movie_plot(ctx, field, obj)
+				return ec._Movie_summary(ctx, field, obj)
 			}
 
 			out.Values[i] = innerFunc(ctx)
@@ -4001,6 +4189,26 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_libraries(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx, innerFunc)
+			}
+
+			out.Concurrently(i, func() graphql.Marshaler {
+				return rrm(innerCtx)
+			})
+		case "latest":
+			field := field
+
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_latest(ctx, field)
 				return res
 			}
 
@@ -4991,11 +5199,107 @@ func (ec *executionContext) marshalOInt2ᚖint64(ctx context.Context, sel ast.Se
 	return res
 }
 
+func (ec *executionContext) marshalOItem2githubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋgraphᚋmodelᚐItem(ctx context.Context, sel ast.SelectionSet, v model.Item) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Item(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOItem2ᚕgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋgraphᚋmodelᚐItem(ctx context.Context, sel ast.SelectionSet, v []model.Item) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOItem2githubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋgraphᚋmodelᚐItem(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	return ret
+}
+
 func (ec *executionContext) marshalOItemsResult2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋgraphᚋmodelᚐItemsResult(ctx context.Context, sel ast.SelectionSet, v *model.ItemsResult) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._ItemsResult(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOLatestResult2ᚕᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋgraphᚋmodelᚐLatestResult(ctx context.Context, sel ast.SelectionSet, v []*model.LatestResult) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOLatestResult2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋgraphᚋmodelᚐLatestResult(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	return ret
+}
+
+func (ec *executionContext) marshalOLatestResult2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋgraphᚋmodelᚐLatestResult(ctx context.Context, sel ast.SelectionSet, v *model.LatestResult) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._LatestResult(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOLibrariesResult2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋgraphᚋmodelᚐLibrariesResult(ctx context.Context, sel ast.SelectionSet, v *model.LibrariesResult) graphql.Marshaler {
@@ -5051,54 +5355,6 @@ func (ec *executionContext) marshalOLibrary2ᚖgithubᚗcomᚋmeteoraeᚋmeteora
 		return graphql.Null
 	}
 	return ec._Library(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalOMetadata2githubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋgraphᚋmodelᚐMetadata(ctx context.Context, sel ast.SelectionSet, v model.Metadata) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._Metadata(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalOMetadata2ᚕgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋgraphᚋmodelᚐMetadata(ctx context.Context, sel ast.SelectionSet, v []model.Metadata) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalOMetadata2githubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋgraphᚋmodelᚐMetadata(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	return ret
 }
 
 func (ec *executionContext) unmarshalOString2string(ctx context.Context, v interface{}) (string, error) {
