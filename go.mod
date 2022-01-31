@@ -8,7 +8,7 @@ require (
 	github.com/middelink/go-parse-torrent-name v0.0.0-20190301154245-3ff4efacd4c4
 	github.com/panjf2000/ants/v2 v2.4.7
 	github.com/ryanbradynd05/go-tmdb v0.0.0-20201006144520-c0566c3d1506
-	github.com/vektah/gqlparser/v2 v2.2.0
+	github.com/vektah/gqlparser/v2 v2.3.1
 	gopkg.in/vansante/go-ffprobe.v2 v2.0.3
 	gorm.io/datatypes v1.0.5
 	gorm.io/driver/sqlite v1.2.6
