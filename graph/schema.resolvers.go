@@ -186,6 +186,7 @@ func (r *queryResolver) Item(ctx context.Context, id string) (model.Item, error)
 		ID:          strconv.FormatUint(item.ID, 10), //nolint:gomnd
 		Title:       item.Title,
 		ReleaseDate: item.ReleaseDate.Unix(),
+		Summary:     item.Summary,
 		Thumb:       fmt.Sprintf("/image/transcode?url=/metadata/%d/thumb", item.ID),
 		Art:         fmt.Sprintf("/image/transcode?url=/metadata/%d/art", item.ID),
 	}, nil
@@ -210,6 +211,7 @@ func (r *queryResolver) Items(ctx context.Context, limit, offset *int64, library
 			ID:          strconv.FormatUint(item.ID, 10), //nolint:gomnd
 			Title:       item.Title,
 			ReleaseDate: item.ReleaseDate.Unix(),
+			Summary:     item.Summary,
 			Thumb:       fmt.Sprintf("/image/transcode?url=/metadata/%d/thumb", item.ID),
 			Art:         fmt.Sprintf("/image/transcode?url=/metadata/%d/art", item.ID),
 		})

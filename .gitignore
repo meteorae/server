@@ -8,6 +8,7 @@ meteorae-linux-x64
 meteorae-windows-x64.exe
 meteorae-darwin-intel
 meteorae-darwin-apple
+server/handlers/web/client/
 
 ### Go ###
 # Binaries for programs and plugins
