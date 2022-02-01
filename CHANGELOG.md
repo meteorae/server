@@ -1,3 +1,17 @@
+# [1.3.0](https://github.com/meteorae/server/compare/v1.2.0...v1.3.0) (2022-02-01)
+
+
+### Bug Fixes
+
+* **auth:** invert password matching condition ([883ea57](https://github.com/meteorae/server/commit/883ea577b681a60cd32917332b2b17084003d31b))
+
+
+### Features
+
+* add Prometheus metrics ([c6f5bab](https://github.com/meteorae/server/commit/c6f5bab82af27340c9d4fd9459a179eea8a9a409))
+* **graphql:** add recently added item query ([d356d8c](https://github.com/meteorae/server/commit/d356d8cdf10bf7ccdc9a29a8c7c2c569264259d2))
+* **themoviedb:** add summary support ([20d41b4](https://github.com/meteorae/server/commit/20d41b403bec3a09116e9c4d2c3159b19c835e0f))
+
 # [1.2.0](https://github.com/meteorae/server/compare/v1.1.0...v1.2.0) (2022-01-28)
 
 
