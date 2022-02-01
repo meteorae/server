@@ -1,4 +1,8 @@
-<h1 align="center">Meteorae</h1>
+<div align="center">
+<img alt="Meteorae logo" src="https://github.com/meteorae/meta/raw/master/assets/logo-raster.png">
+<h1>Meteorae</h1>
+<h2>Self-hosted media server with deep relationships</h2>
+</div>
 
 <p align="center">
     <img alt="GitHub Workflow Status" src="https://img.shields.io/github/workflow/status/meteorae/server/main">
