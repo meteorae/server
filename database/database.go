@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/adrg/xdg"
 	"github.com/go-gormigrate/gormigrate/v2"
 	"github.com/mattn/go-sqlite3"
 	"github.com/meteorae/meteorae-server/database/models"
@@ -57,8 +58,13 @@ func GetDatabase(zerologger zerolog.Logger) error {
 		},
 	})
 
+	databaseLocation, dataFileErr := xdg.DataFile("meteorae/meteorae.db")
+	if dataFileErr != nil {
+		return fmt.Errorf("could not get path for database: %w", dataFileErr)
+	}
+
 	var err error // Linters complain if we initilize this on the next line
-	DB, err = gorm.Open(&sqlite.Dialector{DriverName: "sqlite3-spellfix", DSN: "meteorae.db"}, &gorm.Config{
+	DB, err = gorm.Open(&sqlite.Dialector{DriverName: "sqlite3-spellfix", DSN: databaseLocation}, &gorm.Config{
 		Logger: newLogger,
 	})
 
