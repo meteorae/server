@@ -1,11 +1,14 @@
-package models
+package database
 
 import (
+	"fmt"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"gopkg.in/vansante/go-ffprobe.v2"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type MediaPart struct {
@@ -116,4 +119,59 @@ type MediaStreamInfo struct {
 	Channels           int                       `json:"channels"`
 	ChannelsLayout     string                    `json:"channelLayout"`
 	BitsPerSample      int                       `json:"bitsPerSample"`
+}
+
+func SetAcoustID(mediaPart *MediaPart, acoustID string) {
+	mediaPart.AcoustID = acoustID
+
+	db.Save(&mediaPart)
+}
+
+func CreateMediaStream(title string, streamType StreamType, language string, index int,
+	streamInfo datatypes.JSON, mediaPartID uint64) error {
+	mediaStream := MediaStream{
+		Title:           title,
+		StreamType:      streamType,
+		Language:        language,
+		Index:           index,
+		MediaStreamInfo: streamInfo,
+		MediaPartID:     mediaPartID,
+	}
+
+	result := db.Create(&mediaStream)
+	if result.Error != nil {
+		log.Err(result.Error).Msgf("Could not create stream")
+
+		return result.Error
+	}
+
+	return nil
+}
+
+func CreateMediaPart(path, hash string, size int64) (*MediaPart, error) {
+	newMediaPart := MediaPart{
+		FilePath: path,
+		Hash:     hash,
+		Size:     size,
+	}
+
+	result := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&newMediaPart)
+	// TODO: Check for the actual error type
+	if result.Error != nil {
+		// If the record exist, we already have it, just skip it to save time
+		return nil, fmt.Errorf("failed to create media part: %w", result.Error)
+	}
+
+	return &newMediaPart, nil
+}
+
+func GetMediaPart(metadataID, mediaPartID string) (*MediaPart, error) {
+	var mediaPart MediaPart
+
+	result := db.Find(&mediaPart, "item_metadata_id = ? AND id = ?", metadataID, mediaPartID)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return &mediaPart, nil
 }

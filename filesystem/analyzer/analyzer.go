@@ -9,18 +9,17 @@ import (
 
 	"github.com/dhowden/tag"
 	"github.com/dhowden/tag/mbz"
-	"github.com/meteorae/meteorae-server/database/models"
+	"github.com/meteorae/meteorae-server/database"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/vansante/go-ffprobe.v2"
-	"gorm.io/gorm"
 )
 
 var ffprobeProcessTimeout = 5 * time.Second
 
-func AnalyzeAudio(mediaPart models.MediaPart, database *gorm.DB) error {
+func AnalyzeAudio(mediaPart database.MediaPart) error {
 	log.Debug().Msgf("Analyzing %s", mediaPart.FilePath)
 
-	err := getFfprobeData(mediaPart, database)
+	err := getFfprobeData(mediaPart)
 	if err != nil {
 		return fmt.Errorf("could not get ffprobe data: %w", err)
 	}
@@ -40,17 +39,16 @@ func AnalyzeAudio(mediaPart models.MediaPart, database *gorm.DB) error {
 
 	fingerprint := musicBrainzTags.Get(mbz.AcoustFingerprint)
 	if fingerprint != "" {
-		mediaPart.AcoustID = fingerprint
-		database.Save(&mediaPart)
+		database.SetAcoustID(&mediaPart, fingerprint)
 	}
 
 	return nil
 }
 
-func AnalyzeVideo(mediaPart models.MediaPart, database *gorm.DB) error {
+func AnalyzeVideo(mediaPart database.MediaPart) error {
 	log.Debug().Msgf("Analyzing %s", mediaPart.FilePath)
 
-	err := getFfprobeData(mediaPart, database)
+	err := getFfprobeData(mediaPart)
 	if err != nil {
 		return fmt.Errorf("could not get ffprobe data: %w", err)
 	}
@@ -58,7 +56,7 @@ func AnalyzeVideo(mediaPart models.MediaPart, database *gorm.DB) error {
 	return nil
 }
 
-func getFfprobeData(mediaPart models.MediaPart, database *gorm.DB) error {
+func getFfprobeData(mediaPart database.MediaPart) error {
 	ctx, cancelFn := context.WithTimeout(context.Background(), ffprobeProcessTimeout)
 	defer cancelFn()
 
@@ -68,7 +66,7 @@ func getFfprobeData(mediaPart models.MediaPart, database *gorm.DB) error {
 	}
 
 	for _, stream := range data.Streams {
-		streamInfo := models.MediaStreamInfo{
+		streamInfo := database.MediaStreamInfo{
 			CodecName:          stream.CodecName,
 			CodecLongName:      stream.CodecLongName,
 			CodecType:          stream.CodecType,
@@ -108,35 +106,25 @@ func getFfprobeData(mediaPart models.MediaPart, database *gorm.DB) error {
 			return fmt.Errorf("could not marshal stream info: %w", err)
 		}
 
-		var streamType models.StreamType
+		var streamType database.StreamType
 
 		switch stream.CodecType {
 		case "video":
-			streamType = models.VideoStream
+			streamType = database.VideoStream
 		case "audio":
-			streamType = models.AudioStream
+			streamType = database.AudioStream
 		case "subtitle":
-			streamType = models.SubtitleStream
+			streamType = database.SubtitleStream
 		default:
 			log.Debug().Msgf("Unhandled stream type: %s", stream.CodecType)
 
 			return nil
 		}
 
-		mediaStream := models.MediaStream{
-			Title:           stream.Tags.Title,
-			StreamType:      streamType,
-			Language:        stream.Tags.Language,
-			Index:           stream.Index,
-			MediaStreamInfo: jsonStreamInfo,
-			MediaPartID:     mediaPart.ID,
-		}
-
-		result := database.Create(&mediaStream)
-		if result.Error != nil {
-			log.Err(result.Error).Msgf("Could not create stream %s", mediaPart.FilePath)
-
-			return result.Error
+		err = database.CreateMediaStream(stream.Tags.Title, streamType, stream.Tags.Language,
+			stream.Index, jsonStreamInfo, mediaPart.ID)
+		if err != nil {
+			return fmt.Errorf("could not create stream: %w", err)
 		}
 	}
 

@@ -1,4 +1,4 @@
-package models
+package database
 
 import (
 	"fmt"
@@ -43,8 +43,6 @@ func (l *LibraryType) UnmarshalText(text []byte) (err error) {
 		*l = AnimeTVLibrary
 	case "music":
 		*l = MusicLibrary
-	default:
-		return fmt.Errorf("unknown library type: %s", string(text))
 	}
 
 	return
@@ -69,4 +67,59 @@ type LibraryLocation struct {
 	ScannedAt time.Time `json:"scannedAt"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+func CreateLibrary(name, language, typeArg string, locations []string) (*Library, []LibraryLocation, error) {
+	var libraryLocations []LibraryLocation //nolint:prealloc
+	for _, location := range locations {
+		libraryLocations = append(libraryLocations, LibraryLocation{
+			RootPath:  location,
+			Available: true,
+		})
+	}
+
+	libraryType, err := LibraryTypeFromString(typeArg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid library type: %w", err)
+	}
+
+	library := Library{
+		Name:             name,
+		Type:             libraryType,
+		Language:         language,
+		LibraryLocations: libraryLocations,
+	}
+
+	if result := db.Create(&library); result.Error != nil {
+		return nil, nil, fmt.Errorf("failed to create library: %w", result.Error)
+	}
+
+	return &library, libraryLocations, nil
+}
+
+// Returns the requested fields from the specified library.
+func GetLibrary(id string, fields []string) Library {
+	var library Library
+
+	db.Select(fields).First(&library, id)
+
+	return library
+}
+
+// Returns the requested fields for all libraries.
+func GetLibraries(fields []string) []*Library {
+	var libraries []*Library
+
+	db.Select(fields).Find(&libraries)
+
+	return libraries
+}
+
+// Returns the total number of libraries.
+func GetLibrariesCount() int64 {
+	var count int64
+
+	db.Model(&Library{}).Count(&count)
+
+	return count
 }

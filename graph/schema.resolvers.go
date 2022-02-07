@@ -5,31 +5,28 @@ package graph
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 
 	"github.com/alexedwards/argon2id"
 	"github.com/meteorae/meteorae-server/database"
-	"github.com/meteorae/meteorae-server/database/models"
 	"github.com/meteorae/meteorae-server/filesystem/scanner"
 	"github.com/meteorae/meteorae-server/graph/generated"
 	"github.com/meteorae/meteorae-server/graph/model"
 	"github.com/meteorae/meteorae-server/helpers"
 	ants "github.com/panjf2000/ants/v2"
 	"github.com/rs/zerolog/log"
-	"gorm.io/gorm"
 )
 
-func (r *libraryResolver) ID(ctx context.Context, obj *models.Library) (string, error) {
+func (r *libraryResolver) ID(ctx context.Context, obj *database.Library) (string, error) {
 	return strconv.FormatUint(obj.ID, 10), nil //nolint:gomnd
 }
 
-func (r *libraryResolver) Type(ctx context.Context, obj *models.Library) (string, error) {
+func (r *libraryResolver) Type(ctx context.Context, obj *database.Library) (string, error) {
 	return obj.Type.String(), nil
 }
 
-func (r *libraryResolver) Locations(ctx context.Context, obj *models.Library) ([]string, error) {
+func (r *libraryResolver) Locations(ctx context.Context, obj *database.Library) ([]string, error) {
 	locations := make([]string, 0, len(obj.LibraryLocations))
 	for _, location := range obj.LibraryLocations {
 		locations = append(locations, location.RootPath)
@@ -39,33 +36,27 @@ func (r *libraryResolver) Locations(ctx context.Context, obj *models.Library) ([
 }
 
 func (r *mutationResolver) Login(ctx context.Context, username, password string) (*model.AuthPayload, error) {
-	var account models.User
+	user, err := database.GetUserByName(username, getPreloads(ctx))
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get user")
 
-	result := database.DB.Where("username = ?", username).First(&account)
-	if result.Error != nil {
-		log.Error().Err(result.Error).Msg("Failed to find user")
-
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, errInvalidCredentials
-		}
-
-		return nil, result.Error
+		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 
-	match, err := argon2id.ComparePasswordAndHash(password, account.Password)
+	match, err := argon2id.ComparePasswordAndHash(password, user.Password)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compare password: %w", err)
 	}
 
 	if match {
-		token, err := helpers.GenerateJwt(strconv.Itoa(int(account.ID)))
+		token, err := helpers.GenerateJwt(strconv.Itoa(int(user.ID)))
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate JWT: %w", err)
 		}
 
 		return &model.AuthPayload{
 			Token: token,
-			User:  &account,
+			User:  user,
 		}, nil
 	}
 
@@ -73,102 +64,59 @@ func (r *mutationResolver) Login(ctx context.Context, username, password string)
 }
 
 func (r *mutationResolver) Register(ctx context.Context, username, password string) (*model.AuthPayload, error) {
-	var account models.User
-
-	result := database.DB.Where("username = ?", username).First(&account)
-	if result.Error == nil {
-		// If the user exists, prevent registering one with the same name
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, result.Error
-		}
-	}
-
-	passwordHash, err := argon2id.CreateHash(password, argon2id.DefaultParams)
+	user, err := database.CreateUser(username, password)
 	if err != nil {
-		log.Err(err).Msg("Could not create password hash")
+		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
-	newAccount := models.User{
-		Username: username,
-		Password: passwordHash,
-	}
-
-	result = database.DB.Create(&newAccount)
-
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to create user: %w", result.Error)
-	}
-
-	token, err := helpers.GenerateJwt(strconv.Itoa(int(newAccount.ID)))
+	token, err := helpers.GenerateJwt(strconv.Itoa(int(user.ID)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate JWT: %w", err)
 	}
 
 	return &model.AuthPayload{
 		Token: token,
-		User:  &newAccount,
+		User:  user,
 	}, nil
 }
 
-func (r *mutationResolver) AddLibrary(ctx context.Context, typeArg, name,
-	language string, locations []string) (*models.Library, error) {
-	var libraryLocations []models.LibraryLocation //nolint:prealloc
-	for _, location := range locations {
-		libraryLocations = append(libraryLocations, models.LibraryLocation{
-			RootPath:  location,
-			Available: true,
-		})
-	}
-
-	libraryType, err := models.LibraryTypeFromString(typeArg)
+func (r *mutationResolver) AddLibrary(ctx context.Context, typeArg, name, language string,
+	locations []string) (*database.Library, error) {
+	library, libraryLocations, err := database.CreateLibrary(name, language, typeArg, locations)
 	if err != nil {
-		return nil, fmt.Errorf("invalid library type: %w", err)
+		log.Error().Err(err).Msg("Failed to create library")
+
+		return nil, fmt.Errorf("failed to create library: %w", err)
 	}
 
-	newLibrary := models.Library{
-		Name:             name,
-		Type:             libraryType,
-		Language:         language,
-		LibraryLocations: libraryLocations,
-	}
-
-	result := database.DB.Create(&newLibrary)
-
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to create library: %w", result.Error)
-	}
-
+	// TODO: Move this to a library manager
 	for _, location := range libraryLocations {
 		err := ants.Submit(func() {
-			scanner.ScanDirectory(location.RootPath, database.DB, newLibrary)
+			scanner.ScanDirectory(location.RootPath, *library)
 		})
 		if err != nil {
 			log.Err(err).Msgf("Failed to schedule directory scan for %s", location.RootPath)
 		}
 	}
 
-	return &newLibrary, nil
+	return library, nil
 }
 
-func (r *queryResolver) User(ctx context.Context, id string) (*models.User, error) {
-	var user models.User
+func (r *queryResolver) User(ctx context.Context, id string) (*database.User, error) {
+	user, err := database.GetUserByID(id, getPreloads(ctx))
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get user")
 
-	database.DB.First(&user, id)
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
 
-	return &user, nil
+	return user, nil
 }
 
 func (r *queryResolver) Users(ctx context.Context, limit, offset *int64) (*model.UsersResult, error) {
-	var users []*models.User
+	users := database.GetUsers(getPreloads(ctx))
 
-	database.DB.
-		Limit(int(*limit)).
-		Offset(int(*offset)).
-		Find(&users)
-
-	var count int64
-
-	database.DB.Model(&models.User{}).Count(&count)
+	count := database.GetUsersCount()
 
 	return &model.UsersResult{
 		Users: users,
@@ -177,9 +125,12 @@ func (r *queryResolver) Users(ctx context.Context, limit, offset *int64) (*model
 }
 
 func (r *queryResolver) Item(ctx context.Context, id string) (model.Item, error) {
-	var item models.ItemMetadata
+	item, err := database.GetItemByID(id)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get item")
 
-	database.DB.First(&item, id)
+		return nil, fmt.Errorf("failed to get item: %w", err)
+	}
 
 	// TODO; Properly handle all item types
 	return &model.Movie{
@@ -193,17 +144,19 @@ func (r *queryResolver) Item(ctx context.Context, id string) (model.Item, error)
 }
 
 func (r *queryResolver) Items(ctx context.Context, limit, offset *int64, libraryID string) (*model.ItemsResult, error) {
-	var items []*models.ItemMetadata
+	items, err := database.GetItemsFromLibrary(libraryID, limit, offset)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get items")
 
-	database.DB.
-		Limit(int(*limit)).
-		Offset(int(*offset)).
-		Where("library_id = ?", libraryID).
-		Find(&items)
+		return nil, fmt.Errorf("failed to get items: %w", err)
+	}
 
-	var count int64
+	count, err := database.GetItemsCountFromLibrary(libraryID)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get items count")
 
-	database.DB.Model(&models.ItemMetadata{}).Where("library_id = ?", libraryID).Count(&count)
+		return nil, fmt.Errorf("failed to get items count: %w", err)
+	}
 
 	resultItems := make([]model.Item, 0, len(items))
 	for _, item := range items {
@@ -219,26 +172,20 @@ func (r *queryResolver) Items(ctx context.Context, limit, offset *int64, library
 
 	return &model.ItemsResult{
 		Items: resultItems,
-		Total: &count,
+		Total: count,
 	}, nil
 }
 
-func (r *queryResolver) Library(ctx context.Context, id string) (*models.Library, error) {
-	var library models.Library
-
-	database.DB.First(&library, id)
+func (r *queryResolver) Library(ctx context.Context, id string) (*database.Library, error) {
+	library := database.GetLibrary(id, getPreloads(ctx))
 
 	return &library, nil
 }
 
 func (r *queryResolver) Libraries(ctx context.Context) (*model.LibrariesResult, error) {
-	var libraries []*models.Library
+	libraries := database.GetLibraries(getPreloads(ctx))
 
-	database.DB.Find(&libraries)
-
-	var count int64
-
-	database.DB.Model(&models.Library{}).Count(&count)
+	count := database.GetLibrariesCount()
 
 	return &model.LibrariesResult{
 		Libraries: libraries,
@@ -249,23 +196,14 @@ func (r *queryResolver) Libraries(ctx context.Context) (*model.LibrariesResult, 
 func (r *queryResolver) Latest(ctx context.Context, limit *int64) ([]*model.LatestResult, error) {
 	var latest []*model.LatestResult
 
-	var libraries []*models.Library
-
-	librariesResult := database.DB.Find(&libraries)
-	if librariesResult.Error != nil {
-		return nil, fmt.Errorf("failed to get libraries: %w", librariesResult.Error)
-	}
+	libraries := database.GetLibraries([]string{"ID", "Name", "Type", "Language"})
 
 	for _, library := range libraries {
-		var items []models.ItemMetadata
+		items, err := database.GetLatestItemsFromLibrary(library.ID, int(*limit))
+		if err != nil {
+			log.Err(err).Msgf("Failed to get latest items from library %s", library.ID)
 
-		itemsResult := database.DB.
-			Limit(int(*limit)).
-			Where("library_id = (?)", library.ID).
-			Order("created_at desc").
-			Find(&items)
-		if itemsResult.Error != nil {
-			return nil, fmt.Errorf("failed to get items: %w", itemsResult.Error)
+			return nil, fmt.Errorf("failed to get latest items from library %d: %w", library.ID, err)
 		}
 
 		resultItems := make([]model.Item, 0, len(items))
@@ -294,7 +232,7 @@ func (r *queryResolver) Latest(ctx context.Context, limit *int64) ([]*model.Late
 	return latest, nil
 }
 
-func (r *userResolver) ID(ctx context.Context, obj *models.User) (string, error) {
+func (r *userResolver) ID(ctx context.Context, obj *database.User) (string, error) {
 	return strconv.FormatUint(obj.ID, 10), nil //nolint:gomnd
 }
 

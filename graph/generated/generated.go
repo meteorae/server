@@ -14,7 +14,7 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/introspection"
-	"github.com/meteorae/meteorae-server/database/models"
+	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/graph/model"
 	gqlparser "github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
@@ -121,28 +121,28 @@ type ComplexityRoot struct {
 }
 
 type LibraryResolver interface {
-	ID(ctx context.Context, obj *models.Library) (string, error)
+	ID(ctx context.Context, obj *database.Library) (string, error)
 
-	Type(ctx context.Context, obj *models.Library) (string, error)
+	Type(ctx context.Context, obj *database.Library) (string, error)
 
-	Locations(ctx context.Context, obj *models.Library) ([]string, error)
+	Locations(ctx context.Context, obj *database.Library) ([]string, error)
 }
 type MutationResolver interface {
 	Login(ctx context.Context, username string, password string) (*model.AuthPayload, error)
 	Register(ctx context.Context, username string, password string) (*model.AuthPayload, error)
-	AddLibrary(ctx context.Context, typeArg string, name string, language string, locations []string) (*models.Library, error)
+	AddLibrary(ctx context.Context, typeArg string, name string, language string, locations []string) (*database.Library, error)
 }
 type QueryResolver interface {
-	User(ctx context.Context, id string) (*models.User, error)
+	User(ctx context.Context, id string) (*database.User, error)
 	Users(ctx context.Context, limit *int64, offset *int64) (*model.UsersResult, error)
 	Item(ctx context.Context, id string) (model.Item, error)
 	Items(ctx context.Context, limit *int64, offset *int64, libraryID string) (*model.ItemsResult, error)
-	Library(ctx context.Context, id string) (*models.Library, error)
+	Library(ctx context.Context, id string) (*database.Library, error)
 	Libraries(ctx context.Context) (*model.LibrariesResult, error)
 	Latest(ctx context.Context, limit *int64) ([]*model.LatestResult, error)
 }
 type UserResolver interface {
-	ID(ctx context.Context, obj *models.User) (string, error)
+	ID(ctx context.Context, obj *database.User) (string, error)
 }
 
 type executableSchema struct {
@@ -898,6 +898,21 @@ func (ec *executionContext) field_Query_users_args(ctx context.Context, rawArgs 
 	return args, nil
 }
 
+func (ec *executionContext) field___Field_args_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *bool
+	if tmp, ok := rawArgs["includeDeprecated"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("includeDeprecated"))
+		arg0, err = ec.unmarshalOBoolean2ᚖbool(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["includeDeprecated"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field___Type_enumValues_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -1001,9 +1016,9 @@ func (ec *executionContext) _AuthPayload_user(ctx context.Context, field graphql
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*models.User)
+	res := resTmp.(*database.User)
 	fc.Result = res
-	return ec.marshalNUser2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚋmodelsᚐUser(ctx, field.Selections, res)
+	return ec.marshalNUser2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚐUser(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _ItemsResult_items(ctx context.Context, field graphql.CollectedField, obj *model.ItemsResult) (ret graphql.Marshaler) {
@@ -1100,9 +1115,9 @@ func (ec *executionContext) _LatestResult_library(ctx context.Context, field gra
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*models.Library)
+	res := resTmp.(*database.Library)
 	fc.Result = res
-	return ec.marshalNLibrary2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚋmodelsᚐLibrary(ctx, field.Selections, res)
+	return ec.marshalNLibrary2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚐLibrary(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _LatestResult_items(ctx context.Context, field graphql.CollectedField, obj *model.LatestResult) (ret graphql.Marshaler) {
@@ -1164,9 +1179,9 @@ func (ec *executionContext) _LibrariesResult_libraries(ctx context.Context, fiel
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.([]*models.Library)
+	res := resTmp.([]*database.Library)
 	fc.Result = res
-	return ec.marshalOLibrary2ᚕᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚋmodelsᚐLibrary(ctx, field.Selections, res)
+	return ec.marshalOLibrary2ᚕᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚐLibrary(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _LibrariesResult_total(ctx context.Context, field graphql.CollectedField, obj *model.LibrariesResult) (ret graphql.Marshaler) {
@@ -1201,7 +1216,7 @@ func (ec *executionContext) _LibrariesResult_total(ctx context.Context, field gr
 	return ec.marshalOInt2ᚖint64(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Library_id(ctx context.Context, field graphql.CollectedField, obj *models.Library) (ret graphql.Marshaler) {
+func (ec *executionContext) _Library_id(ctx context.Context, field graphql.CollectedField, obj *database.Library) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -1236,7 +1251,7 @@ func (ec *executionContext) _Library_id(ctx context.Context, field graphql.Colle
 	return ec.marshalNID2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Library_name(ctx context.Context, field graphql.CollectedField, obj *models.Library) (ret graphql.Marshaler) {
+func (ec *executionContext) _Library_name(ctx context.Context, field graphql.CollectedField, obj *database.Library) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -1271,7 +1286,7 @@ func (ec *executionContext) _Library_name(ctx context.Context, field graphql.Col
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Library_type(ctx context.Context, field graphql.CollectedField, obj *models.Library) (ret graphql.Marshaler) {
+func (ec *executionContext) _Library_type(ctx context.Context, field graphql.CollectedField, obj *database.Library) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -1306,7 +1321,7 @@ func (ec *executionContext) _Library_type(ctx context.Context, field graphql.Col
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Library_language(ctx context.Context, field graphql.CollectedField, obj *models.Library) (ret graphql.Marshaler) {
+func (ec *executionContext) _Library_language(ctx context.Context, field graphql.CollectedField, obj *database.Library) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -1341,7 +1356,7 @@ func (ec *executionContext) _Library_language(ctx context.Context, field graphql
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Library_locations(ctx context.Context, field graphql.CollectedField, obj *models.Library) (ret graphql.Marshaler) {
+func (ec *executionContext) _Library_locations(ctx context.Context, field graphql.CollectedField, obj *database.Library) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -1376,7 +1391,7 @@ func (ec *executionContext) _Library_locations(ctx context.Context, field graphq
 	return ec.marshalNString2ᚕstringᚄ(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Library_createdAt(ctx context.Context, field graphql.CollectedField, obj *models.Library) (ret graphql.Marshaler) {
+func (ec *executionContext) _Library_createdAt(ctx context.Context, field graphql.CollectedField, obj *database.Library) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -1411,7 +1426,7 @@ func (ec *executionContext) _Library_createdAt(ctx context.Context, field graphq
 	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Library_updatedAt(ctx context.Context, field graphql.CollectedField, obj *models.Library) (ret graphql.Marshaler) {
+func (ec *executionContext) _Library_updatedAt(ctx context.Context, field graphql.CollectedField, obj *database.Library) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -1446,7 +1461,7 @@ func (ec *executionContext) _Library_updatedAt(ctx context.Context, field graphq
 	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Library_scannedAt(ctx context.Context, field graphql.CollectedField, obj *models.Library) (ret graphql.Marshaler) {
+func (ec *executionContext) _Library_scannedAt(ctx context.Context, field graphql.CollectedField, obj *database.Library) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -1791,9 +1806,9 @@ func (ec *executionContext) _Movie_library(ctx context.Context, field graphql.Co
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*models.Library)
+	res := resTmp.(*database.Library)
 	fc.Result = res
-	return ec.marshalNLibrary2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚋmodelsᚐLibrary(ctx, field.Selections, res)
+	return ec.marshalNLibrary2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚐLibrary(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Mutation_login(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -1917,9 +1932,9 @@ func (ec *executionContext) _Mutation_addLibrary(ctx context.Context, field grap
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*models.Library)
+	res := resTmp.(*database.Library)
 	fc.Result = res
-	return ec.marshalNLibrary2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚋmodelsᚐLibrary(ctx, field.Selections, res)
+	return ec.marshalNLibrary2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚐLibrary(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_user(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -1956,9 +1971,9 @@ func (ec *executionContext) _Query_user(ctx context.Context, field graphql.Colle
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*models.User)
+	res := resTmp.(*database.User)
 	fc.Result = res
-	return ec.marshalOUser2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚋmodelsᚐUser(ctx, field.Selections, res)
+	return ec.marshalOUser2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚐUser(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_users(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -2112,9 +2127,9 @@ func (ec *executionContext) _Query_library(ctx context.Context, field graphql.Co
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*models.Library)
+	res := resTmp.(*database.Library)
 	fc.Result = res
-	return ec.marshalOLibrary2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚋmodelsᚐLibrary(ctx, field.Selections, res)
+	return ec.marshalOLibrary2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚐLibrary(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_libraries(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -2259,7 +2274,7 @@ func (ec *executionContext) _Query___schema(ctx context.Context, field graphql.C
 	return ec.marshalO__Schema2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐSchema(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _User_id(ctx context.Context, field graphql.CollectedField, obj *models.User) (ret graphql.Marshaler) {
+func (ec *executionContext) _User_id(ctx context.Context, field graphql.CollectedField, obj *database.User) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -2294,7 +2309,7 @@ func (ec *executionContext) _User_id(ctx context.Context, field graphql.Collecte
 	return ec.marshalNID2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _User_username(ctx context.Context, field graphql.CollectedField, obj *models.User) (ret graphql.Marshaler) {
+func (ec *executionContext) _User_username(ctx context.Context, field graphql.CollectedField, obj *database.User) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -2329,7 +2344,7 @@ func (ec *executionContext) _User_username(ctx context.Context, field graphql.Co
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _User_createdAt(ctx context.Context, field graphql.CollectedField, obj *models.User) (ret graphql.Marshaler) {
+func (ec *executionContext) _User_createdAt(ctx context.Context, field graphql.CollectedField, obj *database.User) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -2364,7 +2379,7 @@ func (ec *executionContext) _User_createdAt(ctx context.Context, field graphql.C
 	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _User_updatedAt(ctx context.Context, field graphql.CollectedField, obj *models.User) (ret graphql.Marshaler) {
+func (ec *executionContext) _User_updatedAt(ctx context.Context, field graphql.CollectedField, obj *database.User) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -2426,9 +2441,9 @@ func (ec *executionContext) _UsersResult_users(ctx context.Context, field graphq
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.([]*models.User)
+	res := resTmp.([]*database.User)
 	fc.Result = res
-	return ec.marshalOUser2ᚕᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚋmodelsᚐUser(ctx, field.Selections, res)
+	return ec.marshalOUser2ᚕᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚐUser(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _UsersResult_total(ctx context.Context, field graphql.CollectedField, obj *model.UsersResult) (ret graphql.Marshaler) {
@@ -2852,6 +2867,13 @@ func (ec *executionContext) ___Field_args(ctx context.Context, field graphql.Col
 	}
 
 	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field___Field_args_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Args, nil
@@ -3760,7 +3782,7 @@ func (ec *executionContext) _LibrariesResult(ctx context.Context, sel ast.Select
 
 var libraryImplementors = []string{"Library"}
 
-func (ec *executionContext) _Library(ctx context.Context, sel ast.SelectionSet, obj *models.Library) graphql.Marshaler {
+func (ec *executionContext) _Library(ctx context.Context, sel ast.SelectionSet, obj *database.Library) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, libraryImplementors)
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
@@ -4246,7 +4268,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 
 var userImplementors = []string{"User"}
 
-func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj *models.User) graphql.Marshaler {
+func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj *database.User) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, userImplementors)
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
@@ -4818,11 +4840,11 @@ func (ec *executionContext) marshalNInt2int64(ctx context.Context, sel ast.Selec
 	return res
 }
 
-func (ec *executionContext) marshalNLibrary2githubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚋmodelsᚐLibrary(ctx context.Context, sel ast.SelectionSet, v models.Library) graphql.Marshaler {
+func (ec *executionContext) marshalNLibrary2githubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚐLibrary(ctx context.Context, sel ast.SelectionSet, v database.Library) graphql.Marshaler {
 	return ec._Library(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNLibrary2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚋmodelsᚐLibrary(ctx context.Context, sel ast.SelectionSet, v *models.Library) graphql.Marshaler {
+func (ec *executionContext) marshalNLibrary2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚐLibrary(ctx context.Context, sel ast.SelectionSet, v *database.Library) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "must not be null")
@@ -4894,7 +4916,7 @@ func (ec *executionContext) marshalNTime2timeᚐTime(ctx context.Context, sel as
 	return res
 }
 
-func (ec *executionContext) marshalNUser2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚋmodelsᚐUser(ctx context.Context, sel ast.SelectionSet, v *models.User) graphql.Marshaler {
+func (ec *executionContext) marshalNUser2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚐUser(ctx context.Context, sel ast.SelectionSet, v *database.User) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "must not be null")
@@ -5309,7 +5331,7 @@ func (ec *executionContext) marshalOLibrariesResult2ᚖgithubᚗcomᚋmeteorae�
 	return ec._LibrariesResult(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOLibrary2ᚕᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚋmodelsᚐLibrary(ctx context.Context, sel ast.SelectionSet, v []*models.Library) graphql.Marshaler {
+func (ec *executionContext) marshalOLibrary2ᚕᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚐLibrary(ctx context.Context, sel ast.SelectionSet, v []*database.Library) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
@@ -5336,7 +5358,7 @@ func (ec *executionContext) marshalOLibrary2ᚕᚖgithubᚗcomᚋmeteoraeᚋmete
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalOLibrary2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚋmodelsᚐLibrary(ctx, sel, v[i])
+			ret[i] = ec.marshalOLibrary2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚐLibrary(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -5350,7 +5372,7 @@ func (ec *executionContext) marshalOLibrary2ᚕᚖgithubᚗcomᚋmeteoraeᚋmete
 	return ret
 }
 
-func (ec *executionContext) marshalOLibrary2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚋmodelsᚐLibrary(ctx context.Context, sel ast.SelectionSet, v *models.Library) graphql.Marshaler {
+func (ec *executionContext) marshalOLibrary2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚐLibrary(ctx context.Context, sel ast.SelectionSet, v *database.Library) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
@@ -5383,7 +5405,7 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 	return res
 }
 
-func (ec *executionContext) marshalOUser2ᚕᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚋmodelsᚐUser(ctx context.Context, sel ast.SelectionSet, v []*models.User) graphql.Marshaler {
+func (ec *executionContext) marshalOUser2ᚕᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚐUser(ctx context.Context, sel ast.SelectionSet, v []*database.User) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
@@ -5410,7 +5432,7 @@ func (ec *executionContext) marshalOUser2ᚕᚖgithubᚗcomᚋmeteoraeᚋmeteora
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalOUser2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚋmodelsᚐUser(ctx, sel, v[i])
+			ret[i] = ec.marshalOUser2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚐUser(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -5424,7 +5446,7 @@ func (ec *executionContext) marshalOUser2ᚕᚖgithubᚗcomᚋmeteoraeᚋmeteora
 	return ret
 }
 
-func (ec *executionContext) marshalOUser2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚋmodelsᚐUser(ctx context.Context, sel ast.SelectionSet, v *models.User) graphql.Marshaler {
+func (ec *executionContext) marshalOUser2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚐUser(ctx context.Context, sel ast.SelectionSet, v *database.User) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}

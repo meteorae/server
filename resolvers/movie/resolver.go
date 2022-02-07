@@ -4,17 +4,16 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/meteorae/meteorae-server/database/models"
+	"github.com/meteorae/meteorae-server/database"
 	tmdbProvider "github.com/meteorae/meteorae-server/providers/themoviedb"
 	PTN "github.com/middelink/go-parse-torrent-name"
 	"github.com/rs/zerolog/log"
-	"gorm.io/gorm"
 )
 
-func Resolve(mediaPart *models.MediaPart, database *gorm.DB, library models.Library) error {
+func Resolve(mediaPart *database.MediaPart, library database.Library) error {
 	log.Info().Msgf("Attempting to match %s", mediaPart.FilePath)
 
-	if library.Type == models.MovieLibrary {
+	if library.Type == database.MovieLibrary {
 		movie, err := PTN.Parse(filepath.Base(mediaPart.FilePath))
 		if err != nil {
 			return fmt.Errorf("failed to parse movie name: %w", err)
@@ -28,7 +27,10 @@ func Resolve(mediaPart *models.MediaPart, database *gorm.DB, library models.Libr
 			return fmt.Errorf("failed to get movie info: %w", err)
 		}
 
-		database.Create(movieInfo)
+		err = database.CreateMovie(movieInfo)
+		if err != nil {
+			return fmt.Errorf("failed to create movie: %w", err)
+		}
 	}
 
 	return nil

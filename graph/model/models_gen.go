@@ -5,7 +5,7 @@ package model
 import (
 	"time"
 
-	"github.com/meteorae/meteorae-server/database/models"
+	"github.com/meteorae/meteorae-server/database"
 )
 
 // Item information.
@@ -15,8 +15,8 @@ type Item interface {
 
 // Authentication payload returned on successful login.
 type AuthPayload struct {
-	Token string       `json:"token"`
-	User  *models.User `json:"user"`
+	Token string         `json:"token"`
+	User  *database.User `json:"user"`
 }
 
 // Result of a query containing multiple items.
@@ -26,33 +26,33 @@ type ItemsResult struct {
 }
 
 type LatestResult struct {
-	Library *models.Library `json:"library"`
-	Items   []Item          `json:"items"`
+	Library *database.Library `json:"library"`
+	Items   []Item            `json:"items"`
 }
 
 // Result of a query containing multiple libraries.
 type LibrariesResult struct {
-	Libraries []*models.Library `json:"libraries"`
-	Total     *int64            `json:"total"`
+	Libraries []*database.Library `json:"libraries"`
+	Total     *int64              `json:"total"`
 }
 
 // Item information about a movie.
 type Movie struct {
-	ID          string          `json:"id"`
-	Title       string          `json:"title"`
-	ReleaseDate int64           `json:"releaseDate"`
-	Summary     string          `json:"summary"`
-	Thumb       string          `json:"thumb"`
-	Art         string          `json:"art"`
-	CreatedAt   time.Time       `json:"createdAt"`
-	UpdatedAt   time.Time       `json:"updatedAt"`
-	Library     *models.Library `json:"library"`
+	ID          string            `json:"id"`
+	Title       string            `json:"title"`
+	ReleaseDate int64             `json:"releaseDate"`
+	Summary     string            `json:"summary"`
+	Thumb       string            `json:"thumb"`
+	Art         string            `json:"art"`
+	CreatedAt   time.Time         `json:"createdAt"`
+	UpdatedAt   time.Time         `json:"updatedAt"`
+	Library     *database.Library `json:"library"`
 }
 
 func (Movie) IsItem() {}
 
 // Result of a query containing multiple users.
 type UsersResult struct {
-	Users []*models.User `json:"users"`
-	Total *int64         `json:"total"`
+	Users []*database.User `json:"users"`
+	Total *int64           `json:"total"`
 }

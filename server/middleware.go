@@ -11,7 +11,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/justinas/alice"
 	"github.com/meteorae/meteorae-server/database"
-	"github.com/meteorae/meteorae-server/database/models"
 	"github.com/meteorae/meteorae-server/graph"
 	"github.com/meteorae/meteorae-server/graph/generated"
 	"github.com/meteorae/meteorae-server/helpers"
@@ -68,19 +67,17 @@ func AuthMiddleware(next http.Handler) http.Handler {
 
 		customClaim, _ := validate.Claims.(*helpers.JwtClaim)
 
-		var account models.User
-		result := database.DB.Where("id = ?", customClaim.UserID).First(&account)
-		log.Debug().Msgf("Request from %s", account.Username)
-		if result.Error != nil {
-			if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		account, err := database.GetUserByID(customClaim.UserID, []string{"ID", "Username", "Email", "Role"})
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
 				http.Error(writer, "Invalid token", http.StatusForbidden)
 
 				return
 			}
-			http.Error(writer, result.Error.Error(), http.StatusInternalServerError)
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
 		}
 
-		ctx := utils.GetContextWithUser(request.Context(), &account)
+		ctx := utils.GetContextWithUser(request.Context(), account)
 
 		request = request.WithContext(ctx)
 		next.ServeHTTP(writer, request)
@@ -95,13 +92,9 @@ func MetricsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// TODO: Move this to GraphQL.
 func setupHandler(writer http.ResponseWriter, request *http.Request) {
-	var userCount int64
-
-	result := database.DB.Model(&models.User{}).Count(&userCount)
-	if result.Error != nil {
-		http.Error(writer, result.Error.Error(), http.StatusInternalServerError)
-	}
+	userCount := database.GetUsersCount()
 
 	if userCount == 0 {
 		_, err := writer.Write([]byte("true"))

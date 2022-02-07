@@ -3,19 +3,19 @@ package utils
 import (
 	"context"
 
-	"github.com/meteorae/meteorae-server/database/models"
+	"github.com/meteorae/meteorae-server/database"
 )
 
 type (
 	authString string
 )
 
-func GetContextWithUser(ctx context.Context, user *models.User) context.Context {
+func GetContextWithUser(ctx context.Context, user *database.User) context.Context {
 	return context.WithValue(ctx, authString("user"), *user)
 }
 
-func GetUserFromContext(ctx context.Context) *models.User {
-	raw, ok := ctx.Value(authString("user")).(models.User)
+func GetUserFromContext(ctx context.Context) *database.User {
+	raw, ok := ctx.Value(authString("user")).(database.User)
 	if !ok {
 		return nil
 	}

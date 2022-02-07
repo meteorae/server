@@ -50,66 +50,17 @@ func main() {
 	log.Info().Msgf("OS / Arch: %s", helpers.OsArch)
 
 	// Initialize the database
-	err = database.GetDatabase(log.Logger)
+	err = database.NewDatabase(log.Logger)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to initialize database")
 
 		return
 	}
 
-	var sqliteVersion interface{}
+	log.Info().Msgf("SQLite Version: %s", database.GetSQLiteVersion())
 
-	rows, rowsErr := database.DB.Raw("SELECT sqlite_version()").Rows()
-	if rowsErr != nil {
-		log.Error().Err(rowsErr)
-	}
-
-	if rows.Err() != nil {
-		log.Error().Err(rows.Err())
-	}
-	defer rows.Close()
-	rows.Next()
-
-	err = rows.Scan(&sqliteVersion)
-	if err != nil {
-		log.Error().Err(err)
-	}
-
-	log.Info().Msgf("SQLite Version: %s", sqliteVersion)
-
-	var loadedSqliteExtensions []string
-
-	rows, rowsErr = database.DB.Raw("PRAGMA compile_options").Rows()
-	if rowsErr != nil {
-		log.Error().Err(rowsErr)
-	}
-
-	if rows.Err() != nil {
-		log.Error().Err(rows.Err())
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var extensionRow interface{}
-
-		err = rows.Scan(&extensionRow)
-		if err != nil {
-			log.Error().Err(err)
-		}
-
-		loadedSqliteExtensions = append(loadedSqliteExtensions, extensionRow.(string))
-	}
-
-	log.Info().Msgf("SQLite build information: %s", strings.Join(loadedSqliteExtensions, " "))
-
-	log.Info().Msg("Checking for database migrations…")
-
-	err = database.Migrate()
-	if errors.Is(err, nil) {
-		log.Error().Msgf("Could not migrate: %v", err)
-
-		return
-	}
+	sqliteBuildInfo := database.GetSQLiteBuildInformation()
+	log.Info().Msgf("SQLite build information: %s", strings.Join(sqliteBuildInfo, " "))
 
 	vips.Startup(nil)
 	defer vips.Shutdown()

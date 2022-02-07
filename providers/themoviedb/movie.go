@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/meteorae/meteorae-server/database/models"
+	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/helpers"
 	"github.com/meteorae/meteorae-server/utils"
 	PTN "github.com/middelink/go-parse-torrent-name"
@@ -26,8 +26,8 @@ var config = tmdb.Config{
 
 var tmdbAPI *tmdb.TMDb = tmdb.Init(config)
 
-func GetMovieInfoFromTmdb(movie *PTN.TorrentInfo, mediaPart *models.MediaPart,
-	library models.Library) (*models.ItemMetadata, error) {
+func GetMovieInfoFromTmdb(movie *PTN.TorrentInfo, mediaPart *database.MediaPart,
+	library database.Library) (*database.ItemMetadata, error) {
 	// Remove unwanted characters from the title
 	movie.Title = utils.RemoveUnwantedCharacters(movie.Title)
 
@@ -93,7 +93,7 @@ func GetMovieInfoFromTmdb(movie *PTN.TorrentInfo, mediaPart *models.MediaPart,
 			}
 		}
 
-		return &models.ItemMetadata{
+		return &database.ItemMetadata{
 			Title:            movieData.Title,
 			SortTitle:        utils.CleanSortTitle(movieData.Title),
 			OriginalTitle:    movieData.OriginalTitle,

@@ -18,7 +18,6 @@ import (
 	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/gorilla/schema"
 	"github.com/meteorae/meteorae-server/database"
-	"github.com/meteorae/meteorae-server/database/models"
 	"github.com/meteorae/meteorae-server/helpers"
 	"github.com/rs/zerolog/log"
 )
@@ -97,11 +96,9 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 				return
 			}
 
-			var metadata models.ItemMetadata
-
-			result := database.DB.Select(metadataImageType).Find(&metadata, "id = ?", metadataID)
-			if result.Error != nil {
-				http.Error(writer, "Item not found", http.StatusInternalServerError)
+			metadata, err := database.GetItemByID(metadataID)
+			if err != nil {
+				log.Err(err).Msg("Failed to get metadata")
 
 				return
 			}

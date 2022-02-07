@@ -6,17 +6,15 @@ import (
 	"io/fs"
 	"path/filepath"
 
-	"github.com/meteorae/meteorae-server/database/models"
+	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/helpers"
 	"github.com/meteorae/meteorae-server/resolvers"
 	"github.com/meteorae/meteorae-server/utils"
 	"github.com/panjf2000/ants/v2"
 	"github.com/rs/zerolog/log"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
-func ScanDirectory(directory string, database *gorm.DB, library models.Library) {
+func ScanDirectory(directory string, library database.Library) {
 	err := filepath.WalkDir(directory, func(path string, dirEntry fs.DirEntry, walkErr error) error {
 		// TODO: We should probably handle different types differently
 		log.Debug().Msgf("Found file: %s", path)
@@ -44,27 +42,15 @@ func ScanDirectory(directory string, database *gorm.DB, library models.Library) 
 			return fmt.Errorf("failed to get file info: %w", err)
 		}
 
-		newMediaPart := models.MediaPart{
-			FilePath: path,
-			Hash:     hex.EncodeToString(hash),
-			Size:     fileInfo.Size(),
-		}
-
-		// TODO: Maybe batching these into one query is faster?
-		// We may run into issues when something is resolved but the create failed and/or conccurency issues
-		result := database.Clauses(clause.OnConflict{DoNothing: true}).Create(&newMediaPart)
-		// TODO: Check for the actual error type
-		if result.Error != nil {
-			// If the record exist, we already have it, just skip it to save time
-			// TODO: To handle refreshing directories, we'll probably want to
-			// get all the existing stuff first, then scan for new files
-			return fmt.Errorf("failed to create media part: %w", result.Error)
+		mediaPart, err := database.CreateMediaPart(path, hex.EncodeToString(hash), fileInfo.Size())
+		if err != nil {
+			return fmt.Errorf("failed to create media part: %w", err)
 		}
 
 		// Schedule the file resolution job
 		err = ants.Submit(func() {
-			log.Debug().Msgf("Scheduling resolution job for %s", newMediaPart.FilePath)
-			resolvers.ResolveFile(&newMediaPart, database, library)
+			log.Debug().Msgf("Scheduling resolution job for %s", mediaPart.FilePath)
+			resolvers.ResolveFile(mediaPart, library)
 		})
 
 		if err != nil {
