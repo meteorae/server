@@ -52,10 +52,10 @@ func CreateUser(username, password string) (*User, error) {
 }
 
 // Returns the requested fields from the specified user ID.
-func GetUserByID(id string, fields []string) (*User, error) {
+func GetUserByID(id string) (*User, error) {
 	var user User
 
-	results := db.Select(fields).First(&user, id)
+	results := db.First(&user, id)
 	if results.Error != nil {
 		return nil, fmt.Errorf("failed to get user: %w", results.Error)
 	}
@@ -64,10 +64,10 @@ func GetUserByID(id string, fields []string) (*User, error) {
 }
 
 // Returns the requested fields from the specified username.
-func GetUserByName(username string, fields []string) (*User, error) {
+func GetUserByName(username string) (*User, error) {
 	var user User
 
-	result := db.Select(fields).Where("username = ?", username).First(&user)
+	result := db.Where("username = ?", username).First(&user)
 	if result.Error != nil {
 		log.Error().Err(result.Error).Msg("Failed to find user")
 
@@ -82,10 +82,10 @@ func GetUserByName(username string, fields []string) (*User, error) {
 }
 
 // Returns the requested fields for all users.
-func GetUsers(fields []string) []*User {
+func GetUsers() []*User {
 	var users []*User
 
-	db.Select(fields).Find(&users)
+	db.Find(&users)
 
 	return users
 }

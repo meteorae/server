@@ -35,8 +35,8 @@ func (r *libraryResolver) Locations(ctx context.Context, obj *database.Library) 
 	return locations, nil
 }
 
-func (r *mutationResolver) Login(ctx context.Context, username, password string) (*model.AuthPayload, error) {
-	user, err := database.GetUserByName(username, getPreloads(ctx))
+func (r *mutationResolver) Login(ctx context.Context, username string, password string) (*model.AuthPayload, error) {
+	user, err := database.GetUserByName(username)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get user")
 
@@ -63,7 +63,7 @@ func (r *mutationResolver) Login(ctx context.Context, username, password string)
 	return nil, errInvalidCredentials
 }
 
-func (r *mutationResolver) Register(ctx context.Context, username, password string) (*model.AuthPayload, error) {
+func (r *mutationResolver) Register(ctx context.Context, username string, password string) (*model.AuthPayload, error) {
 	user, err := database.CreateUser(username, password)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user: %w", err)
@@ -80,8 +80,7 @@ func (r *mutationResolver) Register(ctx context.Context, username, password stri
 	}, nil
 }
 
-func (r *mutationResolver) AddLibrary(ctx context.Context, typeArg, name, language string,
-	locations []string) (*database.Library, error) {
+func (r *mutationResolver) AddLibrary(ctx context.Context, typeArg string, name string, language string, locations []string) (*database.Library, error) {
 	library, libraryLocations, err := database.CreateLibrary(name, language, typeArg, locations)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to create library")
@@ -103,7 +102,7 @@ func (r *mutationResolver) AddLibrary(ctx context.Context, typeArg, name, langua
 }
 
 func (r *queryResolver) User(ctx context.Context, id string) (*database.User, error) {
-	user, err := database.GetUserByID(id, getPreloads(ctx))
+	user, err := database.GetUserByID(id)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get user")
 
@@ -113,8 +112,8 @@ func (r *queryResolver) User(ctx context.Context, id string) (*database.User, er
 	return user, nil
 }
 
-func (r *queryResolver) Users(ctx context.Context, limit, offset *int64) (*model.UsersResult, error) {
-	users := database.GetUsers(getPreloads(ctx))
+func (r *queryResolver) Users(ctx context.Context, limit *int64, offset *int64) (*model.UsersResult, error) {
+	users := database.GetUsers()
 
 	count := database.GetUsersCount()
 
@@ -132,18 +131,30 @@ func (r *queryResolver) Item(ctx context.Context, id string) (model.Item, error)
 		return nil, fmt.Errorf("failed to get item: %w", err)
 	}
 
+	thumbUrl := ""
+	if item.Thumb != "" {
+		thumbUrl = fmt.Sprintf("/image/transcode?url=/metadata/%d/thumb", item.ID)
+	}
+
+	artUrl := ""
+	if item.Art != "" {
+		artUrl = fmt.Sprintf("/image/transcode?url=/metadata/%d/art", item.ID)
+	}
+
+	isoReleaseDate := item.ReleaseDate.Format("2006-01-02")
+
 	// TODO; Properly handle all item types
 	return &model.Movie{
 		ID:          strconv.FormatUint(item.ID, 10), //nolint:gomnd
 		Title:       item.Title,
-		ReleaseDate: item.ReleaseDate.Unix(),
-		Summary:     item.Summary,
-		Thumb:       fmt.Sprintf("/image/transcode?url=/metadata/%d/thumb", item.ID),
-		Art:         fmt.Sprintf("/image/transcode?url=/metadata/%d/art", item.ID),
+		ReleaseDate: &isoReleaseDate,
+		Summary:     &item.Summary,
+		Thumb:       &thumbUrl,
+		Art:         &artUrl,
 	}, nil
 }
 
-func (r *queryResolver) Items(ctx context.Context, limit, offset *int64, libraryID string) (*model.ItemsResult, error) {
+func (r *queryResolver) Items(ctx context.Context, limit *int64, offset *int64, libraryID string) (*model.ItemsResult, error) {
 	items, err := database.GetItemsFromLibrary(libraryID, limit, offset)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get items")
@@ -160,13 +171,25 @@ func (r *queryResolver) Items(ctx context.Context, limit, offset *int64, library
 
 	resultItems := make([]model.Item, 0, len(items))
 	for _, item := range items {
+		thumbUrl := ""
+		if item.Thumb != "" {
+			thumbUrl = fmt.Sprintf("/image/transcode?url=/metadata/%d/thumb", item.ID)
+		}
+
+		artUrl := ""
+		if item.Art != "" {
+			artUrl = fmt.Sprintf("/image/transcode?url=/metadata/%d/art", item.ID)
+		}
+
+		isoReleaseDate := item.ReleaseDate.Format("2006-01-02")
+
 		resultItems = append(resultItems, &model.Movie{
 			ID:          strconv.FormatUint(item.ID, 10), //nolint:gomnd
 			Title:       item.Title,
-			ReleaseDate: item.ReleaseDate.Unix(),
-			Summary:     item.Summary,
-			Thumb:       fmt.Sprintf("/image/transcode?url=/metadata/%d/thumb", item.ID),
-			Art:         fmt.Sprintf("/image/transcode?url=/metadata/%d/art", item.ID),
+			ReleaseDate: &isoReleaseDate,
+			Summary:     &item.Summary,
+			Thumb:       &thumbUrl,
+			Art:         &artUrl,
 		})
 	}
 
@@ -177,13 +200,13 @@ func (r *queryResolver) Items(ctx context.Context, limit, offset *int64, library
 }
 
 func (r *queryResolver) Library(ctx context.Context, id string) (*database.Library, error) {
-	library := database.GetLibrary(id, getPreloads(ctx))
+	library := database.GetLibrary(id)
 
 	return &library, nil
 }
 
 func (r *queryResolver) Libraries(ctx context.Context) (*model.LibrariesResult, error) {
-	libraries := database.GetLibraries(getPreloads(ctx))
+	libraries := database.GetLibraries()
 
 	count := database.GetLibrariesCount()
 
@@ -196,7 +219,7 @@ func (r *queryResolver) Libraries(ctx context.Context) (*model.LibrariesResult, 
 func (r *queryResolver) Latest(ctx context.Context, limit *int64) ([]*model.LatestResult, error) {
 	var latest []*model.LatestResult
 
-	libraries := database.GetLibraries([]string{"ID", "Name", "Type", "Language"})
+	libraries := database.GetLibraries()
 
 	for _, library := range libraries {
 		items, err := database.GetLatestItemsFromLibrary(library.ID, int(*limit))
@@ -208,13 +231,25 @@ func (r *queryResolver) Latest(ctx context.Context, limit *int64) ([]*model.Late
 
 		resultItems := make([]model.Item, 0, len(items))
 		for _, item := range items {
+			thumbUrl := ""
+			if item.Thumb != "" {
+				thumbUrl = fmt.Sprintf("/image/transcode?url=/metadata/%d/thumb", item.ID)
+			}
+
+			artUrl := ""
+			if item.Art != "" {
+				artUrl = fmt.Sprintf("/image/transcode?url=/metadata/%d/art", item.ID)
+			}
+
+			isoReleaseDate := item.ReleaseDate.Format("2006-01-02")
+
 			resultItems = append(resultItems, &model.Movie{
 				ID:          strconv.FormatUint(item.ID, 10), //nolint:gomnd
 				Title:       item.Title,
-				ReleaseDate: item.ReleaseDate.Unix(),
-				Summary:     item.Summary,
-				Thumb:       fmt.Sprintf("/image/transcode?url=/metadata/%d/thumb", item.ID),
-				Art:         fmt.Sprintf("/image/transcode?url=/metadata/%d/art", item.ID),
+				ReleaseDate: &isoReleaseDate,
+				Summary:     &item.Summary,
+				Thumb:       &thumbUrl,
+				Art:         &artUrl,
 				CreatedAt:   item.CreatedAt,
 				UpdatedAt:   item.UpdatedAt,
 				Library:     library,
@@ -248,9 +283,7 @@ func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 // User returns generated.UserResolver implementation.
 func (r *Resolver) User() generated.UserResolver { return &userResolver{r} }
 
-type (
-	libraryResolver  struct{ *Resolver }
-	mutationResolver struct{ *Resolver }
-	queryResolver    struct{ *Resolver }
-	userResolver     struct{ *Resolver }
-)
+type libraryResolver struct{ *Resolver }
+type mutationResolver struct{ *Resolver }
+type queryResolver struct{ *Resolver }
+type userResolver struct{ *Resolver }

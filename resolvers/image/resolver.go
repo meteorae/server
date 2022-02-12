@@ -1,4 +1,4 @@
-package movie
+package image
 
 import (
 	"fmt"
@@ -6,29 +6,47 @@ import (
 	"path/filepath"
 
 	"github.com/meteorae/meteorae-server/database"
-	"github.com/meteorae/meteorae-server/helpers"
-	"github.com/meteorae/meteorae-server/providers/movie"
+	"github.com/meteorae/meteorae-server/providers/image"
 	"github.com/meteorae/meteorae-server/resolvers/registry"
 	"github.com/meteorae/meteorae-server/utils"
-	PTN "github.com/middelink/go-parse-torrent-name"
 	"github.com/panjf2000/ants/v2"
 	"github.com/rs/zerolog/log"
 )
 
 func init() {
-	registry.Register(movieResolver)
+	registry.Register(imageResolver)
 }
 
-var movieResolver registry.Resolver = Resolver{}
+// Supported image formats for ingestion. Non-supported common formats needing support from libvips are commented out.
+// TODO: Check support for RAW formats.
+var supportedImageFormats = []string{
+	".aiff",
+	// ".apng", -- https://github.com/libvips/libvips/issues/2537
+	".avif",
+	".bmp",
+	".gif",
+	".jfif",
+	".jpeg",
+	".jpg",
+	".pjpeg",
+	".pjp",
+	".png",
+	".svg",
+	".tif",
+	".tiff",
+	".webp",
+}
+
+var imageResolver registry.Resolver = Resolver{}
 
 type Resolver struct{}
 
 func (r Resolver) GetName() string {
-	return "Movie"
+	return "Image"
 }
 
 func (r Resolver) SupportsLibraryType(library database.Library) bool {
-	return library.Type == database.MovieLibrary
+	return library.Type == database.ImageLibrary
 }
 
 func (r Resolver) Resolve(mediaPart *database.MediaPart, library database.Library) error {
@@ -41,28 +59,26 @@ func (r Resolver) Resolve(mediaPart *database.MediaPart, library database.Librar
 		return nil
 	}
 
-	if isValidMovieFile(mediaPart.FilePath) {
-		info, err := PTN.Parse(filepath.Base(mediaPart.FilePath))
-		if err != nil {
-			return fmt.Errorf("failed to parse movie name: %w", err)
-		}
+	if r.isImageFile(mediaPart.FilePath) {
+		fileName := filepath.Base(mediaPart.FilePath)
+		fileName = fileName[:len(fileName)-len(filepath.Ext(fileName))]
 
 		item := database.ItemMetadata{
-			Title:     info.Title,
+			Title:     fileName,
 			LibraryID: library.ID,
 			Library:   library,
 			MediaPart: *mediaPart,
 		}
 
-		err = database.CreateMovie(&item)
+		err = database.CreateImage(&item)
 		if err != nil {
 			return fmt.Errorf("could not resolve image metadata %s: %w", mediaPart.FilePath, err)
 		}
 
 		err = ants.Submit(func() {
-			err := movie.GetInformation(&item, library)
+			err := image.GetInformation(&item, library)
 			if err != nil {
-				log.Err(err).Msgf("Failed to get movie information for %s: %w", mediaPart.FilePath, err)
+				log.Error().Err(err).Msgf("Failed to get image information for %s: %w", mediaPart.FilePath, err)
 			}
 		})
 		if err != nil {
@@ -73,8 +89,8 @@ func (r Resolver) Resolve(mediaPart *database.MediaPart, library database.Librar
 	return nil
 }
 
-func isValidMovieFile(path string) bool {
+func (r Resolver) isImageFile(path string) bool {
 	ext := filepath.Ext(path)
 
-	return utils.StringInSlice(ext, helpers.VideoFileExtensions)
+	return utils.StringInSlice(ext, supportedImageFormats)
 }

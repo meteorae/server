@@ -67,7 +67,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 
 		customClaim, _ := validate.Claims.(*helpers.JwtClaim)
 
-		account, err := database.GetUserByID(customClaim.UserID, []string{"ID", "Username", "Email", "Role"})
+		account, err := database.GetUserByID(customClaim.UserID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				http.Error(writer, "Invalid token", http.StatusForbidden)

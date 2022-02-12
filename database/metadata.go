@@ -91,3 +91,27 @@ func CreateMovie(movieInfo *ItemMetadata) error {
 
 	return nil
 }
+
+func UpdateMovie(movieInfo *ItemMetadata) error {
+	if result := db.Save(movieInfo); result.Error != nil {
+		return result.Error
+	}
+
+	return nil
+}
+
+func CreateImage(imageInfo *ItemMetadata) error {
+	if result := db.Create(imageInfo); result.Error != nil {
+		return result.Error
+	}
+
+	return nil
+}
+
+func UpdateImage(imageInfo *ItemMetadata) error {
+	if result := db.Save(imageInfo); result.Error != nil {
+		return result.Error
+	}
+
+	return nil
+}

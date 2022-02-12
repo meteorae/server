@@ -8,7 +8,7 @@ import (
 
 	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/helpers"
-	"github.com/meteorae/meteorae-server/resolvers"
+	"github.com/meteorae/meteorae-server/resolvers/registry"
 	"github.com/meteorae/meteorae-server/utils"
 	"github.com/panjf2000/ants/v2"
 	"github.com/rs/zerolog/log"
@@ -42,15 +42,16 @@ func ScanDirectory(directory string, library database.Library) {
 			return fmt.Errorf("failed to get file info: %w", err)
 		}
 
-		mediaPart, err := database.CreateMediaPart(path, hex.EncodeToString(hash), fileInfo.Size())
-		if err != nil {
-			return fmt.Errorf("failed to create media part: %w", err)
+		mediaPart := database.MediaPart{
+			FilePath: path,
+			Hash:     hex.EncodeToString(hash),
+			Size:     fileInfo.Size(),
 		}
 
 		// Schedule the file resolution job
 		err = ants.Submit(func() {
 			log.Debug().Msgf("Scheduling resolution job for %s", mediaPart.FilePath)
-			resolvers.ResolveFile(mediaPart, library)
+			registry.ResolveFile(&mediaPart, library)
 		})
 
 		if err != nil {

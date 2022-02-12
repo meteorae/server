@@ -7,17 +7,17 @@ type Query {
   "Query the specified user."
   user(id: ID!): User
   "Query all users."
-  users(limit: Int, offset: Int): UsersResult
+  users(limit: Int = 20, offset: Int = 0): UsersResult
   "Query the specified item."
   item(id: ID!): Item
   "Query all items."
-  items(limit: Int, offset: Int, libraryId: ID!): ItemsResult
+  items(limit: Int = 20, offset: Int = 0, libraryId: ID!): ItemsResult
   "Query the specified library."
   library(id: ID!): Library
   "Query all libraries."
   libraries: LibrariesResult
   "Query latest content for all libraries."
-  latest(limit: Int): [LatestResult]
+  latest(limit: Int = 20): [LatestResult]
 }
 
 type Mutation {
@@ -87,10 +87,10 @@ type LatestResult {
 interface Item {
   id: ID!
   title: String!
-  releaseDate: Int!
-  summary: String!
-  thumb: String!
-  art: String!
+  releaseDate: String
+  summary: String
+  thumb: String
+  art: String
   createdAt: Time!
   updatedAt: Time!
   library: Library!
@@ -100,10 +100,10 @@ interface Item {
 type Movie implements Item {
   id: ID!
   title: String!
-  releaseDate: Int!
-  summary: String!
-  thumb: String!
-  art: String!
+  releaseDate: String
+  summary: String
+  thumb: String
+  art: String
   createdAt: Time!
   updatedAt: Time!
   library: Library!

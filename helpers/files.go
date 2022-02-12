@@ -149,12 +149,10 @@ var BookFileExtensions = []string{
 }
 
 var IgnoredFileGlobs = []string{
-	"**/small.jpg",
-	"**/albumart.jpg",
+	// Unix hidden files, includes macOS-specific files
+	"**/.*",
 
-	// We have neither non-greedy matching or character group repetitions, working around that here.
-	// https://github.com/dazinator/DotNet.Glob#patterns
-	// .*/sample\..{1,5}
+	// Sample files
 	"**/sample.?",
 	"**/sample.??",
 	"**/sample.???",  // Matches sample.mkv
@@ -167,29 +165,25 @@ var IgnoredFileGlobs = []string{
 	"**/*.sample.?????",
 	"**/sample/*",
 
-	// Directories
+	// Metadata directories
 	"**/metadata/**",
 	"**/metadata",
-	"**/ps3_update/**",
-	"**/ps3_update",
-	"**/ps3_vprm/**",
-	"**/ps3_vprm",
+
+	// Kodi-compatible metadata
 	"**/extrafanart/**",
 	"**/extrafanart",
 	"**/extrathumbs/**",
 	"**/extrathumbs",
 	"**/.actors/**",
 	"**/.actors",
+
+	// Western Digital directories
 	"**/.wd_tv/**",
 	"**/.wd_tv",
+
+	// Unix lost files
 	"**/lost+found/**",
 	"**/lost+found",
-
-	// WMC temp recording directories that will constantly be written to
-	"**/TempRec/**",
-	"**/TempRec",
-	"**/TempSBE/**",
-	"**/TempSBE",
 
 	// Synology
 	"**/eaDir/**",
@@ -204,28 +198,22 @@ var IgnoredFileGlobs = []string{
 	"**/@Recycle",
 	"**/.@__thumb/**",
 	"**/.@__thumb",
+
+	// Windows
 	"**/$RECYCLE.BIN/**",
 	"**/$RECYCLE.BIN",
 	"**/System Volume Information/**",
 	"**/System Volume Information",
-	"**/.grab/**",
-	"**/.grab",
 
-	// Unix hidden files
-	"**/.*",
-
-	// Mac - if you ever remove the above.
-	// "**/._*",
-	// "**/.DS_Store",
-
-	// thumbs.db
+	// Windows thumbnail cache
 	"**/thumbs.db",
 
-	// bts sync files
+	// Resilio directories
 	"**/*.bts",
 	"**/*.sync",
 }
 
+// Given a path and a DirEntry, returns whether the given path should be ignored.
 func ShouldIgnore(path string, d fs.DirEntry) bool {
 	isMatched := false
 
@@ -250,6 +238,19 @@ func EnsurePathExists(path string) error {
 	return fmt.Errorf("failed to ensure path exists: %w", os.MkdirAll(path, BaseDirectoryPermissions))
 }
 
+// Saves a local image file to the image cache.
+// Returns the hash of the image file.
+func SaveLocalImageToCache(filePath string) (string, error) {
+	file, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open local image file: %w", err)
+	}
+
+	return saveImageToCache(file)
+}
+
+// Saves a remote image file to the image cache.
+// Returns the hash of the image file.
 func SaveExternalImageToCache(filePath string) (string, error) {
 	var fileBuffer bytes.Buffer
 
@@ -261,12 +262,18 @@ func SaveExternalImageToCache(filePath string) (string, error) {
 
 	_, err = io.Copy(&fileBuffer, response.Body)
 	if err != nil {
-		return "", fmt.Errorf("failed to copy image \"%s\": %w", filePath, err)
+		return "", fmt.Errorf("failed to copy remote image into memory: %w", err)
 	}
 
-	hash, err := utils.HashFileBytes(fileBuffer.Bytes())
+	return saveImageToCache(fileBuffer.Bytes())
+}
+
+// Internal method to generate the hash of the image file and save it to the cache.
+// Returns the hash of the image file.
+func saveImageToCache(file []byte) (string, error) {
+	hash, err := utils.HashFileBytes(file)
 	if err != nil {
-		return "", fmt.Errorf("failed to hash image \"%s\": %w", filePath, err)
+		return "", fmt.Errorf("failed to hash remote image file: %w", err)
 	}
 
 	fileHash := hex.EncodeToString(hash)
@@ -277,9 +284,11 @@ func SaveExternalImageToCache(filePath string) (string, error) {
 		return "", fmt.Errorf("failed to get image cache path: %w", err)
 	}
 
-	image, err := vips.NewImageFromReader(&fileBuffer)
+	fileBuffer := bytes.NewBuffer(file)
+
+	image, err := vips.NewImageFromReader(fileBuffer)
 	if err != nil {
-		return "", fmt.Errorf("failed to read image \"%s\": %w", filePath, err)
+		return "", fmt.Errorf("failed to read image: %w", err)
 	}
 
 	export, _, err := image.ExportWebp(vips.NewWebpExportParams())

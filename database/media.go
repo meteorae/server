@@ -148,21 +148,15 @@ func CreateMediaStream(title string, streamType StreamType, language string, ind
 	return nil
 }
 
-func CreateMediaPart(path, hash string, size int64) (*MediaPart, error) {
-	newMediaPart := MediaPart{
-		FilePath: path,
-		Hash:     hash,
-		Size:     size,
-	}
-
-	result := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&newMediaPart)
+func CreateMediaPart(mediaPart MediaPart) (*MediaPart, error) {
+	result := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&mediaPart)
 	// TODO: Check for the actual error type
 	if result.Error != nil {
 		// If the record exist, we already have it, just skip it to save time
 		return nil, fmt.Errorf("failed to create media part: %w", result.Error)
 	}
 
-	return &newMediaPart, nil
+	return &mediaPart, nil
 }
 
 func GetMediaPart(metadataID, mediaPartID string) (*MediaPart, error) {

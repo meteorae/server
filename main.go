@@ -17,6 +17,7 @@ import (
 	"github.com/getsentry/sentry-go"
 	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/helpers"
+	_ "github.com/meteorae/meteorae-server/resolvers/all"
 	"github.com/meteorae/meteorae-server/server"
 	"github.com/panjf2000/ants/v2"
 	"github.com/rs/zerolog"

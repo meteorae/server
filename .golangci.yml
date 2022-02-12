@@ -25,6 +25,8 @@ linters:
     - "godox"
     # Duplicate
     - "gofmt"
+    # We actually need these
+    - "gochecknoinits"
 linters-settings:
   gofumpt:
     lang-version: "1.17"

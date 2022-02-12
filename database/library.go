@@ -13,6 +13,7 @@ const (
 	TVLibrary         LibraryType = "tv"
 	AnimeTVLibrary    LibraryType = "animeTV"
 	MusicLibrary      LibraryType = "music"
+	ImageLibrary      LibraryType = "image"
 )
 
 func (l LibraryType) String() string {
@@ -43,6 +44,8 @@ func (l *LibraryType) UnmarshalText(text []byte) (err error) {
 		*l = AnimeTVLibrary
 	case "music":
 		*l = MusicLibrary
+	case "image":
+		*l = ImageLibrary
 	}
 
 	return
@@ -98,19 +101,19 @@ func CreateLibrary(name, language, typeArg string, locations []string) (*Library
 }
 
 // Returns the requested fields from the specified library.
-func GetLibrary(id string, fields []string) Library {
+func GetLibrary(id string) Library {
 	var library Library
 
-	db.Select(fields).First(&library, id)
+	db.First(&library, id)
 
 	return library
 }
 
 // Returns the requested fields for all libraries.
-func GetLibraries(fields []string) []*Library {
+func GetLibraries() []*Library {
 	var libraries []*Library
 
-	db.Select(fields).Find(&libraries)
+	db.Find(&libraries)
 
 	return libraries
 }

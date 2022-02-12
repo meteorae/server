@@ -40,10 +40,10 @@ type LibrariesResult struct {
 type Movie struct {
 	ID          string            `json:"id"`
 	Title       string            `json:"title"`
-	ReleaseDate int64             `json:"releaseDate"`
-	Summary     string            `json:"summary"`
-	Thumb       string            `json:"thumb"`
-	Art         string            `json:"art"`
+	ReleaseDate *string           `json:"releaseDate"`
+	Summary     *string           `json:"summary"`
+	Thumb       *string           `json:"thumb"`
+	Art         *string           `json:"art"`
 	CreatedAt   time.Time         `json:"createdAt"`
 	UpdatedAt   time.Time         `json:"updatedAt"`
 	Library     *database.Library `json:"library"`

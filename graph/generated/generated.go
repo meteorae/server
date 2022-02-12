@@ -565,17 +565,17 @@ type Query {
   "Query the specified user."
   user(id: ID!): User
   "Query all users."
-  users(limit: Int, offset: Int): UsersResult
+  users(limit: Int = 20, offset: Int = 0): UsersResult
   "Query the specified item."
   item(id: ID!): Item
   "Query all items."
-  items(limit: Int, offset: Int, libraryId: ID!): ItemsResult
+  items(limit: Int = 20, offset: Int = 0, libraryId: ID!): ItemsResult
   "Query the specified library."
   library(id: ID!): Library
   "Query all libraries."
   libraries: LibrariesResult
   "Query latest content for all libraries."
-  latest(limit: Int): [LatestResult]
+  latest(limit: Int = 20): [LatestResult]
 }
 
 type Mutation {
@@ -645,10 +645,10 @@ type LatestResult {
 interface Item {
   id: ID!
   title: String!
-  releaseDate: Int!
-  summary: String!
-  thumb: String!
-  art: String!
+  releaseDate: String
+  summary: String
+  thumb: String
+  art: String
   createdAt: Time!
   updatedAt: Time!
   library: Library!
@@ -658,10 +658,10 @@ interface Item {
 type Movie implements Item {
   id: ID!
   title: String!
-  releaseDate: Int!
-  summary: String!
-  thumb: String!
-  art: String!
+  releaseDate: String
+  summary: String
+  thumb: String
+  art: String
   createdAt: Time!
   updatedAt: Time!
   library: Library!
@@ -1591,14 +1591,11 @@ func (ec *executionContext) _Movie_releaseDate(ctx context.Context, field graphq
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
-	res := resTmp.(int64)
+	res := resTmp.(*string)
 	fc.Result = res
-	return ec.marshalNInt2int64(ctx, field.Selections, res)
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Movie_summary(ctx context.Context, field graphql.CollectedField, obj *model.Movie) (ret graphql.Marshaler) {
@@ -1626,14 +1623,11 @@ func (ec *executionContext) _Movie_summary(ctx context.Context, field graphql.Co
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(*string)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Movie_thumb(ctx context.Context, field graphql.CollectedField, obj *model.Movie) (ret graphql.Marshaler) {
@@ -1661,14 +1655,11 @@ func (ec *executionContext) _Movie_thumb(ctx context.Context, field graphql.Coll
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(*string)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Movie_art(ctx context.Context, field graphql.CollectedField, obj *model.Movie) (ret graphql.Marshaler) {
@@ -1696,14 +1687,11 @@ func (ec *executionContext) _Movie_art(ctx context.Context, field graphql.Collec
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(*string)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Movie_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Movie) (ret graphql.Marshaler) {
@@ -3948,9 +3936,6 @@ func (ec *executionContext) _Movie(ctx context.Context, sel ast.SelectionSet, ob
 
 			out.Values[i] = innerFunc(ctx)
 
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
 		case "summary":
 			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Movie_summary(ctx, field, obj)
@@ -3958,9 +3943,6 @@ func (ec *executionContext) _Movie(ctx context.Context, sel ast.SelectionSet, ob
 
 			out.Values[i] = innerFunc(ctx)
 
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
 		case "thumb":
 			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Movie_thumb(ctx, field, obj)
@@ -3968,9 +3950,6 @@ func (ec *executionContext) _Movie(ctx context.Context, sel ast.SelectionSet, ob
 
 			out.Values[i] = innerFunc(ctx)
 
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
 		case "art":
 			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Movie_art(ctx, field, obj)
@@ -3978,9 +3957,6 @@ func (ec *executionContext) _Movie(ctx context.Context, sel ast.SelectionSet, ob
 
 			out.Values[i] = innerFunc(ctx)
 
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
 		case "createdAt":
 			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Movie_createdAt(ctx, field, obj)
@@ -4817,21 +4793,6 @@ func (ec *executionContext) unmarshalNID2string(ctx context.Context, v interface
 
 func (ec *executionContext) marshalNID2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
 	res := graphql.MarshalID(v)
-	if res == graphql.Null {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "must not be null")
-		}
-	}
-	return res
-}
-
-func (ec *executionContext) unmarshalNInt2int64(ctx context.Context, v interface{}) (int64, error) {
-	res, err := graphql.UnmarshalInt64(v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNInt2int64(ctx context.Context, sel ast.SelectionSet, v int64) graphql.Marshaler {
-	res := graphql.MarshalInt64(v)
 	if res == graphql.Null {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "must not be null")
