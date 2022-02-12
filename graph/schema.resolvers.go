@@ -35,7 +35,7 @@ func (r *libraryResolver) Locations(ctx context.Context, obj *database.Library) 
 	return locations, nil
 }
 
-func (r *mutationResolver) Login(ctx context.Context, username string, password string) (*model.AuthPayload, error) {
+func (r *mutationResolver) Login(ctx context.Context, username, password string) (*model.AuthPayload, error) {
 	user, err := database.GetUserByName(username)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get user")
@@ -63,7 +63,7 @@ func (r *mutationResolver) Login(ctx context.Context, username string, password 
 	return nil, errInvalidCredentials
 }
 
-func (r *mutationResolver) Register(ctx context.Context, username string, password string) (*model.AuthPayload, error) {
+func (r *mutationResolver) Register(ctx context.Context, username, password string) (*model.AuthPayload, error) {
 	user, err := database.CreateUser(username, password)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user: %w", err)
@@ -80,7 +80,8 @@ func (r *mutationResolver) Register(ctx context.Context, username string, passwo
 	}, nil
 }
 
-func (r *mutationResolver) AddLibrary(ctx context.Context, typeArg string, name string, language string, locations []string) (*database.Library, error) {
+func (r *mutationResolver) AddLibrary(ctx context.Context, typeArg, name, language string,
+	locations []string) (*database.Library, error) {
 	library, libraryLocations, err := database.CreateLibrary(name, language, typeArg, locations)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to create library")
@@ -112,7 +113,7 @@ func (r *queryResolver) User(ctx context.Context, id string) (*database.User, er
 	return user, nil
 }
 
-func (r *queryResolver) Users(ctx context.Context, limit *int64, offset *int64) (*model.UsersResult, error) {
+func (r *queryResolver) Users(ctx context.Context, limit, offset *int64) (*model.UsersResult, error) {
 	users := database.GetUsers()
 
 	count := database.GetUsersCount()
@@ -154,7 +155,7 @@ func (r *queryResolver) Item(ctx context.Context, id string) (model.Item, error)
 	}, nil
 }
 
-func (r *queryResolver) Items(ctx context.Context, limit *int64, offset *int64, libraryID string) (*model.ItemsResult, error) {
+func (r *queryResolver) Items(ctx context.Context, limit, offset *int64, libraryID string) (*model.ItemsResult, error) {
 	items, err := database.GetItemsFromLibrary(libraryID, limit, offset)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get items")
@@ -283,7 +284,9 @@ func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 // User returns generated.UserResolver implementation.
 func (r *Resolver) User() generated.UserResolver { return &userResolver{r} }
 
-type libraryResolver struct{ *Resolver }
-type mutationResolver struct{ *Resolver }
-type queryResolver struct{ *Resolver }
-type userResolver struct{ *Resolver }
+type (
+	libraryResolver  struct{ *Resolver }
+	mutationResolver struct{ *Resolver }
+	queryResolver    struct{ *Resolver }
+	userResolver     struct{ *Resolver }
+)

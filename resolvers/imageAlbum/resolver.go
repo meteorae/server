@@ -2,13 +2,12 @@ package image
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/meteorae/meteorae-server/database"
-	"github.com/meteorae/meteorae-server/providers/image"
 	"github.com/meteorae/meteorae-server/resolvers/registry"
 	"github.com/meteorae/meteorae-server/utils"
-	"github.com/panjf2000/ants/v2"
 	"github.com/rs/zerolog/log"
 )
 
@@ -41,7 +40,7 @@ var imageResolver registry.Resolver = Resolver{}
 type Resolver struct{}
 
 func (r Resolver) GetName() string {
-	return "Image"
+	return "Image Album"
 }
 
 func (r Resolver) SupportsLibraryType(library database.Library) bool {
@@ -49,43 +48,53 @@ func (r Resolver) SupportsLibraryType(library database.Library) bool {
 }
 
 func (r Resolver) SupportsFileType(filePath string, isDir bool) bool {
-	if isDir {
+	if !isDir {
 		return false
 	}
 
-	return r.isImageFile(filePath)
+	folder, err := os.Open(filePath)
+	if err != nil {
+		log.Error().Err(err).Msgf("Failed to open directory %s", filePath)
+
+		return false
+	}
+	defer folder.Close()
+
+	files, err := folder.Readdir(0)
+	if err != nil {
+		log.Error().Err(err).Msgf("Failed to read directory %s", filePath)
+
+		return false
+	}
+
+	// We want to check if any of the files in the directory are images,
+	// since photo albums should contain at least one image.
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+
+		if r.isImageFile(file.Name()) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (r Resolver) Resolve(mediaPart *database.MediaPart, library database.Library) error {
 	fileName := filepath.Base(mediaPart.FilePath)
-	fileName = fileName[:len(fileName)-len(filepath.Ext(fileName))]
-
-	album, err := database.GetImageAlbumByPath(filepath.Dir(mediaPart.FilePath))
-	if err != nil {
-		return fmt.Errorf("Failed to get image album for path %s: %s", mediaPart.FilePath, err)
-	}
 
 	item := database.ItemMetadata{
 		Title:     fileName,
 		LibraryID: library.ID,
 		Library:   library,
-		ParentID:  album.ID,
 		MediaPart: *mediaPart,
 	}
 
-	err = database.CreateImage(&item)
+	err := database.CreateImageAlbum(&item)
 	if err != nil {
 		return fmt.Errorf("could not resolve image metadata %s: %w", mediaPart.FilePath, err)
-	}
-
-	err = ants.Submit(func() {
-		err := image.GetInformation(&item, library)
-		if err != nil {
-			log.Error().Err(err).Msgf("Failed to get image information for %s: %w", mediaPart.FilePath, err)
-		}
-	})
-	if err != nil {
-		return fmt.Errorf("could not schedule image information job %s: %w", mediaPart.FilePath, err)
 	}
 
 	return nil

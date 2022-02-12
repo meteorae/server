@@ -56,10 +56,14 @@ type Library struct {
 	Name             string            `json:"name"`
 	Type             LibraryType       `json:"type"`
 	Language         string            `json:"language"`
+	LibraryLocations []LibraryLocation `gorm:"not null" json:"libraryLocations"`
 	CreatedAt        time.Time         `json:"createdAt"`
 	UpdatedAt        time.Time         `json:"updatedAt"`
 	ScannedAt        time.Time         `json:"scannedAt"`
-	LibraryLocations []LibraryLocation `gorm:"not null" json:"libraryLocations"`
+}
+
+func (Library) TableName() string {
+	return "libraries"
 }
 
 type LibraryLocation struct {

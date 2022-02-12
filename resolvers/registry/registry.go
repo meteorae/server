@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/meteorae/meteorae-server/database"
-	"github.com/panjf2000/ants/v2"
 	"github.com/rs/zerolog/log"
 )
 
@@ -14,6 +13,8 @@ type Resolver interface {
 	GetName() string
 	// Returns whether the resolver supports the given library type.
 	SupportsLibraryType(library database.Library) bool
+	// Returns whether the resolver supports the given file type.
+	SupportsFileType(filePath string, isDir bool) bool
 	// Resolves the given media part.
 	Resolve(mediaPart *database.MediaPart, library database.Library) error
 }
@@ -28,25 +29,16 @@ func Register(resolver Resolver) {
 }
 
 // Schedules a file resolution job.
-func ResolveFile(mediaPart *database.MediaPart, library database.Library) {
-	err := ants.Submit(func() {
-		log.Debug().Msgf("Resolving file %s", mediaPart.FilePath)
-		err := resolveFileJob(mediaPart, library)
-		if err != nil {
-			log.Error().Err(err).Msgf("Failed to resolve file %s", mediaPart.FilePath)
-		}
-	})
-	if err != nil {
-		log.Error().Err(err).Msg("Could not schedule file resolution job")
-	}
-}
+func ResolveFile(mediaPart *database.MediaPart, library database.Library, isDir bool) error {
+	log.Debug().Msgf("Resolving file %s", mediaPart.FilePath)
 
-func resolveFileJob(mediaPart *database.MediaPart, library database.Library) error {
 	for _, resolver := range Registry {
 		log.Debug().Msgf("Checking resolver %s", resolver.GetName())
-		if resolver.SupportsLibraryType(library) {
+
+		if resolver.SupportsLibraryType(library) && resolver.SupportsFileType(mediaPart.FilePath, isDir) {
 			log.Debug().Msgf("Resolving file %s with resolver %s", mediaPart.FilePath, resolver.GetName())
 			err := resolver.Resolve(mediaPart, library)
+
 			if err != nil {
 				return fmt.Errorf("failed to resolve file: %w", err)
 			}

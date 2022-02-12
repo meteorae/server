@@ -115,3 +115,48 @@ func UpdateImage(imageInfo *ItemMetadata) error {
 
 	return nil
 }
+
+func GetImageAlbum(id uint64) (*ItemMetadata, error) {
+	var imageAlbum ItemMetadata
+
+	result := db.First(&imageAlbum, id)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return &imageAlbum, nil
+}
+
+func GetImageAlbumByPath(path string) (*ItemMetadata, error) {
+	var imageAlbumPart MediaPart
+
+	var imageAlbum ItemMetadata
+
+	result := db.Where("file_path = ?", path).First(&imageAlbumPart)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	result = db.Where("id = ?", imageAlbumPart.ID).First(&imageAlbum)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return &imageAlbum, nil
+}
+
+func CreateImageAlbum(imageAlbumInfo *ItemMetadata) error {
+	if result := db.Create(imageAlbumInfo); result.Error != nil {
+		return result.Error
+	}
+
+	return nil
+}
+
+func UpdateImageAlbum(imageAlbumInfo *ItemMetadata) error {
+	if result := db.Save(imageAlbumInfo); result.Error != nil {
+		return result.Error
+	}
+
+	return nil
+}

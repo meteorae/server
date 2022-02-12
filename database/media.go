@@ -17,7 +17,7 @@ type MediaPart struct {
 	OpenSubtitleHash string
 	AniDBCRC         string
 	AcoustID         string
-	FilePath         string `gorm:"unique;not null"`
+	FilePath         string `gorm:"index;unique;not null"`
 	Size             int64  `gorm:"not null"`
 	ItemMetadataID   uint64
 	MediaStreams     []MediaStream  `json:"mediaStreams"`

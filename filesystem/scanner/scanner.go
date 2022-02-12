@@ -10,7 +10,6 @@ import (
 	"github.com/meteorae/meteorae-server/helpers"
 	"github.com/meteorae/meteorae-server/resolvers/registry"
 	"github.com/meteorae/meteorae-server/utils"
-	"github.com/panjf2000/ants/v2"
 	"github.com/rs/zerolog/log"
 )
 
@@ -27,36 +26,32 @@ func ScanDirectory(directory string, library database.Library) {
 			return nil
 		}
 
-		if dirEntry.IsDir() {
-			return nil
+		mediaPart := database.MediaPart{}
+		if !dirEntry.IsDir() {
+			// Hash the file using SHA-1
+			hash, err := utils.HashFilePath(path)
+			if err != nil {
+				return fmt.Errorf("failed to hash file: %w", err)
+			}
+
+			fileInfo, err := dirEntry.Info()
+			if err != nil {
+				return fmt.Errorf("failed to get file info: %w", err)
+			}
+
+			mediaPart = database.MediaPart{
+				FilePath: path,
+				Hash:     hex.EncodeToString(hash),
+				Size:     fileInfo.Size(),
+			}
+		} else {
+			mediaPart = database.MediaPart{
+				FilePath: path,
+			}
 		}
 
-		// Hash the file using SHA-1
-		hash, err := utils.HashFilePath(path)
-		if err != nil {
-			return fmt.Errorf("failed to hash file: %w", err)
-		}
-
-		fileInfo, err := dirEntry.Info()
-		if err != nil {
-			return fmt.Errorf("failed to get file info: %w", err)
-		}
-
-		mediaPart := database.MediaPart{
-			FilePath: path,
-			Hash:     hex.EncodeToString(hash),
-			Size:     fileInfo.Size(),
-		}
-
-		// Schedule the file resolution job
-		err = ants.Submit(func() {
-			log.Debug().Msgf("Scheduling resolution job for %s", mediaPart.FilePath)
-			registry.ResolveFile(&mediaPart, library)
-		})
-
-		if err != nil {
-			return fmt.Errorf("failed to schedule resolution job: %w", err)
-		}
+		log.Debug().Msgf("Scheduling resolution job for %s", mediaPart.FilePath)
+		registry.ResolveFile(&mediaPart, library, dirEntry.IsDir())
 
 		return nil
 	})

@@ -31,6 +31,14 @@ func (r Resolver) SupportsLibraryType(library database.Library) bool {
 	return library.Type == database.MovieLibrary
 }
 
+func (r Resolver) SupportsFileType(filePath string, isDir bool) bool {
+	if isDir {
+		return false
+	}
+
+	return isValidMovieFile(filePath)
+}
+
 func (r Resolver) Resolve(mediaPart *database.MediaPart, library database.Library) error {
 	fileInfo, err := os.Stat(mediaPart.FilePath)
 	if err != nil {
@@ -41,33 +49,31 @@ func (r Resolver) Resolve(mediaPart *database.MediaPart, library database.Librar
 		return nil
 	}
 
-	if isValidMovieFile(mediaPart.FilePath) {
-		info, err := PTN.Parse(filepath.Base(mediaPart.FilePath))
-		if err != nil {
-			return fmt.Errorf("failed to parse movie name: %w", err)
-		}
+	info, err := PTN.Parse(filepath.Base(mediaPart.FilePath))
+	if err != nil {
+		return fmt.Errorf("failed to parse movie name: %w", err)
+	}
 
-		item := database.ItemMetadata{
-			Title:     info.Title,
-			LibraryID: library.ID,
-			Library:   library,
-			MediaPart: *mediaPart,
-		}
+	item := database.ItemMetadata{
+		Title:     info.Title,
+		LibraryID: library.ID,
+		Library:   library,
+		MediaPart: *mediaPart,
+	}
 
-		err = database.CreateMovie(&item)
-		if err != nil {
-			return fmt.Errorf("could not resolve image metadata %s: %w", mediaPart.FilePath, err)
-		}
+	err = database.CreateMovie(&item)
+	if err != nil {
+		return fmt.Errorf("could not resolve image metadata %s: %w", mediaPart.FilePath, err)
+	}
 
-		err = ants.Submit(func() {
-			err := movie.GetInformation(&item, library)
-			if err != nil {
-				log.Err(err).Msgf("Failed to get movie information for %s: %w", mediaPart.FilePath, err)
-			}
-		})
+	err = ants.Submit(func() {
+		err := movie.GetInformation(&item, library)
 		if err != nil {
-			return fmt.Errorf("could not schedule image information job %s: %w", mediaPart.FilePath, err)
+			log.Err(err).Msgf("Failed to get movie information for %s: %w", mediaPart.FilePath, err)
 		}
+	})
+	if err != nil {
+		return fmt.Errorf("could not schedule image information job %s: %w", mediaPart.FilePath, err)
 	}
 
 	return nil
