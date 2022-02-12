@@ -1,3 +1,15 @@
+# [1.4.0](https://github.com/meteorae/server/compare/v1.3.0...v1.4.0) (2022-02-12)
+
+
+### Bug Fixes
+
+* use proper directory for storing database ([07dc3b4](https://github.com/meteorae/server/commit/07dc3b41a7d3d7e8c05975ff7f651457c65eb7c8))
+
+
+### Features
+
+* **media:** add image album support ([3e5b343](https://github.com/meteorae/server/commit/3e5b34348f70667b175abe66a90c0804fde5a8d3))
+
 # [1.3.0](https://github.com/meteorae/server/compare/v1.2.0...v1.3.0) (2022-02-01)
 
 
