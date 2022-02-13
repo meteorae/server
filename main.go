@@ -5,7 +5,6 @@ import "C"
 import (
 	"context"
 	"errors"
-	stdlog "log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,12 +14,13 @@ import (
 	_ "github.com/99designs/gqlgen/cmd"
 	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/getsentry/sentry-go"
+	_ "github.com/meteorae/meteorae-server/config"
 	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/helpers"
+	_ "github.com/meteorae/meteorae-server/logging"
 	_ "github.com/meteorae/meteorae-server/resolvers/all"
 	"github.com/meteorae/meteorae-server/server"
 	"github.com/panjf2000/ants/v2"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
@@ -28,12 +28,6 @@ var serverShutdownTimeout = 10 * time.Second
 
 func main() {
 	defer ants.Release()
-
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-
-	stdlog.SetFlags(0)
-	stdlog.SetOutput(log.Logger)
 
 	err := sentry.Init(sentry.ClientOptions{
 		Dsn: "https://9ad21ea087cb4de1a5d2cfb6f36d354b@o725130.ingest.sentry.io/61632320",

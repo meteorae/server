@@ -24,8 +24,6 @@ var Registry []Resolver
 // Registers a new file resolver.
 func Register(resolver Resolver) {
 	Registry = append(Registry, resolver)
-
-	log.Debug().Msgf("Registered resolver %s", resolver.GetName())
 }
 
 // Schedules a file resolution job.

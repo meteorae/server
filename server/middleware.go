@@ -23,6 +23,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog/hlog"
 	"github.com/rs/zerolog/log"
+	"github.com/spf13/viper"
 	"gorm.io/gorm"
 )
 
@@ -151,9 +152,11 @@ func GetWebServer() (*http.Server, error) {
 	router.Use(AuthMiddleware)
 	router.Use(MetricsMiddleware)
 
+	port := viper.GetInt("port")
+
 	return &http.Server{
 		Handler:      router,
-		Addr:         "127.0.0.1:42000",
+		Addr:         fmt.Sprintf(":%d", port),
 		WriteTimeout: writeTimeout,
 		ReadTimeout:  readTimeout,
 	}, nil
