@@ -3,5 +3,11 @@
     "gopls": {
         "formatting.gofumpt": true,
     },
-    "go.lintTool": "golangci-lint"
+    "go.lintTool": "golangci-lint",
+    "go.lintFlags": [
+        "--fast"
+    ],
+    "go.enableCodeLens": {
+        "references": true
+    }
 }

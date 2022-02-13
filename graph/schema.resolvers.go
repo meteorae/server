@@ -187,7 +187,7 @@ func (r *queryResolver) Latest(ctx context.Context, limit *int64) ([]*model.Late
 	for _, library := range libraries {
 		items, err := database.GetLatestItemsFromLibrary(library.ID, int(*limit))
 		if err != nil {
-			log.Err(err).Msgf("Failed to get latest items from library %s", library.ID)
+			log.Err(err).Msgf("Failed to get latest items from library %d", library.ID)
 
 			return nil, fmt.Errorf("failed to get latest items from library %d: %w", library.ID, err)
 		}

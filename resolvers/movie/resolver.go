@@ -70,7 +70,7 @@ func (r Resolver) Resolve(mediaPart *database.MediaPart, library database.Librar
 	err = ants.Submit(func() {
 		err := movie.GetInformation(&item, library)
 		if err != nil {
-			log.Err(err).Msgf("Failed to get movie information for %s: %w", mediaPart.FilePath, err)
+			log.Err(err).Msgf("Failed to get movie information for %s: %s", mediaPart.FilePath, err)
 		}
 	})
 	if err != nil {

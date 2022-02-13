@@ -47,7 +47,14 @@ func GetSQLiteBuildInformation() []string {
 			log.Error().Err(err)
 		}
 
-		loadedSqliteExtensions = append(loadedSqliteExtensions, extensionRow.(string))
+		extensionRowString, ok := extensionRow.(string)
+		if !ok {
+			log.Error().Msg("Could not convert extension row to string")
+
+			continue
+		}
+
+		loadedSqliteExtensions = append(loadedSqliteExtensions, extensionRowString)
 	}
 
 	return loadedSqliteExtensions

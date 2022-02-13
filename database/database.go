@@ -16,7 +16,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-var db *gorm.DB
+var db *gorm.DB //nolint:varnamelen
 
 type entrypoint struct {
 	lib  string

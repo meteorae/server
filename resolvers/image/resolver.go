@@ -62,7 +62,7 @@ func (r Resolver) Resolve(mediaPart *database.MediaPart, library database.Librar
 
 	album, err := database.GetImageAlbumByPath(filepath.Dir(mediaPart.FilePath))
 	if err != nil {
-		return fmt.Errorf("Failed to get image album for path %s: %s", mediaPart.FilePath, err)
+		return fmt.Errorf("failed to get image album for path %s: %w", mediaPart.FilePath, err)
 	}
 
 	item := database.ItemMetadata{
@@ -82,7 +82,7 @@ func (r Resolver) Resolve(mediaPart *database.MediaPart, library database.Librar
 	err = ants.Submit(func() {
 		err := image.GetInformation(&item, library)
 		if err != nil {
-			log.Error().Err(err).Msgf("Failed to get image information for %s: %w", mediaPart.FilePath, err)
+			log.Error().Err(err).Msgf("failed to get image information for %s: %w", mediaPart.FilePath, err)
 		}
 	})
 	if err != nil {

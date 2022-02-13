@@ -51,7 +51,10 @@ func ScanDirectory(directory string, library database.Library) {
 		}
 
 		log.Debug().Msgf("Scheduling resolution job for %s", mediaPart.FilePath)
-		registry.ResolveFile(&mediaPart, library, dirEntry.IsDir())
+		err := registry.ResolveFile(&mediaPart, library, dirEntry.IsDir())
+		if err != nil {
+			return fmt.Errorf("failed to schedule resolution job: %w", err)
+		}
 
 		return nil
 	})

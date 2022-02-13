@@ -59,7 +59,13 @@ func (h SPAHandler) ServeHTTP(writer http.ResponseWriter, reader *http.Request) 
 			return
 		}
 
-		http.ServeContent(writer, reader, "index.html", indexStat.ModTime(), indexFile.(io.ReadSeeker))
+		indexFileSeeker, ok := indexFile.(io.ReadSeeker)
+		if !ok {
+			log.Error().Msg("Failed to cast index.html to io.ReadSeeker")
+			http.Error(writer, "Failed to cast index.html to io.ReadSeeker", http.StatusInternalServerError)
+		}
+
+		http.ServeContent(writer, reader, "index.html", indexStat.ModTime(), indexFileSeeker)
 
 		return
 	} else if fsStatErr != nil {

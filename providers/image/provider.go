@@ -19,7 +19,7 @@ func GetInformation(item *database.ItemMetadata, library database.Library) error
 	// Figure out if the parent already has a preview thumbnail. If not, we set it to the current item's thumbnail.
 	parent, err := database.GetImageAlbum(item.ParentID)
 	if err != nil {
-		log.Err(err).Msgf("Failed to get image album for path %s: %w", item.MediaPart.FilePath, err)
+		log.Err(err).Msgf("Failed to get image album for path %s: %s", item.MediaPart.FilePath, err)
 	}
 
 	if parent.Thumb == "" {
@@ -27,7 +27,7 @@ func GetInformation(item *database.ItemMetadata, library database.Library) error
 
 		err = database.UpdateImageAlbum(parent)
 		if err != nil {
-			log.Err(err).Msgf("Failed to update image album for path %s: %w", item.MediaPart.FilePath, err)
+			log.Err(err).Msgf("Failed to update image album for path %s: %s", item.MediaPart.FilePath, err)
 		}
 	}
 

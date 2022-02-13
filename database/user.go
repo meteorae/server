@@ -55,8 +55,7 @@ func CreateUser(username, password string) (*User, error) {
 func GetUserByID(id string) (*User, error) {
 	var user User
 
-	results := db.First(&user, id)
-	if results.Error != nil {
+	if results := db.First(&user, id); results.Error != nil {
 		return nil, fmt.Errorf("failed to get user: %w", results.Error)
 	}
 
