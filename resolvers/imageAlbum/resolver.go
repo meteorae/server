@@ -87,6 +87,7 @@ func (r Resolver) Resolve(mediaPart *database.MediaPart, library database.Librar
 
 	item := database.ItemMetadata{
 		Title:     fileName,
+		Type:      database.ImageAlbumItem,
 		LibraryID: library.ID,
 		Library:   library,
 		MediaPart: *mediaPart,

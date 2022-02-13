@@ -132,27 +132,8 @@ func (r *queryResolver) Item(ctx context.Context, id string) (model.Item, error)
 		return nil, fmt.Errorf("failed to get item: %w", err)
 	}
 
-	thumbUrl := ""
-	if item.Thumb != "" {
-		thumbUrl = fmt.Sprintf("/image/transcode?url=/metadata/%d/thumb", item.ID)
-	}
-
-	artUrl := ""
-	if item.Art != "" {
-		artUrl = fmt.Sprintf("/image/transcode?url=/metadata/%d/art", item.ID)
-	}
-
-	isoReleaseDate := item.ReleaseDate.Format("2006-01-02")
-
 	// TODO; Properly handle all item types
-	return &model.Movie{
-		ID:          strconv.FormatUint(item.ID, 10), //nolint:gomnd
-		Title:       item.Title,
-		ReleaseDate: &isoReleaseDate,
-		Summary:     &item.Summary,
-		Thumb:       &thumbUrl,
-		Art:         &artUrl,
-	}, nil
+	return *helpers.GetItemFromItemMetadata(item), nil
 }
 
 func (r *queryResolver) Items(ctx context.Context, limit, offset *int64, libraryID string) (*model.ItemsResult, error) {
@@ -172,26 +153,7 @@ func (r *queryResolver) Items(ctx context.Context, limit, offset *int64, library
 
 	resultItems := make([]model.Item, 0, len(items))
 	for _, item := range items {
-		thumbUrl := ""
-		if item.Thumb != "" {
-			thumbUrl = fmt.Sprintf("/image/transcode?url=/metadata/%d/thumb", item.ID)
-		}
-
-		artUrl := ""
-		if item.Art != "" {
-			artUrl = fmt.Sprintf("/image/transcode?url=/metadata/%d/art", item.ID)
-		}
-
-		isoReleaseDate := item.ReleaseDate.Format("2006-01-02")
-
-		resultItems = append(resultItems, &model.Movie{
-			ID:          strconv.FormatUint(item.ID, 10), //nolint:gomnd
-			Title:       item.Title,
-			ReleaseDate: &isoReleaseDate,
-			Summary:     &item.Summary,
-			Thumb:       &thumbUrl,
-			Art:         &artUrl,
-		})
+		resultItems = append(resultItems, *helpers.GetItemFromItemMetadata(item))
 	}
 
 	return &model.ItemsResult{
@@ -231,30 +193,9 @@ func (r *queryResolver) Latest(ctx context.Context, limit *int64) ([]*model.Late
 		}
 
 		resultItems := make([]model.Item, 0, len(items))
+
 		for _, item := range items {
-			thumbUrl := ""
-			if item.Thumb != "" {
-				thumbUrl = fmt.Sprintf("/image/transcode?url=/metadata/%d/thumb", item.ID)
-			}
-
-			artUrl := ""
-			if item.Art != "" {
-				artUrl = fmt.Sprintf("/image/transcode?url=/metadata/%d/art", item.ID)
-			}
-
-			isoReleaseDate := item.ReleaseDate.Format("2006-01-02")
-
-			resultItems = append(resultItems, &model.Movie{
-				ID:          strconv.FormatUint(item.ID, 10), //nolint:gomnd
-				Title:       item.Title,
-				ReleaseDate: &isoReleaseDate,
-				Summary:     &item.Summary,
-				Thumb:       &thumbUrl,
-				Art:         &artUrl,
-				CreatedAt:   item.CreatedAt,
-				UpdatedAt:   item.UpdatedAt,
-				Library:     library,
-			})
+			resultItems = append(resultItems, *helpers.GetItemFromItemMetadata(item))
 		}
 
 		if len(items) > 0 {

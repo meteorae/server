@@ -3,31 +3,60 @@ package database
 import (
 	"fmt"
 	"time"
+
+	"gorm.io/datatypes"
+)
+
+type ItemType uint
+
+const (
+	MovieItem ItemType = iota
+	MusicAlbumItem
+	MusicMediumItem
+	MusicTrackItem
+	TVShowItem
+	TVSeasonItem
+	TVEpisodeItem
+	AnimeMovieItem
+	AnimeShowItem
+	AnimeSeasonItem
+	AnimeEpisodeItem
+	ImageItem
+	ImageAlbumItem
+	PersonItem
+	GroupItem
+	CollectionItem
 )
 
 type ItemMetadata struct {
-	ID            uint64 `gorm:"primary_key" json:"id"`
-	Title         string `gorm:"type:VARCHAR(255)" json:"title"`
-	SortTitle     string `gorm:"type:VARCHAR(255) COLLATE NOCASE" json:"sortTitle"`
-	OriginalTitle string `gorm:"type:VARCHAR(255)" json:"originalTitle"`
-	Tagline       string `gorm:"type:VARCHAR(255)" json:"tagline"`
-	Summary       string `json:"summary"`
+	ID            uint64   `gorm:"primary_key" json:"id"`
+	Title         string   `gorm:"type:VARCHAR(255)" json:"title"`
+	SortTitle     string   `gorm:"type:VARCHAR(255) COLLATE NOCASE" json:"sortTitle"`
+	OriginalTitle string   `gorm:"type:VARCHAR(255)" json:"originalTitle"`
+	Tagline       string   `gorm:"type:VARCHAR(255)" json:"tagline"`
+	Summary       string   `json:"summary"`
+	Type          ItemType `gorm:"not null;type:INT" json:"type"`
 	// ExternalID []ExternalIdentifier
-	ReleaseDate      time.Time `json:"releaseDate"`
-	Popularity       float32   `json:"popularity"`
-	ParentID         uint64    `json:"parentId"`
-	Index            int64     `json:"index"`
-	AbsoluteIndex    int64     `json:"absoluteIndex"`
-	Duration         int64     `json:"duration"`
-	OriginalLanguage string    `json:"originalLanguage"`
-	Thumb            string    `json:"thumb"`
-	Art              string    `json:"art"`
-	MediaPart        MediaPart `json:"mediaPart"`
+	ReleaseDate      time.Time      `json:"releaseDate"`
+	Popularity       float32        `json:"popularity"`
+	ParentID         uint64         `json:"parentId"`
+	Index            int64          `json:"index"`
+	AbsoluteIndex    int64          `json:"absoluteIndex"`
+	Duration         int64          `json:"duration"`
+	OriginalLanguage string         `json:"originalLanguage"`
+	Thumb            string         `json:"thumb"`
+	Art              string         `json:"art"`
+	ExtraInfo        datatypes.JSON `json:"extraInfo"`
+	MediaPart        MediaPart      `json:"mediaPart"`
 	LibraryID        uint64
 	Library          Library   `gorm:"not null" json:"library"`
 	CreatedAt        time.Time `json:"createdAt"`
 	UpdatedAt        time.Time `json:"updatedAt"`
 	DeleteAt         time.Time `json:"deleteAt"`
+}
+
+type MovieExtraInfo struct {
+	Type string `json:"type"`
 }
 
 // Returns the requested fields from the specified item.
@@ -69,8 +98,8 @@ func GetItemsCountFromLibrary(libraryID string) (*int64, error) {
 	return &count, nil
 }
 
-func GetLatestItemsFromLibrary(libraryID uint64, limit int) ([]ItemMetadata, error) {
-	var items []ItemMetadata
+func GetLatestItemsFromLibrary(libraryID uint64, limit int) ([]*ItemMetadata, error) {
+	var items []*ItemMetadata
 
 	itemsResult := db.
 		Limit(limit).

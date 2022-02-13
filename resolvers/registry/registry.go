@@ -38,7 +38,6 @@ func ResolveFile(mediaPart *database.MediaPart, library database.Library, isDir 
 		if resolver.SupportsLibraryType(library) && resolver.SupportsFileType(mediaPart.FilePath, isDir) {
 			log.Debug().Msgf("Resolving file %s with resolver %s", mediaPart.FilePath, resolver.GetName())
 			err := resolver.Resolve(mediaPart, library)
-
 			if err != nil {
 				return fmt.Errorf("failed to resolve file: %w", err)
 			}

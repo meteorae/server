@@ -87,7 +87,6 @@ type LatestResult {
 interface Item {
   id: ID!
   title: String!
-  releaseDate: String
   summary: String
   thumb: String
   art: String
@@ -101,6 +100,30 @@ type Movie implements Item {
   id: ID!
   title: String!
   releaseDate: String
+  summary: String
+  thumb: String
+  art: String
+  createdAt: Time!
+  updatedAt: Time!
+  library: Library!
+}
+
+"Item information about an image album."
+type ImageAlbum implements Item {
+  id: ID!
+  title: String!
+  summary: String
+  thumb: String
+  art: String
+  createdAt: Time!
+  updatedAt: Time!
+  library: Library!
+}
+
+"Item information about an image."
+type Image implements Item {
+  id: ID!
+  title: String!
   summary: String
   thumb: String
   art: String

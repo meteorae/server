@@ -19,6 +19,34 @@ type AuthPayload struct {
 	User  *database.User `json:"user"`
 }
 
+// Item information about an image.
+type Image struct {
+	ID        string            `json:"id"`
+	Title     string            `json:"title"`
+	Summary   *string           `json:"summary"`
+	Thumb     *string           `json:"thumb"`
+	Art       *string           `json:"art"`
+	CreatedAt time.Time         `json:"createdAt"`
+	UpdatedAt time.Time         `json:"updatedAt"`
+	Library   *database.Library `json:"library"`
+}
+
+func (Image) IsItem() {}
+
+// Item information about an image album.
+type ImageAlbum struct {
+	ID        string            `json:"id"`
+	Title     string            `json:"title"`
+	Summary   *string           `json:"summary"`
+	Thumb     *string           `json:"thumb"`
+	Art       *string           `json:"art"`
+	CreatedAt time.Time         `json:"createdAt"`
+	UpdatedAt time.Time         `json:"updatedAt"`
+	Library   *database.Library `json:"library"`
+}
+
+func (ImageAlbum) IsItem() {}
+
 // Result of a query containing multiple items.
 type ItemsResult struct {
 	Items []Item `json:"items"`
