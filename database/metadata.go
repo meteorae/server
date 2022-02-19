@@ -98,6 +98,34 @@ func GetItemsCountFromLibrary(libraryID string) (*int64, error) {
 	return &count, nil
 }
 
+// Returns all the children of a given item.
+func GetChildrenFromItem(id string, limit, offset *int64) ([]*ItemMetadata, error) {
+	var children []*ItemMetadata
+
+	result := db.
+		Limit(int(*limit)).
+		Offset(int(*offset)).
+		Where("parent_id = ?", id).
+		Find(&children)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return children, nil
+}
+
+// Returns the number of children for a given item.
+func GetChildrenCountFromItem(id string) (*int64, error) {
+	var count int64
+
+	result := db.Model(&ItemMetadata{}).Where("parent_id = ?", id).Count(&count)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return &count, nil
+}
+
 func GetLatestItemsFromLibrary(libraryID uint64, limit int) ([]*ItemMetadata, error) {
 	var items []*ItemMetadata
 

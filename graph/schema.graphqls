@@ -12,6 +12,8 @@ type Query {
   item(id: ID!): Item
   "Query all items."
   items(limit: Int = 20, offset: Int = 0, libraryId: ID!): ItemsResult
+  "Query the children of the provided item."
+  children(limit: Int = 20, offset: Int = 0, item: ID!): ItemsResult
   "Query the specified library."
   library(id: ID!): Library
   "Query all libraries."

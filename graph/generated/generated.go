@@ -120,6 +120,7 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
+		Children  func(childComplexity int, limit *int64, offset *int64, item string) int
 		Item      func(childComplexity int, id string) int
 		Items     func(childComplexity int, limit *int64, offset *int64, libraryID string) int
 		Latest    func(childComplexity int, limit *int64) int
@@ -159,6 +160,7 @@ type QueryResolver interface {
 	Users(ctx context.Context, limit *int64, offset *int64) (*model.UsersResult, error)
 	Item(ctx context.Context, id string) (model.Item, error)
 	Items(ctx context.Context, limit *int64, offset *int64, libraryID string) (*model.ItemsResult, error)
+	Children(ctx context.Context, limit *int64, offset *int64, item string) (*model.ItemsResult, error)
 	Library(ctx context.Context, id string) (*database.Library, error)
 	Libraries(ctx context.Context) (*model.LibrariesResult, error)
 	Latest(ctx context.Context, limit *int64) ([]*model.LatestResult, error)
@@ -505,6 +507,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.Register(childComplexity, args["username"].(string), args["password"].(string)), true
 
+	case "Query.children":
+		if e.complexity.Query.Children == nil {
+			break
+		}
+
+		args, err := ec.field_Query_children_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Children(childComplexity, args["limit"].(*int64), args["offset"].(*int64), args["item"].(string)), true
+
 	case "Query.item":
 		if e.complexity.Query.Item == nil {
 			break
@@ -704,6 +718,8 @@ type Query {
   item(id: ID!): Item
   "Query all items."
   items(limit: Int = 20, offset: Int = 0, libraryId: ID!): ItemsResult
+  "Query the children of the provided item."
+  children(limit: Int = 20, offset: Int = 0, item: ID!): ItemsResult
   "Query the specified library."
   library(id: ID!): Library
   "Query all libraries."
@@ -935,6 +951,39 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 		}
 	}
 	args["name"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_children_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *int64
+	if tmp, ok := rawArgs["limit"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
+		arg0, err = ec.unmarshalOInt2ᚖint64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["limit"] = arg0
+	var arg1 *int64
+	if tmp, ok := rawArgs["offset"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("offset"))
+		arg1, err = ec.unmarshalOInt2ᚖint64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["offset"] = arg1
+	var arg2 string
+	if tmp, ok := rawArgs["item"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("item"))
+		arg2, err = ec.unmarshalNID2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["item"] = arg2
 	return args, nil
 }
 
@@ -2767,6 +2816,45 @@ func (ec *executionContext) _Query_items(ctx context.Context, field graphql.Coll
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return ec.resolvers.Query().Items(rctx, args["limit"].(*int64), args["offset"].(*int64), args["libraryId"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.ItemsResult)
+	fc.Result = res
+	return ec.marshalOItemsResult2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋgraphᚋmodelᚐItemsResult(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_children(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_children_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Children(rctx, args["limit"].(*int64), args["offset"].(*int64), args["item"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -5044,6 +5132,26 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_items(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx, innerFunc)
+			}
+
+			out.Concurrently(i, func() graphql.Marshaler {
+				return rrm(innerCtx)
+			})
+		case "children":
+			field := field
+
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_children(ctx, field)
 				return res
 			}
 
