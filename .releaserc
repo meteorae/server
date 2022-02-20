@@ -33,6 +33,12 @@
           }
         ]
       }
+    ],
+    [
+      "@semantic-release/exec",
+      {
+        "publishCmd": "sentry-cli releases new ${nextRelease.version} && sentry-cli releases set-commits --auto ${nextRelease.version} && sentry-cli releases finalize ${nextRelease.version} && sentry-cli releases deploys ${nextRelease.version} new --env production"
+      }
     ]
   ]
 }
