@@ -28,6 +28,9 @@ jobs:
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-yarn-
+      - name: Install Sentry
+        run: |
+          curl -sL https://sentry.io/get-cli/ | bash
       - name: Install release dependencies
         run: sudo yarn add global semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github @semantic-release/exec
       - name: Add libvips backports PPAs
