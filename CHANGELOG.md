@@ -1,3 +1,11 @@
+# [1.5.0](https://github.com/meteorae/server/compare/v1.4.0...v1.5.0) (2022-02-20)
+
+
+### Features
+
+* add config file ([960a2b4](https://github.com/meteorae/server/commit/960a2b44ea392907628120cc88fdd3d3ccd8b1f8))
+* **graphql:** add children query ([b8967a6](https://github.com/meteorae/server/commit/b8967a62d06d9a6ca3e9f951f67366ca1e31036c))
+
 # [1.4.0](https://github.com/meteorae/server/compare/v1.3.0...v1.4.0) (2022-02-12)
 
 
