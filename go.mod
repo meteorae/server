@@ -12,8 +12,8 @@ require (
 	github.com/vektah/gqlparser/v2 v2.3.1
 	gopkg.in/vansante/go-ffprobe.v2 v2.0.3
 	gorm.io/datatypes v1.0.5
-	gorm.io/driver/sqlite v1.2.6
-	gorm.io/gorm v1.22.5
+	gorm.io/driver/sqlite v1.3.1
+	gorm.io/gorm v1.23.1
 )
 
 require (
