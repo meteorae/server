@@ -6,7 +6,7 @@ require (
 	github.com/99designs/gqlgen v0.16.0
 	github.com/gorilla/mux v1.8.0
 	github.com/middelink/go-parse-torrent-name v0.0.0-20190301154245-3ff4efacd4c4
-	github.com/panjf2000/ants/v2 v2.4.7
+	github.com/panjf2000/ants/v2 v2.4.8
 	github.com/ryanbradynd05/go-tmdb v0.0.0-20201006144520-c0566c3d1506
 	github.com/spf13/viper v1.10.1
 	github.com/vektah/gqlparser/v2 v2.3.1
