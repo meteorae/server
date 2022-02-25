@@ -23,29 +23,25 @@ If you want to take on part of the roadmap or have another idea you would like t
   - [x] The scanning process analyzes files to gather information
     - [x] Video support
     - [ ] Audio support
-    - [ ] Image support
+    - [x] Image support
     - [ ] Book support
-- [ ] During login, users must submit their supported playback formats, which starts a session on the server
 - [ ] Users can play media
+  - [x] Figure out a playback process
   - [ ] Generate playlists on the server
-  - [ ] GraphQL subscription for play queue
   - [ ] Media is served by the web server for playback
   - [ ] The server can figure out the best playback format for the user's session
   - [ ] Audio and video are transcoded with ffmpeg if the client cannot play them directly
-    - [ ] Transcoded videos and audio are served using MPEG-DASH
+    - [ ] Transcoded video and audio can be served using MPEG-DASH
+    - [ ] Transcoded video and audio can be served using HLS
     - [ ] Direct files are served as `file.<ext>` to help clients know which format they are getting
-    - [ ] Compatible subtitles are embedded in the MPEG-DASH Media Presentation Description
-    - [ ] Incompatible subtitles are converted to a compatible format and are embedded in the MPEG-DASH Media Presentation Description
+    - [ ] Compatible subtitles are embedded in the MPEG-DASH Media Presentation Description or HLS Manifest
+    - [ ] Incompatible subtitles are converted to a compatible format and are embedded in the MPEG-DASH Media Presentation Description or HLS Manifest
 - [ ] Users can transcode any kind of supported files
   - [ ] Transcoders are chosen based on the type of file to be served
   - [ ] ffmpeg is used to transcode video and audio
-  - [x] Imagick is used to transcode images
+  - [x] VIPS is used to transcode images
+    - [ ] Local images should not be cached unless resized 
   - [ ] Archives are transcoded by serving their content using an index
-- [ ] Users can install plugins
-  - [ ] Providers are loaded from plugins
-  - [ ] Resolvers are loaded from plugins
-  - [ ] Media types are loaded from plugins
-  - [ ] Plugins can declare dependencies to other plugins
 
 ## Minimum Viable Product
 
