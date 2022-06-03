@@ -65,7 +65,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.0.2
 	github.com/davidbyttow/govips/v2 v2.11.0
 	github.com/dhowden/tag v0.0.0-20201120070457-d52dcb253c63
-	github.com/getsentry/sentry-go v0.12.0
+	github.com/getsentry/sentry-go v0.13.0
 	github.com/go-gormigrate/gormigrate/v2 v2.0.2
 	github.com/golang-jwt/jwt/v4 v4.3.0
 	github.com/gorilla/schema v1.2.0
