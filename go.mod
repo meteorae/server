@@ -63,7 +63,7 @@ require (
 	github.com/adrg/xdg v0.4.0
 	github.com/alexedwards/argon2id v0.0.0-20211130144151-3585854a6387
 	github.com/bmatcuk/doublestar/v4 v4.0.2
-	github.com/davidbyttow/govips/v2 v2.10.0
+	github.com/davidbyttow/govips/v2 v2.11.0
 	github.com/dhowden/tag v0.0.0-20201120070457-d52dcb253c63
 	github.com/getsentry/sentry-go v0.12.0
 	github.com/go-gormigrate/gormigrate/v2 v2.0.0
