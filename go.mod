@@ -9,7 +9,7 @@ require (
 	github.com/panjf2000/ants/v2 v2.5.0
 	github.com/ryanbradynd05/go-tmdb v0.0.0-20201006144520-c0566c3d1506
 	github.com/spf13/viper v1.10.1
-	github.com/vektah/gqlparser/v2 v2.3.1
+	github.com/vektah/gqlparser/v2 v2.4.4
 	gopkg.in/vansante/go-ffprobe.v2 v2.0.3
 	gorm.io/datatypes v1.0.6
 	gorm.io/driver/sqlite v1.3.2
@@ -49,10 +49,10 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/urfave/cli/v2 v2.3.0 // indirect
 	golang.org/x/image v0.0.0-20200927104501-e162460cd6b5 // indirect
-	golang.org/x/mod v0.5.0 // indirect
+	golang.org/x/mod v0.5.1 // indirect
 	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect
 	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9 // indirect
-	golang.org/x/tools v0.1.7 // indirect
+	golang.org/x/tools v0.1.9 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
