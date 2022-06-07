@@ -19,8 +19,14 @@ func init() {
 	viper.AddConfigPath(filepath.Dir(configFileLocation))
 	viper.AutomaticEnv()
 
+	// Disable debug messages by default
 	viper.SetDefault("verbose", false)
+	// Default server port
 	viper.SetDefault("port", 42000) //nolint:gomnd
+	// Enable Sentry reporting by default
+	// The reason is that it's anonimized, and helps us a lot
+	// to get feedback users might not submit or even know about.
+	viper.SetDefault("crash_reporting", true)
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {

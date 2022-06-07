@@ -5,10 +5,10 @@ import "C"
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"time"
 
 	_ "github.com/99designs/gqlgen/cmd"
@@ -22,6 +22,7 @@ import (
 	"github.com/meteorae/meteorae-server/server"
 	"github.com/panjf2000/ants/v2"
 	"github.com/rs/zerolog/log"
+	"github.com/spf13/viper"
 )
 
 var serverShutdownTimeout = 10 * time.Second
@@ -29,13 +30,19 @@ var serverShutdownTimeout = 10 * time.Second
 func main() {
 	defer ants.Release()
 
-	err := sentry.Init(sentry.ClientOptions{
-		Dsn: "https://9ad21ea087cb4de1a5d2cfb6f36d354b@o725130.ingest.sentry.io/61632320",
-	})
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to initialize Sentry")
+	enable_reporting := viper.GetBool("crash_reporting")
 
-		return
+	if enable_reporting {
+		err := sentry.Init(sentry.ClientOptions{
+			Dsn: "https://9ad21ea087cb4de1a5d2cfb6f36d354b@o725130.ingest.sentry.io/61632320",
+			Debug: viper.GetBool("verbose"),
+			Release: fmt.Sprint("meteorae-server@%s", helpers.Version),
+		})
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to initialize Sentry")
+
+			return
+		}
 	}
 
 	log.Info().Msgf("Starting Meteorae %s", helpers.Version)
@@ -45,17 +52,12 @@ func main() {
 	log.Info().Msgf("OS / Arch: %s", helpers.OsArch)
 
 	// Initialize the database
-	err = database.NewDatabase(log.Logger)
+	err := database.NewDatabase(log.Logger)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to initialize database")
 
 		return
 	}
-
-	log.Info().Msgf("SQLite Version: %s", database.GetSQLiteVersion())
-
-	sqliteBuildInfo := database.GetSQLiteBuildInformation()
-	log.Info().Msgf("SQLite build information: %s", strings.Join(sqliteBuildInfo, " "))
 
 	vips.Startup(nil)
 	defer vips.Shutdown()
