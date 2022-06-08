@@ -2,23 +2,20 @@ package helpers
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/graph/model"
 )
 
 func GetItemFromItemMetadata(itemMetadata *database.ItemMetadata) *model.Item {
-	itemID := strconv.FormatUint(itemMetadata.ID, 10) //nolint:gomnd
-
 	thumbURL := ""
 	if itemMetadata.Thumb != "" {
-		thumbURL = fmt.Sprintf("/image/transcode?url=/metadata/%d/thumb", itemMetadata.ID)
+		thumbURL = fmt.Sprintf("/image/transcode?url=/metadata/%s/thumb", itemMetadata.Id)
 	}
 
 	artURL := ""
 	if itemMetadata.Art != "" {
-		artURL = fmt.Sprintf("/image/transcode?url=/metadata/%d/art", itemMetadata.ID)
+		artURL = fmt.Sprintf("/image/transcode?url=/metadata/%s/art", itemMetadata.Id)
 	}
 
 	var item model.Item
@@ -28,7 +25,7 @@ func GetItemFromItemMetadata(itemMetadata *database.ItemMetadata) *model.Item {
 		isoReleaseDate := itemMetadata.ReleaseDate.Format("2006-01-02")
 
 		item = model.Movie{
-			ID:          itemID,
+			ID:          itemMetadata.Id,
 			Title:       itemMetadata.Title,
 			ReleaseDate: &isoReleaseDate,
 			Summary:     &itemMetadata.Summary,
@@ -40,7 +37,7 @@ func GetItemFromItemMetadata(itemMetadata *database.ItemMetadata) *model.Item {
 		}
 	case database.ImageAlbumItem:
 		item = model.ImageAlbum{
-			ID:        itemID,
+			ID:        itemMetadata.Id,
 			Title:     itemMetadata.Title,
 			Summary:   &itemMetadata.Summary,
 			Thumb:     &thumbURL,
@@ -51,7 +48,7 @@ func GetItemFromItemMetadata(itemMetadata *database.ItemMetadata) *model.Item {
 		}
 	case database.ImageItem:
 		item = model.Image{
-			ID:        itemID,
+			ID:        itemMetadata.Id,
 			Title:     itemMetadata.Title,
 			Summary:   &itemMetadata.Summary,
 			Thumb:     &thumbURL,

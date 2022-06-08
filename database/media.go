@@ -4,26 +4,24 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rs/zerolog/log"
+	"github.com/ostafen/clover"
 	"gopkg.in/vansante/go-ffprobe.v2"
 	"gorm.io/datatypes"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type MediaPart struct {
-	ID               uint64 `gorm:"primary_key" json:"id"`
-	Hash             string `gorm:"not null"`
-	OpenSubtitleHash string
-	AniDBCRC         string
-	AcoustID         string
-	FilePath         string `gorm:"index;unique;not null"`
-	Size             int64  `gorm:"not null"`
-	ItemMetadataID   uint64
-	MediaStreams     []MediaStream  `json:"mediaStreams"`
-	CreatedAt        time.Time      `json:"createdAt"`
-	UpdatedAt        time.Time      `json:"updatedAt"`
-	DeletedAt        gorm.DeletedAt `gorm:"index"`
+	Id               uint64        `clover:"_id"`
+	Hash             string        `clover:"hash"`
+	OpenSubtitleHash string        `clover:"openSubtitleHash"`
+	AniDBCRC         string        `clover:"aniDbCRC"`
+	AcoustID         string        `clover:"acoustId"`
+	FilePath         string        `clover:"filePath"`
+	Size             int64         `clover:"size"`
+	ItemMetadataID   uint64        `clover:"itemMetadataId"`
+	MediaStreams     []MediaStream `clover:"mediaStreams"`
+	CreatedAt        time.Time     `clover:"createdAt"`
+	UpdatedAt        time.Time     `clover:"updatedAt"`
+	DeletedAt        time.Time     `clover:"deletedAt"`
 }
 
 type IdentifierType int8
@@ -39,7 +37,7 @@ const (
 	InstagramIdentifier
 )
 
-func (d IdentifierType) String() string {
+func (t IdentifierType) String() string {
 	return [...]string{
 		"IMDB ID",
 		"TheMovieDB ID",
@@ -49,7 +47,7 @@ func (d IdentifierType) String() string {
 		"Facebook ID",
 		"Twitter ID",
 		"Instagram ID",
-	}[d]
+	}[t]
 }
 
 type ExternalIdentifier struct {
@@ -121,14 +119,18 @@ type MediaStreamInfo struct {
 	BitsPerSample      int                       `json:"bitsPerSample"`
 }
 
-func SetAcoustID(mediaPart *MediaPart, acoustID string) {
-	mediaPart.AcoustID = acoustID
+func SetAcoustID(mediaPart *MediaPart, acoustId string) {
+	updates := make(map[string]interface{})
+	updates["acoustId"] = acoustId
+	updates["updatedAt"] = time.Now()
 
-	db.Save(&mediaPart)
+	query := db.Query(MediaPartCollection.String()).Where(clover.Field("_id").Eq(mediaPart.Id))
+	query.Update(updates)
 }
 
 func CreateMediaStream(title string, streamType StreamType, language string, index int,
-	streamInfo datatypes.JSON, mediaPartID uint64) error {
+	streamInfo datatypes.JSON, mediaPartID uint64,
+) error {
 	mediaStream := MediaStream{
 		Title:           title,
 		StreamType:      streamType,
@@ -138,34 +140,35 @@ func CreateMediaStream(title string, streamType StreamType, language string, ind
 		MediaPartID:     mediaPartID,
 	}
 
-	result := db.Create(&mediaStream)
-	if result.Error != nil {
-		log.Err(result.Error).Msgf("Could not create stream")
+	document := clover.NewDocumentOf(&mediaStream)
 
-		return result.Error
+	if _, err := db.InsertOne(MediaStreamCollection.String(), document); err != nil {
+		return fmt.Errorf("failed to create media stram: %w", err)
 	}
 
 	return nil
 }
 
 func CreateMediaPart(mediaPart MediaPart) (*MediaPart, error) {
-	result := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&mediaPart)
-	// TODO: Check for the actual error type
-	if result.Error != nil {
-		// If the record exist, we already have it, just skip it to save time
-		return nil, fmt.Errorf("failed to create media part: %w", result.Error)
+	document := clover.NewDocumentOf(&mediaPart)
+
+	if _, err := db.InsertOne(MediaPartCollection.String(), document); err != nil {
+		return nil, fmt.Errorf("failed to create media part: %w", err)
 	}
 
 	return &mediaPart, nil
 }
 
-func GetMediaPart(metadataID, mediaPartID string) (*MediaPart, error) {
+func GetMediaPartById(metadataID, mediaPartID string) (*MediaPart, error) {
 	var mediaPart MediaPart
 
-	result := db.Find(&mediaPart, "item_metadata_id = ? AND id = ?", metadataID, mediaPartID)
-	if result.Error != nil {
-		return nil, result.Error
+	mediaPartDocument, err := db.Query(LibraryCollection.String()).Where(clover.Field("_id").Eq(mediaPartID).
+		And(clover.Field("item_metadata_id").Eq(metadataID))).FindFirst()
+	if err != nil {
+		return &mediaPart, fmt.Errorf("failed to get media part: %w", err)
 	}
+
+	mediaPartDocument.Unmarshal(&mediaPart)
 
 	return &mediaPart, nil
 }

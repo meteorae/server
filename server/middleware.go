@@ -68,7 +68,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 
 		customClaim, _ := validate.Claims.(*helpers.JwtClaim)
 
-		account, err := database.GetUserByID(customClaim.UserID)
+		account, err := database.GetUserById(customClaim.UserID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				http.Error(writer, "Invalid token", http.StatusForbidden)
@@ -95,7 +95,7 @@ func MetricsMiddleware(next http.Handler) http.Handler {
 
 // TODO: Move this to GraphQL.
 func setupHandler(writer http.ResponseWriter, request *http.Request) {
-	userCount := database.GetUsersCount()
+	userCount, _ := database.GetUsersCount()
 
 	if userCount == 0 {
 		_, err := writer.Write([]byte("true"))

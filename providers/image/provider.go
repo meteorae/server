@@ -14,24 +14,21 @@ func GetInformation(item *database.ItemMetadata, library database.Library) error
 		return fmt.Errorf("could not save image to local cache %s: %w", item.MediaPart.FilePath, err)
 	}
 
-	item.Thumb = thumb
-
 	// Figure out if the parent already has a preview thumbnail. If not, we set it to the current item's thumbnail.
-	parent, err := database.GetImageAlbum(item.ParentID)
+	parent, err := database.GetItemById(item.ParentID)
 	if err != nil {
 		log.Err(err).Msgf("Failed to get image album for path %s: %s", item.MediaPart.FilePath, err)
 	}
 
 	if parent.Thumb == "" {
-		parent.Thumb = thumb
-
-		err = database.UpdateImageAlbum(parent)
-		if err != nil {
-			log.Err(err).Msgf("Failed to update image album for path %s: %s", item.MediaPart.FilePath, err)
-		}
+		database.UpdateItem(parent.Id, map[string]interface{}{
+			"thumb": thumb,
+		})
 	}
 
-	err = database.UpdateImage(item)
+	err = database.UpdateItem(item.Id, map[string]interface{}{
+		"thumb": thumb,
+	})
 	if err != nil {
 		return fmt.Errorf("could not get information for image %s: %w", item.MediaPart.FilePath, err)
 	}

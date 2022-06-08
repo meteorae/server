@@ -57,12 +57,12 @@ func (r Resolver) Resolve(mediaPart *database.MediaPart, library database.Librar
 	item := database.ItemMetadata{
 		Title:     info.Title,
 		Type:      database.MovieItem,
-		LibraryID: library.ID,
+		LibraryID: library.Id,
 		Library:   library,
 		MediaPart: *mediaPart,
 	}
 
-	err = database.CreateMovie(&item)
+	err = database.CreateItem(&item)
 	if err != nil {
 		return fmt.Errorf("could not resolve image metadata %s: %w", mediaPart.FilePath, err)
 	}

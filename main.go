@@ -34,15 +34,17 @@ func main() {
 
 	if enable_reporting {
 		err := sentry.Init(sentry.ClientOptions{
-			Dsn: "https://9ad21ea087cb4de1a5d2cfb6f36d354b@o725130.ingest.sentry.io/61632320",
-			Debug: viper.GetBool("verbose"),
-			Release: fmt.Sprint("meteorae-server@%s", helpers.Version),
+			Dsn:     "https://9ad21ea087cb4de1a5d2cfb6f36d354b@o725130.ingest.sentry.io/61632320",
+			Debug:   viper.GetBool("verbose"),
+			Release: fmt.Sprint("meteorae-server@%v", helpers.Version),
 		})
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to initialize Sentry")
 
 			return
 		}
+
+		defer sentry.Flush(serverShutdownTimeout)
 	}
 
 	log.Info().Msgf("Starting Meteorae %s", helpers.Version)
@@ -52,7 +54,7 @@ func main() {
 	log.Info().Msgf("OS / Arch: %s", helpers.OsArch)
 
 	// Initialize the database
-	err := database.NewDatabase(log.Logger)
+	err := database.NewDatabase()
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to initialize database")
 

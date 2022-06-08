@@ -14,7 +14,7 @@ func MediaPartHTTPHandler(writer http.ResponseWriter, request *http.Request) {
 	metadataID := params["metadata"]
 	mediaPartID := params["part"]
 
-	mediaPart, err := database.GetMediaPart(metadataID, mediaPartID)
+	mediaPart, err := database.GetMediaPartById(metadataID, mediaPartID)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get media part")
 		http.Error(writer, err.Error(), http.StatusInternalServerError)

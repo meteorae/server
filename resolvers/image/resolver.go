@@ -60,7 +60,7 @@ func (r Resolver) Resolve(mediaPart *database.MediaPart, library database.Librar
 	fileName := filepath.Base(mediaPart.FilePath)
 	fileName = fileName[:len(fileName)-len(filepath.Ext(fileName))]
 
-	album, err := database.GetImageAlbumByPath(filepath.Dir(mediaPart.FilePath))
+	album, err := database.GetItemByPath(filepath.Dir(mediaPart.FilePath))
 	if err != nil {
 		return fmt.Errorf("failed to get image album for path %s: %w", mediaPart.FilePath, err)
 	}
@@ -68,13 +68,13 @@ func (r Resolver) Resolve(mediaPart *database.MediaPart, library database.Librar
 	item := database.ItemMetadata{
 		Title:     fileName,
 		Type:      database.ImageItem,
-		LibraryID: library.ID,
+		LibraryID: library.Id,
 		Library:   library,
-		ParentID:  album.ID,
+		ParentID:  album.Id,
 		MediaPart: *mediaPart,
 	}
 
-	err = database.CreateImage(&item)
+	err = database.CreateItem(&item)
 	if err != nil {
 		return fmt.Errorf("could not resolve image metadata %s: %w", mediaPart.FilePath, err)
 	}

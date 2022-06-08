@@ -3,6 +3,8 @@ package database
 import (
 	"fmt"
 	"time"
+
+	"github.com/ostafen/clover"
 )
 
 type LibraryType string
@@ -20,19 +22,22 @@ func (l LibraryType) String() string {
 	return string(l)
 }
 
-func LibraryTypeFromString(input string) (l LibraryType, err error) {
-	err = l.UnmarshalText([]byte(input))
+// Given an input string, returns a valid LibraryType.
+func LibraryTypeFromString(input string) LibraryType {
+	var libraryType LibraryType
 
-	return
+	libraryType.UnmarshalText([]byte(input))
+
+	return libraryType
 }
 
-func (l *LibraryType) MarshalText() (text []byte, err error) {
-	text = []byte(l.String())
+func (l *LibraryType) MarshalText() []byte {
+	text := []byte(l.String())
 
-	return
+	return text
 }
 
-func (l *LibraryType) UnmarshalText(text []byte) (err error) {
+func (l *LibraryType) UnmarshalText(text []byte) {
 	switch string(text) {
 	case "movie":
 		*l = MovieLibrary
@@ -47,35 +52,30 @@ func (l *LibraryType) UnmarshalText(text []byte) (err error) {
 	case "image":
 		*l = ImageLibrary
 	}
-
-	return
 }
 
 type Library struct {
-	ID               uint64            `gorm:"primary_key" json:"id"`
-	Name             string            `json:"name"`
-	Type             LibraryType       `json:"type"`
-	Language         string            `json:"language"`
-	LibraryLocations []LibraryLocation `gorm:"not null" json:"libraryLocations"`
-	CreatedAt        time.Time         `json:"createdAt"`
-	UpdatedAt        time.Time         `json:"updatedAt"`
-	ScannedAt        time.Time         `json:"scannedAt"`
-}
-
-func (Library) TableName() string {
-	return "libraries"
+	Id               uint64            `clover:"_id"`
+	Name             string            `clover:"name"`
+	Type             LibraryType       `clover:"type"`
+	Language         string            `clover:"language"`
+	LibraryLocations []LibraryLocation `clover:"libraryLocations"`
+	CreatedAt        time.Time         `clover:"createdAt"`
+	UpdatedAt        time.Time         `clover:"updatedAt"`
+	ScannedAt        time.Time         `clover:"scannedAt"`
 }
 
 type LibraryLocation struct {
-	ID        uint64    `gorm:"primary_key" json:"id"`
-	LibraryID uint64    `gorm:"not null"`
-	RootPath  string    `gorm:"not null" json:"rootPath"`
-	Available bool      `gorm:"not null" json:"available"`
-	ScannedAt time.Time `json:"scannedAt"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	Id        uint64    `clover:"_id"`
+	LibraryId uint64    `clover:"libraryId"`
+	RootPath  string    `clover:"rootPath"`
+	Available bool      `clover:"available"`
+	ScannedAt time.Time `clover:"scannedAt"`
+	CreatedAt time.Time `clover:"createdAt"`
+	UpdatedAt time.Time `clover:"updatedAt"`
 }
 
+// Creates a new library entry in the database with the specified information.
 func CreateLibrary(name, language, typeArg string, locations []string) (*Library, []LibraryLocation, error) {
 	var libraryLocations []LibraryLocation //nolint:prealloc
 	for _, location := range locations {
@@ -85,10 +85,7 @@ func CreateLibrary(name, language, typeArg string, locations []string) (*Library
 		})
 	}
 
-	libraryType, err := LibraryTypeFromString(typeArg)
-	if err != nil {
-		return nil, nil, fmt.Errorf("invalid library type: %w", err)
-	}
+	libraryType := LibraryTypeFromString(typeArg)
 
 	library := Library{
 		Name:             name,
@@ -97,36 +94,56 @@ func CreateLibrary(name, language, typeArg string, locations []string) (*Library
 		LibraryLocations: libraryLocations,
 	}
 
-	if result := db.Create(&library); result.Error != nil {
-		return nil, nil, fmt.Errorf("failed to create library: %w", result.Error)
+	document := clover.NewDocumentOf(&library)
+
+	if _, err := db.InsertOne(LibraryCollection.String(), document); err != nil {
+		return nil, nil, fmt.Errorf("failed to create library: %w", err)
 	}
 
 	return &library, libraryLocations, nil
 }
 
-// Returns the requested fields from the specified library.
-func GetLibrary(id string) Library {
+// Returns the specified library.
+func GetLibraryById(id string) (Library, error) {
 	var library Library
 
-	db.First(&library, id)
+	libraryDocument, err := db.Query(LibraryCollection.String()).Where(clover.Field("_id").Eq(id)).FindFirst()
+	if err != nil {
+		return library, fmt.Errorf("failed to get library: %w", err)
+	}
 
-	return library
+	libraryDocument.Unmarshal(&library)
+
+	return library, nil
 }
 
 // Returns the requested fields for all libraries.
-func GetLibraries() []*Library {
+func GetLibraries() ([]*Library, error) {
 	var libraries []*Library
 
-	db.Find(&libraries)
+	var library *Library
 
-	return libraries
+	docs, err := db.Query(LibraryCollection.String()).FindAll()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get libraries: %w", err)
+	}
+
+	for _, doc := range docs {
+		doc.Unmarshal(library)
+		libraries = append(libraries, library)
+	}
+
+	return libraries, nil
 }
 
 // Returns the total number of libraries.
-func GetLibrariesCount() int64 {
-	var count int64
+func GetLibrariesCount() (int64, error) {
+	var count int
 
-	db.Model(&Library{}).Count(&count)
+	count, err := db.Query(LibraryCollection.String()).Count()
+	if err != nil {
+		return int64(count), err
+	}
 
-	return count
+	return int64(count), nil
 }

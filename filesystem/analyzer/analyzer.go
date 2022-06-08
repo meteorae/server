@@ -122,7 +122,7 @@ func getFfprobeData(mediaPart database.MediaPart) error {
 		}
 
 		err = database.CreateMediaStream(stream.Tags.Title, streamType, stream.Tags.Language,
-			stream.Index, jsonStreamInfo, mediaPart.ID)
+			stream.Index, jsonStreamInfo, mediaPart.Id)
 		if err != nil {
 			return fmt.Errorf("could not create stream: %w", err)
 		}

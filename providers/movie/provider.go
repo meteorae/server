@@ -90,21 +90,20 @@ func GetInformation(item *database.ItemMetadata, library database.Library) error
 			}
 		}
 
-		item.Title = movieData.Title
-		item.SortTitle = utils.CleanSortTitle(movieData.Title)
-		item.OriginalTitle = movieData.OriginalTitle
-		item.ReleaseDate = releaseDate
-		item.Summary = movieData.Overview
-		item.Tagline = movieData.Tagline
-		item.Popularity = movieData.Popularity
-		item.OriginalLanguage = languageTag.String()
-		item.Thumb = posterHash
-		item.Art = artHash
-
-		err = database.UpdateMovie(item)
-		if err != nil {
-			return fmt.Errorf("failed to update movie \"%s\": %w", item.Title, err)
+		updates := map[string]interface{}{
+			"title":            movieData.Title,
+			"sortTitle":        utils.CleanSortTitle(movieData.Title),
+			"originalTitle":    movieData.OriginalTitle,
+			"releaseDate":      releaseDate,
+			"summary":          movieData.Overview,
+			"tagline":          movieData.Tagline,
+			"popularity":       movieData.Popularity,
+			"originalLanguage": languageTag.String(),
+			"thumb":            posterHash,
+			"art":              artHash,
 		}
+
+		database.UpdateItem(item.Id, updates)
 	}
 
 	return errNoResultsFound
