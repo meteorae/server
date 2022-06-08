@@ -20,6 +20,8 @@ require (
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
+	github.com/mattn/go-colorable v0.1.12 // indirect
+	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.1 // indirect
 	github.com/spf13/afero v1.8.2 // indirect
@@ -75,7 +77,7 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/justinas/alice v1.2.0
 	github.com/mattn/go-sqlite3 v1.14.13
-	github.com/rs/zerolog v1.26.1
+	github.com/rs/zerolog v1.27.0
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4 // indirect
 	golang.org/x/text v0.3.7
 )
