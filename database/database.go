@@ -28,7 +28,7 @@ const (
 
 // Creates a new database file.
 func NewDatabase() error {
-	databaseLocation, dataFileErr := xdg.DataFile("meteorae/meteorae.db")
+	databaseLocation, dataFileErr := xdg.DataFile("meteorae/database")
 	if dataFileErr != nil {
 		return fmt.Errorf("could not get path for database: %w", dataFileErr)
 	}
