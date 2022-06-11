@@ -1,4 +1,4 @@
-name: main
+name: Code Quality
 
 on:
   push:
@@ -6,6 +6,7 @@ on:
       - v*
     branches:
       - master
+      - devel
 
 permissions:
   contents: read
