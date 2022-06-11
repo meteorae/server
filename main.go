@@ -34,9 +34,9 @@ func main() {
 
 	if enable_reporting {
 		err := sentry.Init(sentry.ClientOptions{
-			Dsn: "https://9ad21ea087cb4de1a5d2cfb6f36d354b@o725130.ingest.sentry.io/61632320",
-			Debug: viper.GetBool("verbose"),
-			Release: fmt.Sprint("meteorae-server@%s", helpers.Version),
+			Dsn:     "https://9ad21ea087cb4de1a5d2cfb6f36d354b@o725130.ingest.sentry.io/61632320",
+			Debug:   viper.GetBool("verbose"),
+			Release: fmt.Sprintf("meteorae-server@%s", helpers.Version),
 		})
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to initialize Sentry")
