@@ -82,7 +82,7 @@ func (r Resolver) Resolve(mediaPart *database.MediaPart, library database.Librar
 	err = ants.Submit(func() {
 		err := image.GetInformation(&item, library)
 		if err != nil {
-			log.Error().Err(err).Msgf("failed to get image information for %s: %w", mediaPart.FilePath, err)
+			log.Error().Err(err).Msgf("failed to get image information for %s", mediaPart.FilePath)
 		}
 	})
 	if err != nil {
