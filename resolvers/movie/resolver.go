@@ -83,5 +83,5 @@ func (r Resolver) Resolve(mediaPart *database.MediaPart, library database.Librar
 func isValidMovieFile(path string) bool {
 	ext := filepath.Ext(path)
 
-	return utils.StringInSlice(ext, helpers.VideoFileExtensions)
+	return utils.IsStringInSlice(ext, helpers.VideoFileExtensions)
 }

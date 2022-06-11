@@ -95,5 +95,5 @@ func (r Resolver) Resolve(mediaPart *database.MediaPart, library database.Librar
 func (r Resolver) isImageFile(path string) bool {
 	ext := filepath.Ext(path)
 
-	return utils.StringInSlice(ext, supportedImageFormats)
+	return utils.IsStringInSlice(ext, supportedImageFormats)
 }

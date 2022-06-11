@@ -43,7 +43,7 @@ jobs:
       - name: Build
         run: make build
       - name: Test
-        run: go test -coverprofile=coverage.out
+        run: go test -coverprofile=coverage.out -v ./...
       - name: Convert coverage to lcov
         uses: jandelgado/gcov2lcov-action@v1.0.9
       - name: SonarCloud Scan

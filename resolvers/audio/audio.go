@@ -10,5 +10,5 @@ import (
 func IsValidAudioFile(path string) bool {
 	ext := filepath.Ext(path)
 
-	return utils.StringInSlice(ext, helpers.AudioFileExtensions)
+	return utils.IsStringInSlice(ext, helpers.AudioFileExtensions)
 }
