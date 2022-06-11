@@ -19,6 +19,7 @@ import (
 	"github.com/gorilla/schema"
 	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/helpers"
+	"github.com/meteorae/meteorae-server/utils"
 	"github.com/rs/zerolog/log"
 )
 
@@ -58,10 +59,10 @@ func NewImageHandler() (*ImageHandler, error) {
 
 func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *http.Request) {
 	// Require authentication, to avoid non-users slamming the API with external image requests
-	/*user := utils.GetUserFromContext(request.Context())
+	user := utils.GetUserFromContext(request.Context())
 	if user == nil {
 		http.Error(writer, "Unauthorized", http.StatusUnauthorized)
-	}*/
+	}
 
 	isCached := false
 	shouldCache := false
@@ -114,7 +115,8 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 				return
 			}
 
-			if metadataImageType == ThumbImage.String() && metadata.Thumb == "" || metadataImageType == ArtImage.String() && metadata.Art == "" {
+			if metadataImageType == ThumbImage.String() && metadata.Thumb == "" ||
+				metadataImageType == ArtImage.String() && metadata.Art == "" {
 				http.Error(writer, "Image not found", http.StatusInternalServerError)
 
 				return

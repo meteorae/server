@@ -1,6 +1,7 @@
 name: Code Quality
 
 on:
+  pull_request:
   push:
     tags:
       - v*
@@ -10,10 +11,11 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   golangci:
-    name: Lint
+    name: Code Style
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3.0.2
@@ -29,7 +31,7 @@ jobs:
         with:
           version: latest
   test:
-    name: Test
+    name: Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3.0.2
@@ -57,7 +59,7 @@ jobs:
             -Dsonar.projectKey=meteorae_server
             -Dsonar.javascript.lcov.reportPaths=coverage.lcov
   analyze:
-    name: Analyze
+    name: CodeQL Analysis
     runs-on: ubuntu-latest
     permissions:
       actions: read
