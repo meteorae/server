@@ -30,9 +30,9 @@ var serverShutdownTimeout = 10 * time.Second
 func main() {
 	defer ants.Release()
 
-	enable_reporting := viper.GetBool("crash_reporting")
+	enableReporting := viper.GetBool("crash_reporting")
 
-	if enable_reporting {
+	if enableReporting {
 		err := sentry.Init(sentry.ClientOptions{
 			Dsn:     "https://9ad21ea087cb4de1a5d2cfb6f36d354b@o725130.ingest.sentry.io/61632320",
 			Debug:   viper.GetBool("verbose"),
