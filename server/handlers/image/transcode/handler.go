@@ -22,6 +22,17 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+type ImageType string
+
+const (
+	ThumbImage ImageType = "thumb"
+	ArtImage   ImageType = "art"
+)
+
+func (t ImageType) String() string {
+	return string(t)
+}
+
 type ImageQuery struct {
 	URL    string `schema:"url,required"`
 	Width  int    `schema:"width"`
@@ -90,7 +101,7 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 			metadataImageType := match[2]
 
 			// Check if it's a valid type, mainly to avoid people querying the API throuth this endpoint
-			if metadataImageType != "thumb" && metadataImageType != "art" {
+			if metadataImageType != ThumbImage.String() && metadataImageType != ArtImage.String() {
 				http.Error(writer, "Unauthorized image type", http.StatusBadRequest)
 
 				return
@@ -103,15 +114,15 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 				return
 			}
 
-			if metadataImageType == "thumb" && metadata.Thumb == "" || metadataImageType == "art" && metadata.Art == "" {
+			if metadataImageType == ThumbImage.String() && metadata.Thumb == "" || metadataImageType == ArtImage.String() && metadata.Art == "" {
 				http.Error(writer, "Image not found", http.StatusInternalServerError)
 
 				return
 			}
 
-			if metadataImageType == "thumb" {
+			if metadataImageType == ThumbImage.String() {
 				imageHash = metadata.Thumb
-			} else if metadataImageType == "art" {
+			} else if metadataImageType == ArtImage.String() {
 				imageHash = metadata.Art
 			}
 
