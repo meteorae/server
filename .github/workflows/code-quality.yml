@@ -1,13 +1,13 @@
 name: Code Quality
 
 on:
-  pull_request:
   push:
     tags:
       - v*
     branches:
       - master
       - devel
+  pull_request:
 
 permissions:
   contents: read
