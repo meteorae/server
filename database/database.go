@@ -1,14 +1,12 @@
 package database
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/adrg/xdg"
 	"github.com/go-gormigrate/gormigrate/v2"
-	"github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"gorm.io/driver/sqlite"
@@ -17,17 +15,6 @@ import (
 )
 
 var db *gorm.DB //nolint:varnamelen
-
-type entrypoint struct {
-	lib  string
-	proc string
-}
-
-var libNames = []entrypoint{
-	{"./spellfix.dll", "sqlite3_spellfix_init"},
-	{"./spellfix.so", "sqlite3_spellfix_init"},
-	{"./spellfix.dylib", "sqlite3_spellfix_init"},
-}
 
 var errLibraryNotFound = errors.New("spellfix not found")
 
@@ -42,28 +29,13 @@ func NewDatabase(zerologger zerolog.Logger) error {
 		},
 	)
 
-	sql.Register("sqlite3-spellfix", &sqlite3.SQLiteDriver{
-		ConnectHook: func(conn *sqlite3.SQLiteConn) error {
-			for _, v := range libNames {
-				err := conn.LoadExtension(v.lib, v.proc)
-				if err == nil {
-					return nil
-				}
-				log.Err(err)
-			}
-			err := errLibraryNotFound
-
-			return err
-		},
-	})
-
 	databaseLocation, dataFileErr := xdg.DataFile("meteorae/meteorae.db")
 	if dataFileErr != nil {
 		return fmt.Errorf("could not get path for database: %w", dataFileErr)
 	}
 
 	var err error // Linters complain if we initilize this on the next line
-	db, err = gorm.Open(&sqlite.Dialector{DriverName: "sqlite3-spellfix", DSN: databaseLocation}, &gorm.Config{
+	db, err = gorm.Open(&sqlite.Dialector{DriverName: "sqlite3", DSN: databaseLocation}, &gorm.Config{
 		Logger: newLogger,
 	})
 
@@ -116,36 +88,6 @@ func initSchema(transaction *gorm.DB) error {
 		);`)
 	if result.Error != nil {
 		return fmt.Errorf("failed to create virtual table: %w", result.Error)
-	}
-
-	result = transaction.Exec( /* sql */ `CREATE VIRTUAL TABLE spellfix_metadata_titles USING spellfix1;`)
-	if result.Error != nil {
-		return fmt.Errorf("failed to create virtual table: %w", result.Error)
-	}
-
-	// fts4 triggers
-	result = transaction.Exec(
-		/* sql */ `CREATE TRIGGER fts4_item_metadata_after_insert
-		AFTER
-		INSERT ON item_metadata BEGIN
-		INSERT INTO fts4_item_metadata(rowid, title, sort_title, original_title)
-		VALUES (
-				new.id,
-				new.title,
-				new.sort_title,
-				new.original_title
-			);
-		INSERT INTO spellfix_metadata_titles(word)
-		SELECT term
-		FROM fts4_item_metadata_terms
-		WHERE col='*'
-			AND term not in (
-				SELECT word
-				from spellfix_metadata_titles
-			);
-		END;`)
-	if result.Error != nil {
-		return fmt.Errorf("failed to create trigger: %w", result.Error)
 	}
 
 	result = transaction.Exec(

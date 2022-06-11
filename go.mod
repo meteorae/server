@@ -1,6 +1,6 @@
 module github.com/meteorae/meteorae-server
 
-go 1.17
+go 1.18
 
 require (
 	github.com/99designs/gqlgen v0.16.0
@@ -76,7 +76,7 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/justinas/alice v1.2.0
-	github.com/mattn/go-sqlite3 v1.14.13
+	github.com/mattn/go-sqlite3 v1.14.13 // indirect
 	github.com/rs/zerolog v1.27.0
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4 // indirect
 	golang.org/x/text v0.3.7

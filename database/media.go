@@ -127,8 +127,14 @@ func SetAcoustID(mediaPart *MediaPart, acoustID string) {
 	db.Save(&mediaPart)
 }
 
-func CreateMediaStream(title string, streamType StreamType, language string, index int,
-	streamInfo datatypes.JSON, mediaPartID uint64) error {
+func CreateMediaStream(
+	title string,
+	streamType StreamType,
+	language string,
+	index int,
+	streamInfo datatypes.JSON,
+	mediaPartID uint64,
+) error {
 	mediaStream := MediaStream{
 		Title:           title,
 		StreamType:      streamType,
