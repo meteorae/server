@@ -28,13 +28,13 @@ func Register(resolver Resolver) {
 
 // Schedules a file resolution job.
 func ResolveFile(mediaPart *database.MediaPart, library database.Library, isDir bool) error {
-	log.Debug().Msgf("Resolving file %s", mediaPart.FilePath)
+	log.Debug().Msgf("Resolving file %s", mediaPart.Path)
 
 	for _, resolver := range Registry {
 		log.Debug().Msgf("Checking resolver %s", resolver.GetName())
 
-		if resolver.SupportsLibraryType(library) && resolver.SupportsFileType(mediaPart.FilePath, isDir) {
-			log.Debug().Msgf("Resolving file %s with resolver %s", mediaPart.FilePath, resolver.GetName())
+		if resolver.SupportsLibraryType(library) && resolver.SupportsFileType(mediaPart.Path, isDir) {
+			log.Debug().Msgf("Resolving file %s with resolver %s", mediaPart.Path, resolver.GetName())
 
 			err := resolver.Resolve(mediaPart, library)
 			if err != nil {

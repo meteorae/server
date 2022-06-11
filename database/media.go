@@ -6,18 +6,17 @@ import (
 
 	"github.com/ostafen/clover"
 	"gopkg.in/vansante/go-ffprobe.v2"
-	"gorm.io/datatypes"
 )
 
 type MediaPart struct {
-	Id               uint64        `clover:"_id"`
+	Id               string        `clover:"_id" json:"_id"` //nolint:tagliatelle
 	Hash             string        `clover:"hash"`
 	OpenSubtitleHash string        `clover:"openSubtitleHash"`
 	AniDBCRC         string        `clover:"aniDbCRC"`
 	AcoustID         string        `clover:"acoustId"`
-	FilePath         string        `clover:"filePath"`
+	Path             string        `clover:"path"`
 	Size             int64         `clover:"size"`
-	ItemMetadataID   uint64        `clover:"itemMetadataId"`
+	ItemId           string        `clover:"itemId"`
 	MediaStreams     []MediaStream `clover:"mediaStreams"`
 	CreatedAt        time.Time     `clover:"createdAt"`
 	UpdatedAt        time.Time     `clover:"updatedAt"`
@@ -50,13 +49,6 @@ func (t IdentifierType) String() string {
 	}[t]
 }
 
-type ExternalIdentifier struct {
-	ID             uint64         `gorm:"primary_key" json:"id"`
-	IdentifierType IdentifierType `gorm:"not null"`
-	Identifier     string         `gorm:"not null"`
-	MovieID        uint64         `gorm:"not null"`
-}
-
 type StreamType int8
 
 const (
@@ -70,91 +62,104 @@ func (d StreamType) String() string {
 }
 
 type MediaStream struct {
-	ID         uint64     `gorm:"primary_key" json:"id"`
-	Title      string     `json:"title"`
-	StreamType StreamType `gorm:"not null"`
-	Language   string     `json:"language"`
-	Index      int        `gorm:"not null"`
-	// This is technically a MediaStreamInfo
-	MediaStreamInfo datatypes.JSON `json:"mediaStreamInfo"`
-	MediaPartID     uint64         `gorm:"not null"`
-	CreatedAt       time.Time      `json:"createdAt"`
-	UpdatedAt       time.Time      `json:"updatedAt"`
+	Title       string `clover:"title"`
+	Type        StreamType
+	Language    string `clover:"language"`
+	Index       int
+	Information MediaStreamInfo `clover:"infoformation"`
+	CreatedAt   time.Time       `clover:"createdAt"`
+	UpdatedAt   time.Time       `clover:"updatedAt"`
 }
 
 // This is stored in DB as a JSON blob, since we never need to filter on it.
 // All properties are optional, and more can be added later.
 type MediaStreamInfo struct {
-	CodecName          string                    `json:"codecName"`
-	CodecLongName      string                    `json:"codecLongName"`
-	CodecType          string                    `json:"codecType"`
-	CodecTimeBase      string                    `json:"codecTimeBase"`
-	CodecTag           string                    `json:"codecTag"`
-	RFrameRate         string                    `json:"rFrameRate"`
-	AvgFrameRate       string                    `json:"avgFrameRate"`
-	TimeBase           string                    `json:"timeBase"`
-	StartPts           int                       `json:"startPts"`
-	StartTime          string                    `json:"startTime"`
-	DurationTS         uint64                    `json:"durationTs"`
-	Duration           string                    `json:"duration"`
-	BitRate            string                    `json:"bitrate"`
-	BitsPerRawSample   string                    `json:"bitsPerRawSample"`
-	NbFrames           string                    `json:"nbFrames"`
-	Disposition        ffprobe.StreamDisposition `json:"disposition"`
-	Tags               ffprobe.StreamTags        `json:"tags"`
-	Profile            string                    `json:"profile"`
-	Width              int                       `json:"width"`
-	Height             int                       `json:"height"`
-	HasBFrames         int                       `json:"hasBFrames"`
-	SampleAspectRatio  string                    `json:"sampleAspectRatio"`
-	DisplayAspectRatio string                    `json:"displayAspectRatio"`
-	PixelFormat        string                    `json:"pixelFormat"`
-	Level              int                       `json:"level"`
-	ColorRange         string                    `json:"colorRange"`
-	ColorSpace         string                    `json:"colorSpace"`
-	SampleFmt          string                    `json:"sampleFmt"`
-	SampleRate         string                    `json:"sampleRate"`
-	Channels           int                       `json:"channels"`
-	ChannelsLayout     string                    `json:"channelLayout"`
-	BitsPerSample      int                       `json:"bitsPerSample"`
+	CodecName          string                    `clover:"codecName"`
+	CodecLongName      string                    `clover:"codecLongName"`
+	CodecType          string                    `clover:"codecType"`
+	CodecTimeBase      string                    `clover:"codecTimeBase"`
+	CodecTag           string                    `clover:"codecTag"`
+	RFrameRate         string                    `clover:"rFrameRate"`
+	AvgFrameRate       string                    `clover:"avgFrameRate"`
+	TimeBase           string                    `clover:"timeBase"`
+	StartPts           int                       `clover:"startPts"`
+	StartTime          string                    `clover:"startTime"`
+	DurationTS         uint64                    `clover:"durationTs"`
+	Duration           string                    `clover:"duration"`
+	BitRate            string                    `clover:"bitrate"`
+	BitsPerRawSample   string                    `clover:"bitsPerRawSample"`
+	NbFrames           string                    `clover:"nbFrames"`
+	Disposition        ffprobe.StreamDisposition `clover:"disposition"`
+	Tags               ffprobe.StreamTags        `clover:"tags"`
+	Profile            string                    `clover:"profile"`
+	Width              int                       `clover:"width"`
+	Height             int                       `clover:"height"`
+	HasBFrames         int                       `clover:"hasBFrames"`
+	SampleAspectRatio  string                    `clover:"sampleAspectRatio"`
+	DisplayAspectRatio string                    `clover:"displayAspectRatio"`
+	PixelFormat        string                    `clover:"pixelFormat"`
+	Level              int                       `clover:"level"`
+	ColorRange         string                    `clover:"colorRange"`
+	ColorSpace         string                    `clover:"colorSpace"`
+	SampleFmt          string                    `clover:"sampleFmt"`
+	SampleRate         string                    `clover:"sampleRate"`
+	Channels           int                       `clover:"channels"`
+	ChannelsLayout     string                    `clover:"channelLayout"`
+	BitsPerSample      int                       `clover:"bitsPerSample"`
 }
 
-func SetAcoustID(mediaPart *MediaPart, acoustId string) {
+func SetAcoustID(mediaPart *MediaPart, acoustId string) error {
 	updates := make(map[string]interface{})
 	updates["acoustId"] = acoustId
 	updates["updatedAt"] = time.Now()
 
 	query := db.Query(MediaPartCollection.String()).Where(clover.Field("_id").Eq(mediaPart.Id))
-	query.Update(updates)
-}
 
-func CreateMediaStream(title string, streamType StreamType, language string, index int,
-	streamInfo datatypes.JSON, mediaPartID uint64,
-) error {
-	mediaStream := MediaStream{
-		Title:           title,
-		StreamType:      streamType,
-		Language:        language,
-		Index:           index,
-		MediaStreamInfo: streamInfo,
-		MediaPartID:     mediaPartID,
-	}
-
-	document := clover.NewDocumentOf(&mediaStream)
-
-	if _, err := db.InsertOne(MediaStreamCollection.String(), document); err != nil {
-		return fmt.Errorf("failed to create media stram: %w", err)
+	if err := query.Update(updates); err != nil {
+		return err
 	}
 
 	return nil
 }
 
+func CreateMediaStream(title string, streamType StreamType, language string, index int,
+	streamInfo MediaStreamInfo, mediaPart MediaPart,
+) error {
+	mediaStream := MediaStream{
+		Title:       title,
+		Type:        streamType,
+		Language:    language,
+		Index:       index,
+		Information: streamInfo,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	existingStreams := mediaPart.MediaStreams
+
+	existingStreams = append(existingStreams, mediaStream)
+
+	updates := make(map[string]interface{})
+	updates["mediaStreams"] = existingStreams
+
+	query := db.Query(ItemCollection.String()).Where(clover.Field("_id").Eq(mediaPart.Id))
+	query.Update(updates)
+
+	return nil
+}
+
 func CreateMediaPart(mediaPart MediaPart) (*MediaPart, error) {
+	mediaPart.CreatedAt = time.Now()
+	mediaPart.UpdatedAt = time.Now()
+
 	document := clover.NewDocumentOf(&mediaPart)
 
-	if _, err := db.InsertOne(MediaPartCollection.String(), document); err != nil {
+	mediaPartId, err := db.InsertOne(MediaPartCollection.String(), document)
+	if err != nil {
 		return nil, fmt.Errorf("failed to create media part: %w", err)
 	}
+
+	mediaPart.Id = mediaPartId
 
 	return &mediaPart, nil
 }
@@ -163,7 +168,21 @@ func GetMediaPartById(metadataID, mediaPartID string) (*MediaPart, error) {
 	var mediaPart MediaPart
 
 	mediaPartDocument, err := db.Query(LibraryCollection.String()).Where(clover.Field("_id").Eq(mediaPartID).
-		And(clover.Field("item_metadata_id").Eq(metadataID))).FindFirst()
+		And(clover.Field("itemId").Eq(metadataID))).FindFirst()
+	if err != nil {
+		return &mediaPart, fmt.Errorf("failed to get media part: %w", err)
+	}
+
+	mediaPartDocument.Unmarshal(&mediaPart)
+
+	return &mediaPart, nil
+}
+
+func GetMediaPartByItemId(metadataID string) (*MediaPart, error) {
+	var mediaPart MediaPart
+
+	mediaPartDocument, err := db.Query(MediaPartCollection.String()).Where(clover.Field("itemId").
+		Eq(metadataID)).FindFirst()
 	if err != nil {
 		return &mediaPart, fmt.Errorf("failed to get media part: %w", err)
 	}

@@ -83,19 +83,26 @@ func (r Resolver) SupportsFileType(filePath string, isDir bool) bool {
 }
 
 func (r Resolver) Resolve(mediaPart *database.MediaPart, library database.Library) error {
-	fileName := filepath.Base(mediaPart.FilePath)
+	fileName := filepath.Base(mediaPart.Path)
 
-	item := database.ItemMetadata{
+	item := &database.ItemMetadata{
 		Title:     fileName,
 		Type:      database.ImageAlbumItem,
 		LibraryID: library.Id,
 		Library:   library,
-		MediaPart: *mediaPart,
+		Path:      mediaPart.Path,
 	}
 
-	err := database.CreateItem(&item)
+	item, err := database.CreateItem(item)
 	if err != nil {
-		return fmt.Errorf("could not resolve image metadata %s: %w", mediaPart.FilePath, err)
+		return fmt.Errorf("could not resolve image metadata %s: %w", mediaPart.Path, err)
+	}
+
+	mediaPart.ItemId = item.Id
+
+	_, err = database.CreateMediaPart(*mediaPart)
+	if err != nil {
+		return fmt.Errorf("failed to create media part for %s: %w", mediaPart.Path, err)
 	}
 
 	return nil

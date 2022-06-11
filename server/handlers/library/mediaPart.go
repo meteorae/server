@@ -22,5 +22,5 @@ func MediaPartHTTPHandler(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	http.ServeFile(writer, request, mediaPart.FilePath)
+	http.ServeFile(writer, request, mediaPart.Path)
 }

@@ -57,36 +57,43 @@ func (r Resolver) SupportsFileType(filePath string, isDir bool) bool {
 }
 
 func (r Resolver) Resolve(mediaPart *database.MediaPart, library database.Library) error {
-	fileName := filepath.Base(mediaPart.FilePath)
+	fileName := filepath.Base(mediaPart.Path)
 	fileName = fileName[:len(fileName)-len(filepath.Ext(fileName))]
 
-	album, err := database.GetItemByPath(filepath.Dir(mediaPart.FilePath))
+	album, err := database.GetItemByPath(filepath.Dir(mediaPart.Path))
 	if err != nil {
-		return fmt.Errorf("failed to get image album for path %s: %w", mediaPart.FilePath, err)
+		return fmt.Errorf("failed to get image album for path %s: %w", mediaPart.Path, err)
 	}
 
-	item := database.ItemMetadata{
+	item := &database.ItemMetadata{
 		Title:     fileName,
 		Type:      database.ImageItem,
 		LibraryID: library.Id,
 		Library:   library,
-		ParentID:  album.Id,
-		MediaPart: *mediaPart,
+		ParentId:  album.Id,
+		Path:      mediaPart.Path,
 	}
 
-	err = database.CreateItem(&item)
+	item, err = database.CreateItem(item)
 	if err != nil {
-		return fmt.Errorf("could not resolve image metadata %s: %w", mediaPart.FilePath, err)
+		return fmt.Errorf("could not resolve image metadata %s: %w", mediaPart.Path, err)
+	}
+
+	mediaPart.ItemId = item.Id
+
+	_, err = database.CreateMediaPart(*mediaPart)
+	if err != nil {
+		return fmt.Errorf("failed to create media part for %s: %w", mediaPart.Path, err)
 	}
 
 	err = ants.Submit(func() {
-		err := image.GetInformation(&item, library)
+		err := image.GetInformation(item, library)
 		if err != nil {
-			log.Error().Err(err).Msgf("failed to get image information for %s: %w", mediaPart.FilePath, err)
+			log.Error().Err(err).Msgf("failed to get image information for %s: %w", mediaPart.Path, err)
 		}
 	})
 	if err != nil {
-		return fmt.Errorf("could not schedule image information job %s: %w", mediaPart.FilePath, err)
+		return fmt.Errorf("could not schedule image information job %s: %w", mediaPart.Path, err)
 	}
 
 	return nil

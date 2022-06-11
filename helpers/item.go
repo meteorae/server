@@ -9,12 +9,12 @@ import (
 
 func GetItemFromItemMetadata(itemMetadata *database.ItemMetadata) *model.Item {
 	thumbURL := ""
-	if itemMetadata.Thumb != "" {
+	if itemMetadata.Thumb == "" {
 		thumbURL = fmt.Sprintf("/image/transcode?url=/metadata/%s/thumb", itemMetadata.Id)
 	}
 
 	artURL := ""
-	if itemMetadata.Art != "" {
+	if itemMetadata.Art == "" {
 		artURL = fmt.Sprintf("/image/transcode?url=/metadata/%s/art", itemMetadata.Id)
 	}
 

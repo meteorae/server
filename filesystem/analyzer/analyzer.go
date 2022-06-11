@@ -2,7 +2,6 @@ package analyzer
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -17,14 +16,14 @@ import (
 var ffprobeProcessTimeout = 5 * time.Second
 
 func AnalyzeAudio(mediaPart database.MediaPart) error {
-	log.Debug().Msgf("Analyzing %s", mediaPart.FilePath)
+	log.Debug().Msgf("Analyzing %s", mediaPart.Path)
 
 	err := getFfprobeData(mediaPart)
 	if err != nil {
 		return fmt.Errorf("could not get ffprobe data: %w", err)
 	}
 
-	mediaFile, err := os.Open(mediaPart.FilePath)
+	mediaFile, err := os.Open(mediaPart.Path)
 	if err != nil {
 		return fmt.Errorf("could not open file: %w", err)
 	}
@@ -46,7 +45,7 @@ func AnalyzeAudio(mediaPart database.MediaPart) error {
 }
 
 func AnalyzeVideo(mediaPart database.MediaPart) error {
-	log.Debug().Msgf("Analyzing %s", mediaPart.FilePath)
+	log.Debug().Msgf("Analyzing %s", mediaPart.Path)
 
 	err := getFfprobeData(mediaPart)
 	if err != nil {
@@ -60,7 +59,7 @@ func getFfprobeData(mediaPart database.MediaPart) error {
 	ctx, cancelFn := context.WithTimeout(context.Background(), ffprobeProcessTimeout)
 	defer cancelFn()
 
-	data, err := ffprobe.ProbeURL(ctx, mediaPart.FilePath)
+	data, err := ffprobe.ProbeURL(ctx, mediaPart.Path)
 	if err != nil {
 		return fmt.Errorf("could not probe file: %w", err)
 	}
@@ -101,11 +100,6 @@ func getFfprobeData(mediaPart database.MediaPart) error {
 			BitsPerSample:      stream.BitsPerSample,
 		}
 
-		jsonStreamInfo, err := json.Marshal(streamInfo)
-		if err != nil {
-			return fmt.Errorf("could not marshal stream info: %w", err)
-		}
-
 		var streamType database.StreamType
 
 		switch stream.CodecType {
@@ -122,7 +116,7 @@ func getFfprobeData(mediaPart database.MediaPart) error {
 		}
 
 		err = database.CreateMediaStream(stream.Tags.Title, streamType, stream.Tags.Language,
-			stream.Index, jsonStreamInfo, mediaPart.Id)
+			stream.Index, streamInfo, mediaPart)
 		if err != nil {
 			return fmt.Errorf("could not create stream: %w", err)
 		}

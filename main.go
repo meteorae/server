@@ -54,12 +54,13 @@ func main() {
 	log.Info().Msgf("OS / Arch: %s", helpers.OsArch)
 
 	// Initialize the database
-	err := database.NewDatabase()
+	db, err := database.GetDatabase()
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to initialize database")
 
 		return
 	}
+	defer db.Close()
 
 	vips.Startup(nil)
 	defer vips.Shutdown()

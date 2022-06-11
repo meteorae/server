@@ -12,8 +12,6 @@ require (
 	github.com/spf13/viper v1.12.0
 	github.com/vektah/gqlparser/v2 v2.4.4
 	gopkg.in/vansante/go-ffprobe.v2 v2.0.3
-	gorm.io/datatypes v1.0.6
-	gorm.io/gorm v1.23.5
 )
 
 require (
@@ -42,9 +40,6 @@ require (
 	go.opencensus.io v0.23.0 // indirect
 	gopkg.in/ini.v1 v1.66.4 // indirect
 	gopkg.in/yaml.v3 v3.0.0 // indirect
-	gorm.io/driver/postgres v1.3.7 // indirect
-	gorm.io/driver/sqlite v1.3.2 // indirect
-	gorm.io/driver/sqlserver v1.3.2 // indirect
 )
 
 require (
@@ -52,7 +47,6 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
-	github.com/go-sql-driver/mysql v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
@@ -74,7 +68,6 @@ require (
 	golang.org/x/xerrors v0.0.0-20220517211312-f3a8303e98df // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gorm.io/driver/mysql v1.3.3 // indirect
 )
 
 require (
@@ -86,10 +79,7 @@ require (
 	github.com/getsentry/sentry-go v0.13.0
 	github.com/golang-jwt/jwt/v4 v4.4.1
 	github.com/gorilla/schema v1.2.0
-	github.com/jinzhu/inflection v1.0.0 // indirect
-	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/justinas/alice v1.2.0
-	github.com/mattn/go-sqlite3 v1.14.13 // indirect
 	github.com/rs/zerolog v1.26.1
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4 // indirect
 	golang.org/x/text v0.3.7

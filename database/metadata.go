@@ -29,30 +29,34 @@ const (
 )
 
 type ItemMetadata struct {
-	Id            string   `clover:"_id"`
-	Title         string   `clover:"title"`
-	SortTitle     string   `clover:"sortTitle"`
-	OriginalTitle string   `clover:"originalTitle"`
-	Tagline       string   `clover:"tagline"`
-	Summary       string   `clover:"summary"`
-	Type          ItemType `clover:"type"`
-	// ExternalID []ExternalIdentifier
-	ReleaseDate      time.Time `clover:"releaseDate"`
-	Popularity       float32   `clover:"popularity"`
-	ParentID         string    `clover:"parentId"`
-	Index            int64     `clover:"index"`
-	AbsoluteIndex    int64     `clover:"absoluteIndex"`
-	Duration         int64     `clover:"duration"`
-	OriginalLanguage string    `clover:"originalLanguage"`
-	Thumb            string    `clover:"thumb"`
-	Art              string    `clover:"art"`
-	// ExtraInfo        datatypes.JSON `clover:"extraInfo"`
-	MediaPart MediaPart `clover:"mediaPart"`
-	LibraryID uint64    `clover:"libraryId"`
-	Library   Library   `clover:"library"`
-	CreatedAt time.Time `clover:"createdAt"`
-	UpdatedAt time.Time `clover:"updatedAt"`
-	DeleteAt  time.Time `clover:"deleteAt"`
+	Id               string               `clover:"_id"` //nolint:tagliatelle
+	Title            string               `clover:"title"`
+	SortTitle        string               `clover:"sortTitle"`
+	OriginalTitle    string               `clover:"originalTitle"`
+	Tagline          string               `clover:"tagline"`
+	Summary          string               `clover:"summary"`
+	Type             ItemType             `clover:"type"`
+	Externald        []ExternalIdentifier `clover:"externalId"`
+	ReleaseDate      time.Time            `clover:"releaseDate"`
+	Popularity       float32              `clover:"popularity"`
+	ParentId         string               `clover:"parentId"`
+	Index            int64                `clover:"index"`
+	AbsoluteIndex    int64                `clover:"absoluteIndex"`
+	Duration         int64                `clover:"duration"`
+	OriginalLanguage string               `clover:"originalLanguage"`
+	Thumb            string               `clover:"thumb"`
+	Art              string               `clover:"art"`
+	Path             string               `clover:"path"`
+	LibraryID        string               `clover:"libraryId"`
+	Library          Library              `clover:"library"`
+	CreatedAt        time.Time            `clover:"createdAt"`
+	UpdatedAt        time.Time            `clover:"updatedAt"`
+	DeleteAt         time.Time            `clover:"deleteAt"`
+}
+
+type ExternalIdentifier struct {
+	Type  IdentifierType `clover:"type"`
+	Value string         `clover:"value"`
 }
 
 // Returns the requested fields from the specified item.
@@ -64,6 +68,10 @@ func GetItemById(id string) (*ItemMetadata, error) {
 		return &item, fmt.Errorf("failed to get library: %w", err)
 	}
 
+	if itemDocument == nil {
+		return &item, fmt.Errorf("library not found")
+	}
+
 	itemDocument.Unmarshal(&item)
 
 	return &item, nil
@@ -71,12 +79,12 @@ func GetItemById(id string) (*ItemMetadata, error) {
 
 // Returns all the top-level items from the specified library.
 func GetItemsFromLibrary(libraryId string, limit, offset *int64) ([]*ItemMetadata, error) {
-	var items []*ItemMetadata
+	var items []*ItemMetadata //nolint:prealloc
 
 	var item *ItemMetadata
 
-	docs, err := db.Query(ItemCollection.String()).Where(clover.Field("library_id").Eq(libraryId).
-		And(clover.Field("parent_id").Eq(0))).Skip(int(*offset)).Limit(int(*limit)).FindAll()
+	docs, err := db.Query(ItemCollection.String()).Where(clover.Field("libraryId").Eq(libraryId).
+		And(clover.Field("parentId").Eq(0))).Skip(int(*offset)).Limit(int(*limit)).FindAll()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get items: %w", err)
 	}
@@ -92,8 +100,8 @@ func GetItemsFromLibrary(libraryId string, limit, offset *int64) ([]*ItemMetadat
 func GetItemsCountFromLibrary(libraryId string) (int64, error) {
 	var count int
 
-	count, err := db.Query(ItemCollection.String()).Where(clover.Field("library_id").Eq(libraryId).
-		And(clover.Field("parent_id").Eq(0))).Count()
+	count, err := db.Query(ItemCollection.String()).Where(clover.Field("libraryId").Eq(libraryId).
+		And(clover.Field("parentId").Eq(0))).Count()
 	if err != nil {
 		return int64(count), err
 	}
@@ -103,7 +111,7 @@ func GetItemsCountFromLibrary(libraryId string) (int64, error) {
 
 // Returns all the children of a given item.
 func GetChildrenFromItem(id string, limit, offset *int64) ([]*ItemMetadata, error) {
-	var children []*ItemMetadata
+	var children []*ItemMetadata //nolint:prealloc
 
 	var child *ItemMetadata
 
@@ -133,39 +141,45 @@ func GetChildrenCountFromItem(id string) (int64, error) {
 	return int64(count), nil
 }
 
-func GetLatestItemsFromLibrary(libraryID uint64, limit int) ([]*ItemMetadata, error) {
-	var items []*ItemMetadata
+func GetLatestItemsFromLibrary(libraryID string, limit int64) ([]*ItemMetadata, error) {
+	var items []*ItemMetadata //nolint:prealloc
 
 	var item *ItemMetadata
 
-	docs, err := db.Query(ItemCollection.String()).Where(clover.Field("parent_id").Eq(0).
-		And(clover.Field("library_id").Eq(libraryID))).Sort(clover.SortOption{"created_at", -1}).Limit(limit).FindAll()
+	docs, err := db.Query(ItemCollection.String()).Where(clover.Field("parentId").Eq("").
+		And(clover.Field("libraryId").Eq(libraryID))).Sort(clover.SortOption{"createdAt", -1}).Limit(int(limit)).FindAll()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get items: %w", err)
 	}
 
 	for _, doc := range docs {
-		doc.Unmarshal(item)
+		doc.Unmarshal(&item)
 		items = append(items, item)
 	}
 
 	return items, nil
 }
 
-func CreateItem(movieInfo *ItemMetadata) error {
-	document := clover.NewDocumentOf(&movieInfo)
+func CreateItem(itemInfo *ItemMetadata) (*ItemMetadata, error) {
+	itemInfo.CreatedAt = time.Now()
+	itemInfo.UpdatedAt = time.Now()
 
-	if _, err := db.InsertOne(ItemCollection.String(), document); err != nil {
-		return fmt.Errorf("failed to create item: %w", err)
+	document := clover.NewDocumentOf(&itemInfo)
+
+	itemId, err := db.InsertOne(ItemCollection.String(), document)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create item: %w", err)
 	}
 
-	return nil
+	itemInfo.Id = itemId
+
+	return itemInfo, nil
 }
 
-func UpdateItem(id string, itemInfo map[string]interface{}) error {
-	updates := make(map[string]interface{})
+func UpdateItem(id string, updates map[string]interface{}) error {
+	updates["updatedAt"] = time.Now()
 
-	query := db.Query(MediaPartCollection.String()).Where(clover.Field("_id").Eq(id))
+	query := db.Query(ItemCollection.String()).Where(clover.Field("_id").Eq(id))
 
 	if err := query.Update(updates); err != nil {
 		return err
@@ -175,19 +189,10 @@ func UpdateItem(id string, itemInfo map[string]interface{}) error {
 }
 
 func GetItemByPath(path string) (*ItemMetadata, error) {
-	var mediaPart MediaPart
-
 	var item ItemMetadata
 
-	partDocument, err := db.Query(ItemCollection.String()).Where(clover.Field("file_path").Eq(path)).FindFirst()
-	if err != nil {
-		return &item, fmt.Errorf("failed to get media part: %w", err)
-	}
-
-	partDocument.Unmarshal(&mediaPart)
-
-	itemDocument, err := db.Query(ItemCollection.String()).Where(clover.Field("itemMetadataId").
-		Eq(mediaPart.Id)).FindFirst()
+	itemDocument, err := db.Query(ItemCollection.String()).Where(clover.Field("path").
+		Eq(path)).FindFirst()
 	if err != nil {
 		return &item, fmt.Errorf("failed to get item: %w", err)
 	}

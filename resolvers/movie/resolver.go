@@ -40,41 +40,48 @@ func (r Resolver) SupportsFileType(filePath string, isDir bool) bool {
 }
 
 func (r Resolver) Resolve(mediaPart *database.MediaPart, library database.Library) error {
-	fileInfo, err := os.Stat(mediaPart.FilePath)
+	fileInfo, err := os.Stat(mediaPart.Path)
 	if err != nil {
-		return fmt.Errorf("could not stat %s: %w", mediaPart.FilePath, err)
+		return fmt.Errorf("could not stat %s: %w", mediaPart.Path, err)
 	}
 
 	if fileInfo.IsDir() {
 		return nil
 	}
 
-	info, err := PTN.Parse(filepath.Base(mediaPart.FilePath))
+	info, err := PTN.Parse(filepath.Base(mediaPart.Path))
 	if err != nil {
 		return fmt.Errorf("failed to parse movie name: %w", err)
 	}
 
-	item := database.ItemMetadata{
+	item := &database.ItemMetadata{
 		Title:     info.Title,
 		Type:      database.MovieItem,
 		LibraryID: library.Id,
 		Library:   library,
-		MediaPart: *mediaPart,
+		Path:      mediaPart.Path,
 	}
 
-	err = database.CreateItem(&item)
+	item, err = database.CreateItem(item)
 	if err != nil {
-		return fmt.Errorf("could not resolve image metadata %s: %w", mediaPart.FilePath, err)
+		return fmt.Errorf("could not resolve image metadata %s: %w", mediaPart.Path, err)
+	}
+
+	mediaPart.ItemId = item.Id
+
+	_, err = database.CreateMediaPart(*mediaPart)
+	if err != nil {
+		return fmt.Errorf("failed to create media part for %s: %w", mediaPart.Path, err)
 	}
 
 	err = ants.Submit(func() {
-		err := movie.GetInformation(&item, library)
+		err := movie.GetInformation(item, library)
 		if err != nil {
-			log.Err(err).Msgf("Failed to get movie information for %s: %s", mediaPart.FilePath, err)
+			log.Err(err).Msgf("Failed to get movie information for %s: %s", mediaPart.Path, err)
 		}
 	})
 	if err != nil {
-		return fmt.Errorf("could not schedule image information job %s: %w", mediaPart.FilePath, err)
+		return fmt.Errorf("could not schedule image information job %s: %w", mediaPart.Path, err)
 	}
 
 	return nil

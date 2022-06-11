@@ -6,7 +6,6 @@ package graph
 import (
 	"context"
 	"fmt"
-	"strconv"
 
 	"github.com/alexedwards/argon2id"
 	"github.com/meteorae/meteorae-server/database"
@@ -19,7 +18,7 @@ import (
 )
 
 func (r *libraryResolver) ID(ctx context.Context, obj *database.Library) (string, error) {
-	return strconv.FormatUint(obj.Id, 10), nil //nolint:gomnd
+	return obj.Id, nil
 }
 
 func (r *libraryResolver) Type(ctx context.Context, obj *database.Library) (string, error) {
@@ -232,11 +231,11 @@ func (r *queryResolver) Latest(ctx context.Context, limit *int64) ([]*model.Late
 	}
 
 	for _, library := range libraries {
-		items, err := database.GetLatestItemsFromLibrary(library.Id, int(*limit))
+		items, err := database.GetLatestItemsFromLibrary(library.Id, *limit)
 		if err != nil {
 			log.Err(err).Msgf("Failed to get latest items from library %d", library.Id)
 
-			return nil, fmt.Errorf("failed to get latest items from library %d: %w", library.Id, err)
+			return nil, fmt.Errorf("failed to get latest items from library %s: %w", library.Id, err)
 		}
 
 		resultItems := make([]model.Item, 0, len(items))

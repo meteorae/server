@@ -12,7 +12,7 @@ var tokenDuration = 24 * time.Hour
 var errSigningMethod = fmt.Errorf("there's a problem with the signing method")
 
 type JwtClaim struct {
-	UserID string `json:"id"`
+	UserID string `clover:"id"`
 	jwt.RegisteredClaims
 }
 

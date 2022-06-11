@@ -15,72 +15,72 @@ type Item interface {
 
 // Authentication payload returned on successful login.
 type AuthPayload struct {
-	Token string         `json:"token"`
-	User  *database.User `json:"user"`
+	Token string         `clover:"token"`
+	User  *database.User `clover:"user"`
 }
 
 // Item information about an image.
 type Image struct {
-	ID        string            `json:"id"`
-	Title     string            `json:"title"`
-	Summary   *string           `json:"summary"`
-	Thumb     *string           `json:"thumb"`
-	Art       *string           `json:"art"`
-	CreatedAt time.Time         `json:"createdAt"`
-	UpdatedAt time.Time         `json:"updatedAt"`
-	Library   *database.Library `json:"library"`
+	ID        string            `clover:"id"`
+	Title     string            `clover:"title"`
+	Summary   *string           `clover:"summary"`
+	Thumb     *string           `clover:"thumb"`
+	Art       *string           `clover:"art"`
+	CreatedAt time.Time         `clover:"createdAt"`
+	UpdatedAt time.Time         `clover:"updatedAt"`
+	Library   *database.Library `clover:"library"`
 }
 
 func (Image) IsItem() {}
 
 // Item information about an image album.
 type ImageAlbum struct {
-	ID        string            `json:"id"`
-	Title     string            `json:"title"`
-	Summary   *string           `json:"summary"`
-	Thumb     *string           `json:"thumb"`
-	Art       *string           `json:"art"`
-	CreatedAt time.Time         `json:"createdAt"`
-	UpdatedAt time.Time         `json:"updatedAt"`
-	Library   *database.Library `json:"library"`
+	ID        string            `clover:"id"`
+	Title     string            `clover:"title"`
+	Summary   *string           `clover:"summary"`
+	Thumb     *string           `clover:"thumb"`
+	Art       *string           `clover:"art"`
+	CreatedAt time.Time         `clover:"createdAt"`
+	UpdatedAt time.Time         `clover:"updatedAt"`
+	Library   *database.Library `clover:"library"`
 }
 
 func (ImageAlbum) IsItem() {}
 
 // Result of a query containing multiple items.
 type ItemsResult struct {
-	Items []Item `json:"items"`
-	Total *int64 `json:"total"`
+	Items []Item `clover:"items"`
+	Total *int64 `clover:"total"`
 }
 
 type LatestResult struct {
-	Library *database.Library `json:"library"`
-	Items   []Item            `json:"items"`
+	Library *database.Library `clover:"library"`
+	Items   []Item            `clover:"items"`
 }
 
 // Result of a query containing multiple libraries.
 type LibrariesResult struct {
-	Libraries []*database.Library `json:"libraries"`
-	Total     *int64              `json:"total"`
+	Libraries []*database.Library `clover:"libraries"`
+	Total     *int64              `clover:"total"`
 }
 
 // Item information about a movie.
 type Movie struct {
-	ID          string            `json:"id"`
-	Title       string            `json:"title"`
-	ReleaseDate *string           `json:"releaseDate"`
-	Summary     *string           `json:"summary"`
-	Thumb       *string           `json:"thumb"`
-	Art         *string           `json:"art"`
-	CreatedAt   time.Time         `json:"createdAt"`
-	UpdatedAt   time.Time         `json:"updatedAt"`
-	Library     *database.Library `json:"library"`
+	ID          string            `clover:"id"`
+	Title       string            `clover:"title"`
+	ReleaseDate *string           `clover:"releaseDate"`
+	Summary     *string           `clover:"summary"`
+	Thumb       *string           `clover:"thumb"`
+	Art         *string           `clover:"art"`
+	CreatedAt   time.Time         `clover:"createdAt"`
+	UpdatedAt   time.Time         `clover:"updatedAt"`
+	Library     *database.Library `clover:"library"`
 }
 
 func (Movie) IsItem() {}
 
 // Result of a query containing multiple users.
 type UsersResult struct {
-	Users []*database.User `json:"users"`
-	Total *int64           `json:"total"`
+	Users []*database.User `clover:"users"`
+	Total *int64           `clover:"total"`
 }

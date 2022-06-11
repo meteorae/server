@@ -22,14 +22,12 @@ type User struct {
 
 // Creates a new user with the specified username and password.
 func CreateUser(username, password string) (*User, error) {
-	var user User
-
-	result, err := db.Query("todos").Where(clover.Field("username").Eq(username)).FindFirst()
-	if err == nil {
+	docs, err := db.Query(UserCollection.String()).Where(clover.Field("username").Eq(&username)).FindAll()
+	if err != nil {
 		return nil, err
 	}
 
-	if result != nil {
+	if len(docs) < 0 {
 		return nil, errors.New("Usernames must be unique")
 	}
 
@@ -47,20 +45,21 @@ func CreateUser(username, password string) (*User, error) {
 
 	document := clover.NewDocumentOf(&newAccount)
 
-	_, err = db.InsertOne(string(UserCollection), document)
-
+	userId, err := db.InsertOne(UserCollection.String(), document)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
-	return &user, nil
+	newAccount.Id = userId
+
+	return &newAccount, nil
 }
 
 // Returns the corresponding user from the specified user ID.
 func GetUserById(id string) (*User, error) {
 	var user User
 
-	userDocument, err := db.Query(string(UserCollection)).Where(clover.Field("_id").Eq(id)).FindFirst()
+	userDocument, err := db.Query(UserCollection.String()).Where(clover.Field("_id").Eq(id)).FindFirst()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
@@ -74,7 +73,7 @@ func GetUserById(id string) (*User, error) {
 func GetUserByName(username string) (*User, error) {
 	var user User
 
-	userDocument, err := db.Query(string(UserCollection)).Where(clover.Field("username").Eq(username)).FindFirst()
+	userDocument, err := db.Query(UserCollection.String()).Where(clover.Field("username").Eq(username)).FindFirst()
 	if err != nil {
 		return nil, errInvalidCredentials
 	}
@@ -86,11 +85,11 @@ func GetUserByName(username string) (*User, error) {
 
 // Returns the requested fields for all users.
 func GetUsers() ([]*User, error) {
-	var users []*User
+	var users []*User //nolint:prealloc
 
 	var user *User
 
-	docs, err := db.Query(string(UserCollection)).FindAll()
+	docs, err := db.Query(UserCollection.String()).FindAll()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get users: %w", err)
 	}
@@ -107,7 +106,7 @@ func GetUsers() ([]*User, error) {
 func GetUsersCount() (int64, error) {
 	var count int
 
-	count, err := db.Query(string(UserCollection)).Count()
+	count, err := db.Query(UserCollection.String()).Count()
 	if err != nil {
 		return int64(count), err
 	}

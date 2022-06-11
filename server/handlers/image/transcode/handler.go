@@ -43,7 +43,7 @@ type ImageHandler struct {
 	imageCachePath string
 }
 
-var validInternalURLRegexp = regexp.MustCompile(`^\/metadata\/(\d*)\/([a-z]*)$`)
+var validInternalURLRegexp = regexp.MustCompile(`^\/metadata\/(.*)\/([a-z]*)$`)
 
 func NewImageHandler() (*ImageHandler, error) {
 	imageCachePath, err := xdg.CacheFile("meteorae/images")
@@ -116,7 +116,7 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 
 			if metadataImageType == ThumbImage.String() && metadata.Thumb == "" ||
 				metadataImageType == ArtImage.String() && metadata.Art == "" {
-				http.Error(writer, "Image not found", http.StatusInternalServerError)
+				http.Error(writer, "Image not found", http.StatusNotFound)
 
 				return
 			}

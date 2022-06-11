@@ -55,7 +55,7 @@ func (l *LibraryType) UnmarshalText(text []byte) {
 }
 
 type Library struct {
-	Id               uint64            `clover:"_id"`
+	Id               string            `clover:"_id" json:"_id"` //nolint:tagliatelle
 	Name             string            `clover:"name"`
 	Type             LibraryType       `clover:"type"`
 	Language         string            `clover:"language"`
@@ -66,13 +66,11 @@ type Library struct {
 }
 
 type LibraryLocation struct {
-	Id        uint64    `clover:"_id"`
-	LibraryId uint64    `clover:"libraryId"`
 	RootPath  string    `clover:"rootPath"`
 	Available bool      `clover:"available"`
-	ScannedAt time.Time `clover:"scannedAt"`
 	CreatedAt time.Time `clover:"createdAt"`
 	UpdatedAt time.Time `clover:"updatedAt"`
+	ScannedAt time.Time `clover:"scannedAt"`
 }
 
 // Creates a new library entry in the database with the specified information.
@@ -92,13 +90,18 @@ func CreateLibrary(name, language, typeArg string, locations []string) (*Library
 		Type:             libraryType,
 		Language:         language,
 		LibraryLocations: libraryLocations,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
 	}
 
 	document := clover.NewDocumentOf(&library)
 
-	if _, err := db.InsertOne(LibraryCollection.String(), document); err != nil {
+	libraryId, err := db.InsertOne(LibraryCollection.String(), document)
+	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create library: %w", err)
 	}
+
+	library.Id = libraryId
 
 	return &library, libraryLocations, nil
 }
@@ -119,9 +122,7 @@ func GetLibraryById(id string) (Library, error) {
 
 // Returns the requested fields for all libraries.
 func GetLibraries() ([]*Library, error) {
-	var libraries []*Library
-
-	var library *Library
+	var libraries []*Library //nolint:prealloc
 
 	docs, err := db.Query(LibraryCollection.String()).FindAll()
 	if err != nil {
@@ -129,7 +130,10 @@ func GetLibraries() ([]*Library, error) {
 	}
 
 	for _, doc := range docs {
-		doc.Unmarshal(library)
+		var library *Library
+
+		doc.Unmarshal(&library)
+
 		libraries = append(libraries, library)
 	}
 

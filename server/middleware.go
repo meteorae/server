@@ -1,7 +1,6 @@
 package server
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -24,7 +23,6 @@ import (
 	"github.com/rs/zerolog/hlog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
-	"gorm.io/gorm"
 )
 
 var (
@@ -70,12 +68,9 @@ func AuthMiddleware(next http.Handler) http.Handler {
 
 		account, err := database.GetUserById(customClaim.UserID)
 		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				http.Error(writer, "Invalid token", http.StatusForbidden)
-
-				return
-			}
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
+
+			return
 		}
 
 		ctx := utils.GetContextWithUser(request.Context(), account)

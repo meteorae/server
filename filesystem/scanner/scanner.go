@@ -40,17 +40,17 @@ func ScanDirectory(directory string, library database.Library) {
 			}
 
 			mediaPart = database.MediaPart{
-				FilePath: path,
-				Hash:     hex.EncodeToString(hash),
-				Size:     fileInfo.Size(),
+				Path: path,
+				Hash: hex.EncodeToString(hash),
+				Size: fileInfo.Size(),
 			}
 		} else {
 			mediaPart = database.MediaPart{
-				FilePath: path,
+				Path: path,
 			}
 		}
 
-		log.Debug().Msgf("Scheduling resolution job for %s", mediaPart.FilePath)
+		log.Debug().Msgf("Scheduling resolution job for %s", mediaPart.Path)
 		err := registry.ResolveFile(&mediaPart, library, dirEntry.IsDir())
 		if err != nil {
 			return fmt.Errorf("failed to schedule resolution job: %w", err)

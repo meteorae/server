@@ -5,7 +5,6 @@ import (
 
 	"github.com/adrg/xdg"
 	"github.com/ostafen/clover"
-	"gorm.io/gorm"
 )
 
 var db *clover.DB //nolint:varnamelen
@@ -17,59 +16,62 @@ func (c CollectionName) String() string {
 }
 
 const (
-	UserCollection               CollectionName = "User"
-	ExternalIdentifierCollection CollectionName = "ExternalIdentifier"
-	LibraryCollection            CollectionName = "Library"
-	LibraryLocationCollection    CollectionName = "LibraryLocation"
-	MediaPartCollection          CollectionName = "MediaPart"
-	ItemCollection               CollectionName = "Item"
-	MediaStreamCollection        CollectionName = "MediaStream"
+	UserCollection      CollectionName = "user"
+	LibraryCollection   CollectionName = "library"
+	MediaPartCollection CollectionName = "media_part"
+	ItemCollection      CollectionName = "item"
 )
 
 // Creates a new database file.
-func NewDatabase() error {
+func GetDatabase() (*clover.DB, error) {
 	databaseLocation, dataFileErr := xdg.DataFile("meteorae/database")
 	if dataFileErr != nil {
-		return fmt.Errorf("could not get path for database: %w", dataFileErr)
+		return nil, fmt.Errorf("could not get path for database: %w", dataFileErr)
 	}
 
-	db, err := clover.Open(databaseLocation)
-	defer db.Close()
+	var err error
 
+	db, err = clover.Open(databaseLocation)
 	if err != nil {
-		return fmt.Errorf("failed to open database: %w", err)
+		return nil, fmt.Errorf("failed to open database: %w", err)
+	}
+
+	initSchema(db)
+
+	return db, nil
+}
+
+func createCollectionIfNotExist(collection CollectionName, db *clover.DB) error {
+	isExists, err := db.HasCollection(collection.String())
+	if err != nil {
+		return err
+	}
+
+	if !isExists {
+		err := db.CreateCollection(collection.String())
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
 // Creates the database structure.
-func initSchema(transaction *gorm.DB) error {
-	if err := db.CreateCollection(string(UserCollection)); err != nil {
+func initSchema(db *clover.DB) error {
+	if err := createCollectionIfNotExist(UserCollection, db); err != nil {
 		return err
 	}
 
-	if err := db.CreateCollection(string(ExternalIdentifierCollection)); err != nil {
+	if err := createCollectionIfNotExist(LibraryCollection, db); err != nil {
 		return err
 	}
 
-	if err := db.CreateCollection(string(LibraryCollection)); err != nil {
+	if err := createCollectionIfNotExist(MediaPartCollection, db); err != nil {
 		return err
 	}
 
-	if err := db.CreateCollection(string(LibraryLocationCollection)); err != nil {
-		return err
-	}
-
-	if err := db.CreateCollection(string(MediaPartCollection)); err != nil {
-		return err
-	}
-
-	if err := db.CreateCollection(string(ItemCollection)); err != nil {
-		return err
-	}
-
-	if err := db.CreateCollection(string(MediaStreamCollection)); err != nil {
+	if err := createCollectionIfNotExist(ItemCollection, db); err != nil {
 		return err
 	}
 
