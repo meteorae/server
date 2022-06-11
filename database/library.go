@@ -20,35 +20,52 @@ func (l LibraryType) String() string {
 	return string(l)
 }
 
-func LibraryTypeFromString(input string) (l LibraryType, err error) {
-	err = l.UnmarshalText([]byte(input))
+func LibraryTypeFromString(input string) (LibraryType, error) {
+	var library LibraryType
 
-	return
+	err := library.UnmarshalText([]byte(input))
+	if err != nil {
+		return library, fmt.Errorf("failed to parse library type: %w", err)
+	}
+
+	return library, nil
 }
 
-func (l *LibraryType) MarshalText() (text []byte, err error) {
-	text = []byte(l.String())
+func (l *LibraryType) MarshalText() []byte {
+	text := []byte(l.String())
 
-	return
+	return text
 }
 
-func (l *LibraryType) UnmarshalText(text []byte) (err error) {
+func (l *LibraryType) UnmarshalText(text []byte) error {
 	switch string(text) {
 	case "movie":
 		*l = MovieLibrary
+
+		return nil
 	case "animeMovie":
 		*l = AnimeMovieLibrary
+
+		return nil
 	case "tv":
 		*l = TVLibrary
+
+		return nil
 	case "animeTV":
 		*l = AnimeTVLibrary
+
+		return nil
 	case "music":
 		*l = MusicLibrary
+
+		return nil
 	case "image":
 		*l = ImageLibrary
+
+		return nil
 	}
 
-	return
+	return fmt.Errorf("invalid library type: %s", string(text))
 }
 
 type Library struct {

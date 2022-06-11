@@ -1,6 +1,10 @@
-package utils
+package utils_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/meteorae/meteorae-server/utils"
+)
 
 func TestIsStringInSlice(t *testing.T) {
 	t.Parallel()
@@ -39,7 +43,7 @@ func TestIsStringInSlice(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := IsStringInSlice(tc.args.a, tc.args.list); got != tc.want {
+			if got := utils.IsStringInSlice(tc.args.a, tc.args.list); got != tc.want {
 				t.Errorf("IsStringInSlice() = %v, want %v", got, tc.want)
 			}
 		})
