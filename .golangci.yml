@@ -20,6 +20,7 @@ linters:
     - "interfacer"
     # Annoying or not needed
     - "exhaustivestruct"
+    - "exhaustruct"
     - "gochecknoglobals"
     - "noctx"
     - "godox"
