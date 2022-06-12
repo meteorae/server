@@ -88,8 +88,3 @@ run-darwin-apple:
 	make build-darwin-apple
 	cp bin/darwin-arm64/$(BIN_NAME)-darwin-arm64 .
 	./$(BIN_NAME)-darwin-arm64
-
-download-web:
-	curl -L https://github.com/meteorae/web/releases/latest/download/web.zip > server/handlers/web/web.zip
-	unzip -o server/handlers/web/web.zip -d server/handlers/web/client/
-	rm server/handlers/web/web.zip

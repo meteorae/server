@@ -11,8 +11,58 @@ import (
 	"strings"
 
 	"github.com/adrg/xdg"
+	"github.com/mholt/archiver/v3"
 	"github.com/rs/zerolog/log"
 )
+
+func EnsureWebClient() error {
+	webAssetsLocation, dataFileErr := xdg.DataFile("meteorae/assets")
+	if dataFileErr != nil {
+		return dataFileErr
+	}
+
+	serverRoot := os.DirFS(webAssetsLocation)
+
+	webClientStat, fsStatErr := fs.Stat(serverRoot, "web")
+
+	if os.IsNotExist(fsStatErr) {
+		log.Debug().Msg("Web client not found, downloading from GitHub")
+
+		// TODO: Ideally we should go through Github's API to get the version as well
+		resp, err := http.Get("https://github.com/meteorae/web/releases/latest/download/web.zip")
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		webClientZipFile, err := os.CreateTemp("", "meteorae-web-client-*.zip")
+		if err != nil {
+			return err
+		}
+
+		_, err = io.Copy(webClientZipFile, resp.Body)
+		if err != nil {
+			return err
+		}
+
+		zipHandler := archiver.NewZip()
+
+		err = zipHandler.Unarchive(webClientZipFile.Name(), filepath.Join(webAssetsLocation, "web"))
+		if err != nil {
+			return err
+		}
+
+		log.Debug().Msg("Web client downloaded successfully")
+	} else if webClientStat.IsDir() {
+		log.Debug().Msg("Web client already exists")
+
+		return nil
+	} else {
+		return fsStatErr
+	}
+
+	return nil
+}
 
 // SPAHandler implements the http.Handler interface, so we can use it
 // to respond to HTTP requests. The path to the static directory and
