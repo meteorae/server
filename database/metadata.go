@@ -99,13 +99,13 @@ func GetItemsCountFromLibrary(libraryID string) (*int64, error) {
 }
 
 // Returns all the children of a given item.
-func GetChildrenFromItem(id string, limit, offset *int64) ([]*ItemMetadata, error) {
+func GetChildrenFromItem(parentItemID string, limit, offset *int64) ([]*ItemMetadata, error) {
 	var children []*ItemMetadata
 
 	result := db.
 		Limit(int(*limit)).
 		Offset(int(*offset)).
-		Where("parent_id = ?", id).
+		Where("parent_id = ?", parentItemID).
 		Find(&children)
 	if result.Error != nil {
 		return nil, result.Error

@@ -16,8 +16,6 @@ import (
 
 var db *gorm.DB //nolint:varnamelen
 
-var errLibraryNotFound = errors.New("spellfix not found")
-
 func NewDatabase(zerologger zerolog.Logger) error {
 	newLogger := logger.New(
 		&zerologger,

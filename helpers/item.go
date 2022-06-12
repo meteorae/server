@@ -60,6 +60,20 @@ func GetItemFromItemMetadata(itemMetadata *database.ItemMetadata) *model.Item {
 			CreatedAt: itemMetadata.CreatedAt,
 			UpdatedAt: itemMetadata.UpdatedAt,
 		}
+	case database.AnimeEpisodeItem,
+		database.AnimeMovieItem,
+		database.AnimeSeasonItem,
+		database.AnimeShowItem,
+		database.CollectionItem,
+		database.GroupItem,
+		database.MusicAlbumItem,
+		database.MusicMediumItem,
+		database.MusicTrackItem,
+		database.PersonItem,
+		database.TVEpisodeItem,
+		database.TVSeasonItem,
+		database.TVShowItem:
+		return nil
 	}
 
 	return &item

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"path/filepath"
 
 	"github.com/adrg/xdg"
@@ -29,7 +30,8 @@ func init() {
 	viper.SetDefault("crash_reporting", true)
 
 	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+		var configFileNotFound viper.ConfigFileNotFoundError
+		if ok := errors.As(err, &configFileNotFound); ok {
 			err = viper.WriteConfigAs(configFileLocation)
 			if err != nil {
 				log.Fatal().Err(err).Msg("Failed to write config file")
