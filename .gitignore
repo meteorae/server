@@ -23,6 +23,7 @@ server/handlers/web/client/
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+report.json
 
 # Dependency directories
 vendor/
