@@ -138,6 +138,11 @@ func GetWebServer() (*http.Server, error) {
 	loggingHandler = loggingHandler.Append(hlog.RefererHandler("referer"))
 	loggingHandler = loggingHandler.Append(hlog.RequestIDHandler("req_id", "Request-Id"))
 
+	err = web.EnsureWebClient()
+	if err != nil {
+		return nil, fmt.Errorf("failed to ensure web client: %w", err)
+	}
+
 	spa := web.SPAHandler{}
 
 	router.Handle("/setup", loggingHandler.Then(http.HandlerFunc(setupHandler))).Methods("GET")
