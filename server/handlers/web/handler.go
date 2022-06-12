@@ -3,6 +3,7 @@ package web
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/fs"
 	"net/http"
@@ -18,47 +19,48 @@ import (
 func EnsureWebClient() error {
 	webAssetsLocation, dataFileErr := xdg.DataFile("meteorae/assets")
 	if dataFileErr != nil {
-		return dataFileErr
+		return fmt.Errorf("could not get path for web assets: %w", dataFileErr)
 	}
 
 	serverRoot := os.DirFS(webAssetsLocation)
 
 	webClientStat, fsStatErr := fs.Stat(serverRoot, "web")
 
-	if os.IsNotExist(fsStatErr) {
+	switch {
+	case os.IsNotExist(fsStatErr):
 		log.Debug().Msg("Web client not found, downloading from GitHub")
 
 		// TODO: Ideally we should go through Github's API to get the version as well
 		resp, err := http.Get("https://github.com/meteorae/web/releases/latest/download/web.zip")
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to download web client: %w", err)
 		}
 		defer resp.Body.Close()
 
 		webClientZipFile, err := os.CreateTemp("", "meteorae-web-client-*.zip")
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create temp file for web client: %w", err)
 		}
 
 		_, err = io.Copy(webClientZipFile, resp.Body)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to copy web client archive: %w", err)
 		}
 
 		zipHandler := archiver.NewZip()
 
 		err = zipHandler.Unarchive(webClientZipFile.Name(), filepath.Join(webAssetsLocation, "web"))
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to extract web client: %w", err)
 		}
 
 		log.Debug().Msg("Web client downloaded successfully")
-	} else if webClientStat.IsDir() {
+	case webClientStat.IsDir():
 		log.Debug().Msg("Web client already exists")
 
 		return nil
-	} else {
-		return fsStatErr
+	default:
+		return fmt.Errorf("could not stat web client: %w", fsStatErr)
 	}
 
 	return nil
