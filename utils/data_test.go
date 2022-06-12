@@ -38,7 +38,7 @@ func TestIsStringInSlice(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
+		tc := tc // nolint:varnamelen
 
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

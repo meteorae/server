@@ -1,9 +1,12 @@
 package database
 
 import (
+	"errors"
 	"fmt"
 	"time"
 )
+
+var errInvalidLibraryType = errors.New("invalid library type")
 
 type LibraryType string
 
@@ -65,7 +68,7 @@ func (l *LibraryType) UnmarshalText(text []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("invalid library type: %s", string(text))
+	return fmt.Errorf("%w: %s", errInvalidLibraryType, text)
 }
 
 type Library struct {
