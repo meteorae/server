@@ -3,7 +3,6 @@ package web
 
 import (
 	"bytes"
-	"embed"
 	"io"
 	"io/fs"
 	"net/http"
@@ -11,11 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/adrg/xdg"
 	"github.com/rs/zerolog/log"
 )
-
-//go:embed client/*
-var embedded embed.FS
 
 // SPAHandler implements the http.Handler interface, so we can use it
 // to respond to HTTP requests. The path to the static directory and
@@ -24,11 +21,13 @@ var embedded embed.FS
 type SPAHandler struct{}
 
 func (h SPAHandler) ServeHTTP(writer http.ResponseWriter, reader *http.Request) {
-	serverRoot, fsErr := fs.Sub(embedded, ".")
-	if fsErr != nil {
-		log.Error().Err(fsErr).Msg("Failed to get server root")
-		http.Error(writer, "Failed to get server root", http.StatusInternalServerError)
+	webAssetsLocation, dataFileErr := xdg.DataFile("meteorae/assets")
+	if dataFileErr != nil {
+		log.Error().Err(dataFileErr).Msg("could not get path for web assets")
+		http.Error(writer, "Failed to get web assets directory", http.StatusInternalServerError)
 	}
+
+	serverRoot := os.DirFS(webAssetsLocation)
 
 	path, absErr := filepath.Abs(reader.URL.Path)
 	if absErr != nil {
@@ -38,11 +37,11 @@ func (h SPAHandler) ServeHTTP(writer http.ResponseWriter, reader *http.Request) 
 		return
 	}
 
-	log.Debug().Str("path", filepath.Join("client", path)).Msg("Serving file")
+	log.Debug().Str("path", filepath.Join("web", path)).Msg("Serving file")
 
-	fileStat, fsStatErr := fs.Stat(serverRoot, filepath.Join("client", path))
+	fileStat, fsStatErr := fs.Stat(serverRoot, filepath.Join("web", path))
 	if os.IsNotExist(fsStatErr) || fileStat.IsDir() && path == "/" {
-		indexFile, indexOpenErr := serverRoot.Open(filepath.Join("client", "index.html"))
+		indexFile, indexOpenErr := serverRoot.Open(filepath.Join("web", "index.html"))
 		if indexOpenErr != nil {
 			log.Error().Err(indexOpenErr).Msg("Failed to open index.html")
 			http.Error(writer, indexOpenErr.Error(), http.StatusInternalServerError)
@@ -75,7 +74,7 @@ func (h SPAHandler) ServeHTTP(writer http.ResponseWriter, reader *http.Request) 
 		return
 	}
 
-	spaFile, fsFileReadErr := fs.ReadFile(serverRoot, filepath.Join("client", path))
+	spaFile, fsFileReadErr := fs.ReadFile(serverRoot, filepath.Join("web", path))
 	if fsFileReadErr != nil {
 		log.Error().Err(fsFileReadErr).Msg("Failed to open index.html")
 		http.Error(writer, fsFileReadErr.Error(), http.StatusInternalServerError)
