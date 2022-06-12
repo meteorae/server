@@ -16,26 +16,6 @@ func init() {
 	registry.Register(imageResolver)
 }
 
-// Supported image formats for ingestion. Non-supported common formats needing support from libvips are commented out.
-// TODO: Check support for RAW formats.
-var supportedImageFormats = []string{
-	".aiff",
-	// ".apng", -- https://github.com/libvips/libvips/issues/2537
-	".avif",
-	".bmp",
-	".gif",
-	".jfif",
-	".jpeg",
-	".jpg",
-	".pjpeg",
-	".pjp",
-	".png",
-	".svg",
-	".tif",
-	".tiff",
-	".webp",
-}
-
 var imageResolver registry.Resolver = Resolver{}
 
 type Resolver struct{}
@@ -53,7 +33,7 @@ func (r Resolver) SupportsFileType(filePath string, isDir bool) bool {
 		return false
 	}
 
-	return r.isImageFile(filePath)
+	return utils.IsImageFile(filePath)
 }
 
 func (r Resolver) Resolve(mediaPart *database.MediaPart, library database.Library) error {
@@ -90,10 +70,4 @@ func (r Resolver) Resolve(mediaPart *database.MediaPart, library database.Librar
 	}
 
 	return nil
-}
-
-func (r Resolver) isImageFile(path string) bool {
-	ext := filepath.Ext(path)
-
-	return utils.IsStringInSlice(ext, supportedImageFormats)
 }
