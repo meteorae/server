@@ -20,8 +20,6 @@ clean:
 
 build:
 	make clean
-	@echo "Downloading the web client"
-	make download-web
 	@echo "Building ${BIN_NAME}"
 ifeq ($(UNAME_S),Darwin)
 	export CGO_CFLAGS_ALLOW="-Xpreprocessor"
@@ -68,32 +66,24 @@ endif
 endif
 
 run-linux:
-	@echo "Downloading the web client"
-	make download-web
 	@echo "Building ${BIN_NAME}"
 	make build-linux
 	cp bin/linux-x64/$(BIN_NAME)-linux-x64 .
 	./$(BIN_NAME)-linux-x64
 
 run-windows:
-	@echo "Downloading the web client"
-	make download-web
 	@echo "Building ${BIN_NAME}"
 	make build-windows
 	cp bin/windows-x64/$(BIN_NAME)-win-x64.exe .
 	./$(BIN_NAME)-win-x64.exe
 
 run-darwin-intel:
-	@echo "Downloading the web client"
-	make download-web
 	@echo "Building ${BIN_NAME}"
 	make build-darwin-intel
 	cp bin/darwin-x64/$(BIN_NAME)-darwin-x64 .
 	./$(BIN_NAME)-darwin-x64
 
 run-darwin-apple:
-	@echo "Downloading the web client"
-	make download-web
 	@echo "Building ${BIN_NAME}"
 	make build-darwin-apple
 	cp bin/darwin-arm64/$(BIN_NAME)-darwin-arm64 .
