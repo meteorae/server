@@ -45,19 +45,14 @@ jobs:
       - name: Build
         run: make build
       - name: Test
+        run: go test -json > report.json
+      - name: Coverage
         run: go test -coverprofile=coverage.out -v ./...
-      - name: Convert coverage to lcov
-        uses: jandelgado/gcov2lcov-action@v1.0.9
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
-            -Dsonar.organization=meteorae
-            -Dsonar.projectKey=meteorae_server
-            -Dsonar.javascript.lcov.reportPaths=coverage.lcov
   analyze:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
