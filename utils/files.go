@@ -9,7 +9,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// Supported image formats for ingestion. Non-supported common formats needing support from libvips are commented out.
+// SupportedImageFormats lists the image formats supported for ingestion.
+// Non-supported common formats needing support from libvips are commented out.
 // TODO: Check support for RAW formats.
 var SupportedImageFormats = []string{
 	".aiff",
