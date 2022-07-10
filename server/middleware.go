@@ -18,9 +18,6 @@ import (
 	"github.com/meteorae/meteorae-server/server/handlers/library"
 	"github.com/meteorae/meteorae-server/server/handlers/web"
 	"github.com/meteorae/meteorae-server/utils"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog/hlog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
@@ -30,10 +27,6 @@ import (
 var (
 	writeTimeout = 15 * time.Second
 	readTimeout  = 15 * time.Second
-	opsProcessed = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "meteorae_incoming_requests_total",
-		Help: "The total number of incoming requests",
-	})
 )
 
 func LoggingMiddleware(next http.Handler) http.Handler {
@@ -81,14 +74,6 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		ctx := utils.GetContextWithUser(request.Context(), account)
 
 		request = request.WithContext(ctx)
-		next.ServeHTTP(writer, request)
-	})
-}
-
-func MetricsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		opsProcessed.Inc()
-
 		next.ServeHTTP(writer, request)
 	})
 }
@@ -146,7 +131,6 @@ func GetWebServer() (*http.Server, error) {
 	spa := web.SPAHandler{}
 
 	router.Handle("/setup", loggingHandler.Then(http.HandlerFunc(setupHandler))).Methods("GET")
-	router.Handle("/metrics", loggingHandler.Then(promhttp.Handler()))
 	router.Handle("/query", loggingHandler.Then(queryHandler))
 	router.Handle("/playground", loggingHandler.Then(playground.Handler("GraphQL playground", "/query")))
 	router.Handle("/image/transcode", loggingHandler.Then(http.HandlerFunc(transcodeHandler.HTTPHandler)))
@@ -155,7 +139,6 @@ func GetWebServer() (*http.Server, error) {
 	router.PathPrefix("/").Handler(loggingHandler.Then(spa))
 	router.Use(LoggingMiddleware)
 	router.Use(AuthMiddleware)
-	router.Use(MetricsMiddleware)
 
 	port := viper.GetInt("port")
 
