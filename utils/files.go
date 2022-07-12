@@ -36,6 +36,34 @@ func IsImageFile(path string) bool {
 	return IsStringInSlice(ext, SupportedImageFormats)
 }
 
+func IsFileExists(path string) bool {
+	info, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false
+	}
+
+	return !info.IsDir()
+}
+
+func IsFileReadable(path string) bool {
+	if _, err := os.Stat(path); err != nil {
+		return false
+	}
+
+	return true
+}
+
+func GetFileSize(path string) (int64, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		log.Err(err).Msgf("Failed to get file size for %s", path)
+
+		return 0, err
+	}
+
+	return info.Size(), nil
+}
+
 func HashFilePath(path string) ([]byte, error) {
 	f, err := os.Open(path)
 	if err != nil {

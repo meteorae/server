@@ -149,6 +149,14 @@ func CreateMovie(movieInfo *ItemMetadata) error {
 	return nil
 }
 
+func CreateMovieBatch(movieList *[]ItemMetadata) error {
+	if result := db.Create(movieList); result.Error != nil {
+		return result.Error
+	}
+
+	return nil
+}
+
 func UpdateMovie(movieInfo *ItemMetadata) error {
 	if result := db.Save(movieInfo); result.Error != nil {
 		return result.Error

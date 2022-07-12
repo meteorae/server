@@ -1,6 +1,8 @@
 package utils_test
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestCleanSortTitle(t *testing.T) {
 	t.Parallel()

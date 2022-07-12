@@ -1,64 +1,77 @@
 package scanner
 
 import (
-	"encoding/hex"
-	"fmt"
-	"io/fs"
+	"io/ioutil"
+	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/meteorae/meteorae-server/database"
-	"github.com/meteorae/meteorae-server/helpers"
-	"github.com/meteorae/meteorae-server/resolvers/registry"
+	simplemovie "github.com/meteorae/meteorae-server/scanners/simpleMovie"
+	"github.com/meteorae/meteorae-server/scanners/video"
 	"github.com/meteorae/meteorae-server/utils"
 	"github.com/rs/zerolog/log"
 )
 
-func ScanDirectory(directory string, library database.Library) {
-	err := filepath.WalkDir(directory, func(path string, dirEntry fs.DirEntry, walkErr error) error {
-		// TODO: We should probably handle different types differently
-		log.Debug().Msgf("Found file: %s", path)
+func filterFiles(files []os.FileInfo) ([]string, []string) {
+	var filteredFiles []string
 
-		if helpers.ShouldIgnore(path, dirEntry) {
-			if dirEntry.IsDir() {
-				return filepath.SkipDir
-			}
+	var filteredDirs []string
 
-			return nil
-		}
-
-		mediaPart := database.MediaPart{}
-		if !dirEntry.IsDir() {
-			// Hash the file using SHA-1
-			hash, err := utils.HashFilePath(path)
-			if err != nil {
-				return fmt.Errorf("failed to hash file: %w", err)
-			}
-
-			fileInfo, err := dirEntry.Info()
-			if err != nil {
-				return fmt.Errorf("failed to get file info: %w", err)
-			}
-
-			mediaPart = database.MediaPart{
-				FilePath: path,
-				Hash:     hex.EncodeToString(hash),
-				Size:     fileInfo.Size(),
-			}
+	for _, file := range files {
+		if file.IsDir() {
+			filteredDirs = append(filteredDirs, file.Name())
 		} else {
-			mediaPart = database.MediaPart{
-				FilePath: path,
-			}
+			filteredFiles = append(filteredFiles, file.Name())
 		}
+	}
 
-		log.Debug().Msgf("Scheduling resolution job for %s", mediaPart.FilePath)
-		err := registry.ResolveFile(&mediaPart, library, dirEntry.IsDir())
-		if err != nil {
-			return fmt.Errorf("failed to schedule resolution job: %w", err)
-		}
+	return filteredFiles, filteredDirs
+}
 
-		return nil
-	})
+func scanDirectory(directory, root string, mediaList *[]database.ItemMetadata) {
+	fullPath := filepath.Join(root, directory)
+
+	directoryContent, err := ioutil.ReadDir(fullPath)
 	if err != nil {
-		log.Error().Err(err).Msgf("Failed to scan %s", directory)
+		log.Err(err).Msgf("Failed to read directory %s", fullPath)
+
+		return
+	}
+
+	files, dirs := filterFiles(directoryContent)
+
+	simplemovie.Scan(directory, &files, &dirs, mediaList, video.VideoFileExtensions, root)
+
+	// TODO: Make this recursive.
+	for _, dir := range dirs {
+		scanDirectory(filepath.Join(directory, dir), root, mediaList)
+	}
+
+	log.Debug().Str("scanner", simplemovie.GetName()).Msgf("Found %d files in %s", len(files), directory)
+	log.Debug().Str("scanner", simplemovie.GetName()).Msgf("Found %d directories in %s", len(dirs), directory)
+}
+
+func ScanDirectory(directory string, library database.Library) {
+	defer utils.TimeTrack(time.Now())
+
+	if _, err := os.Lstat(directory); err != nil {
+		log.Err(err).Msgf("Failed to scan directory %s", directory)
+
+		return
+	}
+
+	var mediaList []database.ItemMetadata
+
+	scanDirectory(".", directory, &mediaList)
+	log.Debug().Str("scanner", simplemovie.GetName()).Msgf("Found %d media items in %s", len(mediaList), directory)
+
+	for i := range mediaList {
+		mediaList[i].Library = library
+	}
+
+	err := database.CreateMovieBatch(&mediaList)
+	if err != nil {
+		log.Err(err).Msgf("Failed to create movie batch")
 	}
 }
