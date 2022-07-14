@@ -321,6 +321,14 @@ func CleanName(name string) (string, int) {
 
 	cleanName := strings.Join(finalTokens, " ")
 
+	// Some movies have multiple languages or versions in the name using "aka", get only the first one
+	reg := regexp.MustCompile("(.*) aka .*")
+	cleanAkaName := reg.FindStringSubmatch(cleanName)
+
+	if len(cleanAkaName) > 0 {
+		cleanName = cleanAkaName[1]
+	}
+
 	return strings.Title(cleanName), year
 }
 

@@ -136,7 +136,7 @@ func GetWebServer() (*http.Server, error) {
 	router.Handle("/image/transcode", loggingHandler.Then(http.HandlerFunc(transcodeHandler.HTTPHandler)))
 	router.Handle("/library/{metadata}/{part}/file.{ext}",
 		loggingHandler.Then(http.HandlerFunc(library.MediaPartHTTPHandler)))
-	router.PathPrefix("/").Handler(loggingHandler.Then(spa))
+	router.PathPrefix("/web").Handler(loggingHandler.Then(spa))
 	router.Use(LoggingMiddleware)
 	router.Use(AuthMiddleware)
 

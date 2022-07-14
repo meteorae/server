@@ -1,6 +1,7 @@
 package simplemovie
 
 import (
+	"path/filepath"
 	"time"
 
 	"github.com/meteorae/meteorae-server/database"
@@ -25,6 +26,12 @@ func Scan(path string, files, dirs *[]string, mediaList *[]database.ItemMetadata
 		movie := database.ItemMetadata{
 			Title:       name,
 			ReleaseDate: time.Date(year, time.January, 1, 0, 0, 0, 0, time.UTC),
+			MediaParts: []database.MediaPart{
+				{
+					FilePath: filepath.Join(root, path, file),
+				},
+			},
+			Type: database.MovieItem,
 		}
 
 		*mediaList = append(*mediaList, movie)

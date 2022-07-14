@@ -89,10 +89,14 @@ func (h SPAHandler) ServeHTTP(writer http.ResponseWriter, reader *http.Request) 
 		return
 	}
 
+	// React is configured with a base path of "/web", so we need to remove it
+	// from the path before we can serve the SPA.
+	path = strings.TrimPrefix(path, "/web")
+
 	log.Debug().Str("path", filepath.Join("web", path)).Msg("Serving file")
 
 	fileStat, fsStatErr := fs.Stat(serverRoot, filepath.Join("web", path))
-	if os.IsNotExist(fsStatErr) || fileStat.IsDir() && path == "/" {
+	if os.IsNotExist(fsStatErr) || fileStat.IsDir() && path == "" {
 		indexFile, indexOpenErr := serverRoot.Open(filepath.Join("web", "index.html"))
 		if indexOpenErr != nil {
 			log.Error().Err(indexOpenErr).Msg("Failed to open index.html")
