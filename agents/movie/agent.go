@@ -4,13 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/helpers"
 	"github.com/meteorae/meteorae-server/models"
 	"github.com/meteorae/meteorae-server/utils"
 	"github.com/rs/zerolog/log"
 	"github.com/ryanbradynd05/go-tmdb"
-	"golang.org/x/text/language"
 )
 
 var (
@@ -61,7 +59,7 @@ func getMovieResults(media models.Movie) (tmdb.Movie, error) {
 	return tmdb.Movie{}, errNoResultsFound
 }
 
-func Search(media database.ItemMetadata) {
+func Search(media models.Movie) {
 	movie, err := getMovieResults(media)
 	if err != nil {
 		log.Err(err).Msgf("Failed to search for movie %s", media.Title)
@@ -76,12 +74,12 @@ func Search(media database.ItemMetadata) {
 		releaseDate = time.Time{}
 	}
 
-	languageTag, err := language.Parse(movie.OriginalLanguage)
+	/*languageTag, err := language.Parse(movie.OriginalLanguage)
 	if err != nil {
 		log.Err(err).Msgf("Failed to parse original language for movie \"%s\", using Undefined", media.Title)
 
 		languageTag = language.Und
-	}
+	}*/
 
 	var artHash string
 
@@ -106,17 +104,13 @@ func Search(media database.ItemMetadata) {
 	}
 
 	media.Title = movie.Title
-	media.SortTitle = utils.CleanSortTitle(movie.Title)
-	media.OriginalTitle = movie.OriginalTitle
+	media.TitleSort = utils.CleanSortTitle(movie.Title)
 	media.ReleaseDate = releaseDate
 	media.Summary = movie.Overview
-	media.Tagline = movie.Tagline
-	media.Popularity = movie.Popularity
-	media.OriginalLanguage = languageTag.String()
 	media.Thumb = posterHash
 	media.Art = artHash
 
-	err = database.UpdateMovie(&media)
+	err = media.ToItemMetadata().Update()
 	if err != nil {
 		log.Err(err).Msgf("Failed to update movie %s", media.Title)
 	}

@@ -14,12 +14,13 @@ import (
 	"github.com/meteorae/meteorae-server/graph/generated"
 	"github.com/meteorae/meteorae-server/graph/model"
 	"github.com/meteorae/meteorae-server/helpers"
+	"github.com/meteorae/meteorae-server/models"
 	ants "github.com/panjf2000/ants/v2"
 	"github.com/rs/zerolog/log"
 )
 
 func (r *libraryResolver) ID(ctx context.Context, obj *database.Library) (string, error) {
-	return strconv.FormatUint(obj.ID, 10), nil //nolint:gomnd
+	return fmt.Sprint(obj.ID), nil
 }
 
 func (r *libraryResolver) Type(ctx context.Context, obj *database.Library) (string, error) {
@@ -35,11 +36,19 @@ func (r *libraryResolver) Locations(ctx context.Context, obj *database.Library) 
 	return locations, nil
 }
 
-func (r *mutationResolver) Login(
-	ctx context.Context,
-	username string,
-	password string,
-) (*model.AuthPayload, error) {
+func (r *movieResolver) ID(ctx context.Context, obj *models.Movie) (string, error) {
+	panic(fmt.Errorf("not implemented"))
+}
+
+func (r *movieResolver) ReleaseDate(ctx context.Context, obj *models.Movie) (*string, error) {
+	panic(fmt.Errorf("not implemented"))
+}
+
+func (r *movieResolver) Library(ctx context.Context, obj *models.Movie) (*database.Library, error) {
+	panic(fmt.Errorf("not implemented"))
+}
+
+func (r *mutationResolver) Login(ctx context.Context, username, password string) (*model.AuthPayload, error) {
 	user, err := database.GetUserByName(username)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get user")
@@ -53,7 +62,7 @@ func (r *mutationResolver) Login(
 	}
 
 	if match {
-		token, err := helpers.GenerateJwt(strconv.Itoa(int(user.ID)))
+		token, err := helpers.GenerateJwt(user.ID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate JWT: %w", err)
 		}
@@ -67,17 +76,13 @@ func (r *mutationResolver) Login(
 	return nil, errInvalidCredentials
 }
 
-func (r *mutationResolver) Register(
-	ctx context.Context,
-	username string,
-	password string,
-) (*model.AuthPayload, error) {
+func (r *mutationResolver) Register(ctx context.Context, username, password string) (*model.AuthPayload, error) {
 	user, err := database.CreateUser(username, password)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
-	token, err := helpers.GenerateJwt(strconv.Itoa(int(user.ID)))
+	token, err := helpers.GenerateJwt(user.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate JWT: %w", err)
 	}
@@ -88,13 +93,7 @@ func (r *mutationResolver) Register(
 	}, nil
 }
 
-func (r *mutationResolver) AddLibrary(
-	ctx context.Context,
-	typeArg string,
-	name string,
-	language string,
-	locations []string,
-) (*database.Library, error) {
+func (r *mutationResolver) AddLibrary(ctx context.Context, typeArg, name, language string, locations []string) (*database.Library, error) {
 	library, libraryLocations, err := database.CreateLibrary(name, language, typeArg, locations)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to create library")
@@ -116,7 +115,12 @@ func (r *mutationResolver) AddLibrary(
 }
 
 func (r *queryResolver) User(ctx context.Context, id string) (*database.User, error) {
-	user, err := database.GetUserByID(id)
+	userId, err := strconv.ParseUint(id, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse user ID: %w", err)
+	}
+
+	user, err := database.GetUserByID(uint(userId))
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get user")
 
@@ -126,11 +130,7 @@ func (r *queryResolver) User(ctx context.Context, id string) (*database.User, er
 	return user, nil
 }
 
-func (r *queryResolver) Users(
-	ctx context.Context,
-	limit *int64,
-	offset *int64,
-) (*model.UsersResult, error) {
+func (r *queryResolver) Users(ctx context.Context, limit, offset *int64) (*model.UsersResult, error) {
 	users := database.GetUsers()
 
 	count := database.GetUsersCount()
@@ -142,7 +142,12 @@ func (r *queryResolver) Users(
 }
 
 func (r *queryResolver) Item(ctx context.Context, id string) (model.Item, error) {
-	item, err := database.GetItemByID(id)
+	itemID, err := strconv.ParseUint(id, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse library ID: %w", err)
+	}
+
+	item, err := database.GetItemByID(uint(itemID))
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get item")
 
@@ -150,23 +155,23 @@ func (r *queryResolver) Item(ctx context.Context, id string) (model.Item, error)
 	}
 
 	// TODO; Properly handle all item types
-	return *helpers.GetItemFromItemMetadata(item), nil
+	return helpers.GetItemFromItemMetadata(item), nil
 }
 
-func (r *queryResolver) Items(
-	ctx context.Context,
-	limit *int64,
-	offset *int64,
-	libraryID string,
-) (*model.ItemsResult, error) {
-	items, err := database.GetItemsFromLibrary(libraryID, limit, offset)
+func (r *queryResolver) Items(ctx context.Context, limit, offset *int64, libraryID string) (*model.ItemsResult, error) {
+	ID, err := strconv.ParseUint(libraryID, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse library ID: %w", err)
+	}
+
+	items, err := database.GetItemsFromLibrary(uint(ID), limit, offset)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get items")
 
 		return nil, fmt.Errorf("failed to get items: %w", err)
 	}
 
-	count, err := database.GetItemsCountFromLibrary(libraryID)
+	count, err := database.GetItemsCountFromLibrary(uint(ID))
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get items count")
 
@@ -175,29 +180,29 @@ func (r *queryResolver) Items(
 
 	resultItems := make([]model.Item, 0, len(items))
 	for _, item := range items {
-		resultItems = append(resultItems, *helpers.GetItemFromItemMetadata(item))
+		resultItems = append(resultItems, helpers.GetItemFromItemMetadata(item))
 	}
 
 	return &model.ItemsResult{
 		Items: resultItems,
-		Total: count,
+		Total: &count,
 	}, nil
 }
 
-func (r *queryResolver) Children(
-	ctx context.Context,
-	limit *int64,
-	offset *int64,
-	item string,
-) (*model.ItemsResult, error) {
-	items, err := database.GetChildrenFromItem(item, limit, offset)
+func (r *queryResolver) Children(ctx context.Context, limit, offset *int64, item string) (*model.ItemsResult, error) {
+	itemID, err := strconv.ParseUint(item, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse library ID: %w", err)
+	}
+
+	items, err := database.GetChildrenFromItem(uint(itemID), limit, offset)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get items")
 
 		return nil, fmt.Errorf("failed to get items: %w", err)
 	}
 
-	count, err := database.GetChildrenCountFromItem(item)
+	count, err := database.GetChildrenCountFromItem(uint(itemID))
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get items count")
 
@@ -206,12 +211,12 @@ func (r *queryResolver) Children(
 
 	resultItems := make([]model.Item, 0, len(items))
 	for _, item := range items {
-		resultItems = append(resultItems, *helpers.GetItemFromItemMetadata(item))
+		resultItems = append(resultItems, helpers.GetItemFromItemMetadata(item))
 	}
 
 	return &model.ItemsResult{
 		Items: resultItems,
-		Total: count,
+		Total: &count,
 	}, nil
 }
 
@@ -248,7 +253,7 @@ func (r *queryResolver) Latest(ctx context.Context, limit *int64) ([]*model.Late
 		resultItems := make([]model.Item, 0, len(items))
 
 		for _, item := range items {
-			resultItems = append(resultItems, *helpers.GetItemFromItemMetadata(item))
+			resultItems = append(resultItems, helpers.GetItemFromItemMetadata(item))
 		}
 
 		if len(items) > 0 {
@@ -263,11 +268,14 @@ func (r *queryResolver) Latest(ctx context.Context, limit *int64) ([]*model.Late
 }
 
 func (r *userResolver) ID(ctx context.Context, obj *database.User) (string, error) {
-	return strconv.FormatUint(obj.ID, 10), nil //nolint:gomnd
+	return fmt.Sprint(obj.ID), nil
 }
 
 // Library returns generated.LibraryResolver implementation.
 func (r *Resolver) Library() generated.LibraryResolver { return &libraryResolver{r} }
+
+// Movie returns generated.MovieResolver implementation.
+func (r *Resolver) Movie() generated.MovieResolver { return &movieResolver{r} }
 
 // Mutation returns generated.MutationResolver implementation.
 func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
@@ -280,6 +288,7 @@ func (r *Resolver) User() generated.UserResolver { return &userResolver{r} }
 
 type (
 	libraryResolver  struct{ *Resolver }
+	movieResolver    struct{ *Resolver }
 	mutationResolver struct{ *Resolver }
 	queryResolver    struct{ *Resolver }
 	userResolver     struct{ *Resolver }

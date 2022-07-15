@@ -44,6 +44,9 @@ autobind:
 # modelgen, the others will be allowed when binding to fields. Configure them to
 # your liking
 models:
+  Movie:
+    model:
+      - "github.com/meteorae/meteorae-server/models.Movie"
   ID:
     model:
       - github.com/99designs/gqlgen/graphql.ID

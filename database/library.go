@@ -72,7 +72,7 @@ func (l *LibraryType) UnmarshalText(text []byte) error {
 }
 
 type Library struct {
-	ID               uint64            `gorm:"primary_key" json:"id"`
+	ID               uint              `gorm:"primary_key" json:"id"`
 	Name             string            `json:"name"`
 	Type             LibraryType       `json:"type"`
 	Language         string            `json:"language"`
@@ -87,7 +87,7 @@ func (Library) TableName() string {
 }
 
 type LibraryLocation struct {
-	ID        uint64    `gorm:"primary_key" json:"id"`
+	ID        uint      `gorm:"primary_key" json:"id"`
 	LibraryID uint64    `gorm:"not null"`
 	RootPath  string    `gorm:"not null" json:"rootPath"`
 	Available bool      `gorm:"not null" json:"available"`

@@ -58,6 +58,7 @@ var allModels = []interface{}{
 	&LibraryLocation{},
 	&MediaPart{},
 	&ItemMetadata{},
+	&MetadataRelationship{},
 	&MediaStream{},
 }
 

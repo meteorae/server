@@ -2,6 +2,7 @@ package utils
 
 import (
 	"runtime"
+	"sort"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -54,4 +55,37 @@ func TimeTrack(start time.Time) {
 	funcObj := runtime.FuncForPC(pc)
 
 	log.Debug().Str("function", funcObj.Name()).Msgf("Took %s", elapsed)
+}
+
+func ReverseSlice(s []string) []string {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
+	}
+
+	return s
+}
+
+func RankMapStringInt(values map[string]int) []string {
+	type kv struct {
+		Key   string
+		Value int
+	}
+
+	ss := make([]kv, 0, len(values))
+
+	for k, v := range values {
+		ss = append(ss, kv{k, v})
+	}
+
+	sort.Slice(ss, func(i, j int) bool {
+		return ss[i].Value > ss[j].Value
+	})
+
+	ranked := make([]string, len(values))
+
+	for i, kv := range ss {
+		ranked[i] = kv.Key
+	}
+
+	return ranked
 }

@@ -6,7 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/meteorae/meteorae-server/database"
+	"github.com/meteorae/meteorae-server/graph/model"
+	"github.com/meteorae/meteorae-server/models"
 	"github.com/meteorae/meteorae-server/scanners/stack"
 	"github.com/meteorae/meteorae-server/scanners/video"
 	"github.com/meteorae/meteorae-server/utils"
@@ -30,7 +31,7 @@ func GetName() string {
 }
 
 // TODO: Add ISO support.
-func Scan(path string, files, dirs *[]string, mediaList *[]database.ItemMetadata, extensions []string, root string) {
+func Scan(path string, files, dirs *[]string, mediaList *[]model.Item, extensions []string, root string) {
 	video.Scan(path, files, dirs, mediaList, extensions, root)
 
 	// Check for DVD rips.
@@ -72,15 +73,16 @@ func Scan(path string, files, dirs *[]string, mediaList *[]database.ItemMetadata
 			}
 		}
 
-		movie := database.ItemMetadata{
-			Title:       name,
-			ReleaseDate: time.Date(year, time.January, 1, 0, 0, 0, 0, time.UTC),
-			MediaParts: []database.MediaPart{
-				{
-					FilePath: filepath.Join(root, path, videoTs),
+		movie := models.Movie{
+			MetadataModel: &models.MetadataModel{
+				Parts: []models.MediaPart{
+					{
+						FilePath: filepath.Join(root, path, videoTs),
+					},
 				},
 			},
-			Type: database.MovieItem,
+			Title:       name,
+			ReleaseDate: time.Date(year, time.January, 1, 0, 0, 0, 0, time.UTC),
 		}
 
 		var (
@@ -104,12 +106,12 @@ func Scan(path string, files, dirs *[]string, mediaList *[]database.ItemMetadata
 
 		// Add the biggest part in order to get thumbnail/analysis/etc from it.
 		if biggestFile != "" {
-			movie.MediaParts = append(movie.MediaParts, database.MediaPart{
+			movie.Parts = append(movie.Parts, models.MediaPart{
 				FilePath: filepath.Join(root, path, biggestFile),
 			})
 		}
 
-		if len(movie.MediaParts) > 0 {
+		if len(movie.Parts) > 0 {
 			*mediaList = append(*mediaList, movie)
 		}
 	} else if len(paths) >= 3 && strings.ToLower(paths[len(paths)-1]) == "stream" &&
@@ -118,14 +120,13 @@ func Scan(path string, files, dirs *[]string, mediaList *[]database.ItemMetadata
 
 		name, year := video.CleanName(paths[len(paths)-3])
 
-		movie := database.ItemMetadata{
+		movie := models.Movie{
 			Title:       name,
 			ReleaseDate: time.Date(year, time.January, 1, 0, 0, 0, 0, time.UTC),
-			Type:        database.MovieItem,
 		}
 
 		for _, file := range *files {
-			movie.MediaParts = append(movie.MediaParts, database.MediaPart{
+			movie.Parts = append(movie.Parts, models.MediaPart{
 				FilePath: filepath.Join(root, path, file),
 			})
 		}
@@ -148,15 +149,16 @@ func Scan(path string, files, dirs *[]string, mediaList *[]database.ItemMetadata
 			}
 
 			if !tv {
-				movie := database.ItemMetadata{
-					Title:       name,
-					ReleaseDate: time.Date(year, time.January, 1, 0, 0, 0, 0, time.UTC),
-					MediaParts: []database.MediaPart{
-						{
-							FilePath: filepath.Join(root, path, file),
+				movie := models.Movie{
+					MetadataModel: &models.MetadataModel{
+						Parts: []models.MediaPart{
+							{
+								FilePath: filepath.Join(root, path, file),
+							},
 						},
 					},
-					Type: database.MovieItem,
+					Title:       name,
+					ReleaseDate: time.Date(year, time.January, 1, 0, 0, 0, 0, time.UTC),
 				}
 
 				*mediaList = append(*mediaList, movie)

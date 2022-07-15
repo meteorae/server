@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/adrg/xdg"
@@ -107,7 +108,14 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 				return
 			}
 
-			metadata, err := database.GetItemByID(metadataID)
+			itemID, err := strconv.ParseUint(metadataID, 10, 64)
+			if err != nil {
+				http.Error(writer, "Invalid metadata ID", http.StatusBadRequest)
+
+				return
+			}
+
+			metadata, err := database.GetItemByID(uint(itemID))
 			if err != nil {
 				log.Err(err).Msg("Failed to get metadata")
 

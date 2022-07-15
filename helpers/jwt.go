@@ -12,14 +12,14 @@ var tokenDuration = 24 * time.Hour
 var errSigningMethod = fmt.Errorf("there's a problem with the signing method")
 
 type JwtClaim struct {
-	UserID string `json:"id"`
+	UserID uint `json:"id"`
 	jwt.RegisteredClaims
 }
 
 // TODO: Don't hardcode this, store it in the config file.
 var jwtSecret = []byte("secret")
 
-func GenerateJwt(userID string) (string, error) {
+func GenerateJwt(userID uint) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &JwtClaim{
 		UserID: userID,
 		RegisteredClaims: jwt.RegisteredClaims{

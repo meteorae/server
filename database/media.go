@@ -12,14 +12,14 @@ import (
 )
 
 type MediaPart struct {
-	ID               uint64 `gorm:"primary_key" json:"id"`
+	ID               uint   `gorm:"primary_key" json:"id"`
 	Hash             string `gorm:"not null"`
 	OpenSubtitleHash string
 	AniDBCRC         string
 	AcoustID         string
-	FilePath         string `gorm:"index;unique;not null"`
-	Size             int64  `gorm:"not null"`
-	ItemMetadataID   uint64
+	FilePath         string         `gorm:"index;not null"`
+	Size             int64          `gorm:"not null"`
+	ItemMetadataID   uint           `gorm:"not null"`
 	MediaStreams     []MediaStream  `json:"mediaStreams"`
 	CreatedAt        time.Time      `json:"createdAt"`
 	UpdatedAt        time.Time      `json:"updatedAt"`
@@ -53,10 +53,9 @@ func (d IdentifierType) String() string {
 }
 
 type ExternalIdentifier struct {
-	ID             uint64         `gorm:"primary_key" json:"id"`
+	ID             uint           `gorm:"primary_key" json:"id"`
 	IdentifierType IdentifierType `gorm:"not null"`
 	Identifier     string         `gorm:"not null"`
-	MovieID        uint64         `gorm:"not null"`
 }
 
 type StreamType int8
@@ -72,14 +71,14 @@ func (d StreamType) String() string {
 }
 
 type MediaStream struct {
-	ID         uint64     `gorm:"primary_key" json:"id"`
+	ID         uint       `gorm:"primary_key" json:"id"`
 	Title      string     `json:"title"`
 	StreamType StreamType `gorm:"not null"`
 	Language   string     `json:"language"`
 	Index      int        `gorm:"not null"`
 	// This is technically a MediaStreamInfo
 	MediaStreamInfo datatypes.JSON `json:"mediaStreamInfo"`
-	MediaPartID     uint64         `gorm:"not null"`
+	MediaPartID     uint           `gorm:"not null"`
 	CreatedAt       time.Time      `json:"createdAt"`
 	UpdatedAt       time.Time      `json:"updatedAt"`
 }
@@ -133,7 +132,7 @@ func CreateMediaStream(
 	language string,
 	index int,
 	streamInfo datatypes.JSON,
-	mediaPartID uint64,
+	mediaPartID uint,
 ) error {
 	mediaStream := MediaStream{
 		Title:           title,
