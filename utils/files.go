@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/meteorae/meteorae-server/database"
 	"github.com/rs/zerolog/log"
 )
 
@@ -86,4 +87,24 @@ func HashFileBytes(fileBytes []byte) ([]byte, error) {
 	}
 
 	return h.Sum(nil), nil
+}
+
+func ChunkMediaSlice(slice []database.ItemMetadata, chunkSize int) [][]database.ItemMetadata {
+	var chunks [][]database.ItemMetadata
+	for {
+		if len(slice) == 0 {
+			break
+		}
+
+		// necessary check to avoid slicing beyond
+		// slice capacity
+		if len(slice) < chunkSize {
+			chunkSize = len(slice)
+		}
+
+		chunks = append(chunks, slice[0:chunkSize])
+		slice = slice[chunkSize:]
+	}
+
+	return chunks
 }

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/graph/model"
 	"github.com/meteorae/meteorae-server/models"
 	"github.com/meteorae/meteorae-server/scanners/stack"
@@ -75,7 +76,7 @@ func Scan(path string, files, dirs *[]string, mediaList *[]model.Item, extension
 
 		movie := models.Movie{
 			MetadataModel: &models.MetadataModel{
-				Parts: []models.MediaPart{
+				Parts: []database.MediaPart{
 					{
 						FilePath: filepath.Join(root, path, videoTs),
 					},
@@ -106,7 +107,7 @@ func Scan(path string, files, dirs *[]string, mediaList *[]model.Item, extension
 
 		// Add the biggest part in order to get thumbnail/analysis/etc from it.
 		if biggestFile != "" {
-			movie.Parts = append(movie.Parts, models.MediaPart{
+			movie.Parts = append(movie.Parts, database.MediaPart{
 				FilePath: filepath.Join(root, path, biggestFile),
 			})
 		}
@@ -126,7 +127,7 @@ func Scan(path string, files, dirs *[]string, mediaList *[]model.Item, extension
 		}
 
 		for _, file := range *files {
-			movie.Parts = append(movie.Parts, models.MediaPart{
+			movie.Parts = append(movie.Parts, database.MediaPart{
 				FilePath: filepath.Join(root, path, file),
 			})
 		}
@@ -151,7 +152,7 @@ func Scan(path string, files, dirs *[]string, mediaList *[]model.Item, extension
 			if !tv {
 				movie := models.Movie{
 					MetadataModel: &models.MetadataModel{
-						Parts: []models.MediaPart{
+						Parts: []database.MediaPart{
 							{
 								FilePath: filepath.Join(root, path, file),
 							},

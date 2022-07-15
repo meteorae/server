@@ -19,6 +19,7 @@ const (
 	ImageAlbumItem
 	PersonItem
 	CollectionItem
+	VideoClipItem
 )
 
 type ItemMetadata struct {

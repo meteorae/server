@@ -1,8 +1,10 @@
 package models
 
+import "github.com/meteorae/meteorae-server/database"
+
 type MetadataModel struct {
 	ID    uint
-	Parts []MediaPart
+	Parts []database.MediaPart
 }
 
 func (MetadataModel) IsItem() {}

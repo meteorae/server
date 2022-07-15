@@ -123,7 +123,6 @@ type Track struct {
 	Sequence    int
 	MediumID    uint
 	DiscIndex   int
-	Parts       []database.MediaPart
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	DeletedAt   time.Time

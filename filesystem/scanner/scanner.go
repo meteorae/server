@@ -15,12 +15,15 @@ import (
 	"github.com/meteorae/meteorae-server/scanners/audio"
 	movieScanner "github.com/meteorae/meteorae-server/scanners/movie"
 	"github.com/meteorae/meteorae-server/scanners/music"
+	"github.com/meteorae/meteorae-server/scanners/photos"
 	"github.com/meteorae/meteorae-server/scanners/video"
 	"github.com/meteorae/meteorae-server/utils"
 	"github.com/panjf2000/ants/v2"
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 )
+
+const itemChunkSize = 500
 
 func filterFiles(files []os.FileInfo) ([]string, []string) {
 	var filteredFiles []string
@@ -57,6 +60,11 @@ func scanDirectory(directory, root string, library database.Library) {
 		movieScanner.Scan(directory, &files, &dirs, &mediaList, video.VideoFileExtensions, root)
 	case database.MusicLibrary:
 		music.Scan(directory, &files, &dirs, &mediaList, audio.AudioFileExtensions, root)
+	case database.ImageLibrary:
+		// Photo libraries also support video clips.
+		imagesAndVideosExtensions := append(photos.PhotoFileExtensions, video.VideoFileExtensions...)
+
+		photos.Scan(directory, &files, &dirs, &mediaList, imagesAndVideosExtensions, root)
 	}
 
 	// Check if files are already in the database. We don't want to add stuff twice.
@@ -145,15 +153,13 @@ func scanDirectory(directory, root string, library database.Library) {
 
 						continue
 					}
-
-					media.AlbumID = album.ID
 				} else if err != nil {
 					log.Err(err).Msgf("Failed to get album by title %s", media.AlbumName)
 
 					continue
-				} else {
-					media.AlbumID = album.ID
 				}
+
+				media.AlbumID = album.ID
 
 				// Check if the medium exists in the database.
 				// If not, create it.
@@ -172,25 +178,104 @@ func scanDirectory(directory, root string, library database.Library) {
 
 						continue
 					}
-
-					media.MediumID = medium.ID
 				} else if err != nil {
 					log.Err(err).Msgf("Failed to get medium by ID %d", media.MediumID)
 
 					continue
-				} else {
-					media.MediumID = medium.ID
 				}
+
+				media.MediumID = medium.ID
 
 				itemMetadata := media.ToItemMetadata()
 
 				items = append(items, itemMetadata)
 			}
+
+			if media, ok := media.(models.Photo); ok {
+				var album database.ItemMetadata
+
+				// Just use the directory name for the album name.
+				photoAlbumName := filepath.Base(directory)
+				if photoAlbumName == "." {
+					photoAlbumName = "Uncategorized"
+				}
+
+				// Check if a photo album exists in the database.
+				// If not, create it.
+				album, err := database.GetItemByTitleAndType(photoAlbumName, database.ImageAlbumItem)
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					album = database.ItemMetadata{
+						Title: photoAlbumName,
+						Type:  database.ImageAlbumItem,
+					}
+
+					album, err = database.CreateItem(album)
+					if err != nil {
+						log.Err(err).Msgf("Failed to create album %s", album.Title)
+
+						continue
+					}
+				} else if err != nil {
+					log.Err(err).Msgf("Failed to get album by title %s", photoAlbumName)
+
+					continue
+				}
+
+				itemMetadata := media.ToItemMetadata()
+				itemMetadata.ParentID = album.ID
+
+				items = append(items, itemMetadata)
+			}
+
+			if media, ok := media.(models.VideoClip); ok {
+				var album database.ItemMetadata
+
+				// Just use the directory name for the album name.
+				photoAlbumName := filepath.Base(directory)
+
+				// Check if a photo album exists in the database.
+				// If not, create it.
+				album, err := database.GetItemByTitleAndType(photoAlbumName, database.ImageAlbumItem)
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					album = database.ItemMetadata{
+						Title: photoAlbumName,
+						Type:  database.ImageAlbumItem,
+					}
+
+					album, err = database.CreateItem(album)
+					if err != nil {
+						log.Err(err).Msgf("Failed to create album %s", album.Title)
+
+						continue
+					}
+				} else if err != nil {
+					log.Err(err).Msgf("Failed to get album by title %s", photoAlbumName)
+
+					continue
+				}
+
+				itemMetadata := media.ToItemMetadata()
+				itemMetadata.ParentID = album.ID
+
+				items = append(items, itemMetadata)
+			}
 		}
 
-		err = database.CreateItemBatch(items)
-		if err != nil {
-			log.Err(err).Msgf("Failed to create movie batch")
+		// If we have more than 500 items, break up the batch to avoid hitting SQLite's limits.
+		if len(items) > itemChunkSize {
+			chunkifiedItems := utils.ChunkMediaSlice(items, itemChunkSize)
+
+			for _, chunk := range chunkifiedItems {
+				err := database.CreateItemBatch(chunk)
+				if err != nil {
+					log.Err(err).Msg("Failed to create items")
+				}
+			}
+		} else {
+			err = database.CreateItemBatch(items)
+			if err != nil {
+				log.Err(err).Msgf("Failed to create movie batch")
+			}
 		}
 	}
 

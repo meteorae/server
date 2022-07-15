@@ -88,17 +88,19 @@ func Process(path string, files, dirs *[]string, mediaList *[]model.Item, extens
 		title = strings.TrimSpace(title)
 
 		trackItem := models.Track{
+			MetadataModel: &models.MetadataModel{
+				Parts: []database.MediaPart{
+					{
+						FilePath: filepath.Join(root, path, file),
+					},
+				},
+			},
 			Title:       title,
 			AlbumArtist: albumArtist,
 			AlbumName:   album,
 			Artist:      []string{artist},
 			DiscIndex:   disc,
 			Sequence:    track,
-			Parts: []database.MediaPart{
-				{
-					FilePath: filepath.Join(root, path, file),
-				},
-			},
 		}
 
 		albumTracks = append(albumTracks, trackItem)

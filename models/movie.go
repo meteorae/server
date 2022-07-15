@@ -64,7 +64,7 @@ func NewMovieFromItemMetadata(m database.ItemMetadata) *Movie {
 	return &Movie{
 		MetadataModel: &MetadataModel{
 			ID:    m.ID,
-			Parts: []MediaPart{},
+			Parts: []database.MediaPart{},
 		},
 		Title:       m.Title,
 		TitleSort:   m.SortTitle,

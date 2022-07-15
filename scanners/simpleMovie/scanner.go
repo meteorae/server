@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/graph/model"
 	"github.com/meteorae/meteorae-server/models"
 	"github.com/meteorae/meteorae-server/scanners/video"
@@ -26,7 +27,7 @@ func Scan(path string, files, dirs *[]string, mediaList *[]model.Item, extension
 
 		movie := models.Movie{
 			MetadataModel: &models.MetadataModel{
-				Parts: []models.MediaPart{
+				Parts: []database.MediaPart{
 					{
 						FilePath: filepath.Join(root, path, file),
 					},
