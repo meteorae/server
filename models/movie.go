@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/meteorae/meteorae-server/database"
@@ -9,7 +10,7 @@ import (
 type Movie struct {
 	*MetadataModel
 	Title       string
-	TitleSort   string
+	SortTitle   string
 	ReleaseDate time.Time
 	Summary     string
 	Thumb       string
@@ -38,7 +39,7 @@ func (m Movie) ToItemMetadata() database.ItemMetadata {
 	return database.ItemMetadata{
 		ID:          m.ID,
 		Title:       m.Title,
-		SortTitle:   m.TitleSort,
+		SortTitle:   m.SortTitle,
 		ReleaseDate: m.ReleaseDate,
 		Summary:     m.Summary,
 		Thumb:       m.Thumb,
@@ -61,17 +62,27 @@ func MovieSliceToItemMetadataSlice(m []Movie) []database.ItemMetadata {
 }
 
 func NewMovieFromItemMetadata(m database.ItemMetadata) *Movie {
+	thumbURL := ""
+	if m.Thumb != "" {
+		thumbURL = fmt.Sprintf("/image/transcode?url=/metadata/%d/thumb", m.ID)
+	}
+
+	artURL := ""
+	if m.Art != "" {
+		artURL = fmt.Sprintf("/image/transcode?url=/metadata/%d/art", m.ID)
+	}
+
 	return &Movie{
 		MetadataModel: &MetadataModel{
 			ID:    m.ID,
 			Parts: []database.MediaPart{},
 		},
 		Title:       m.Title,
-		TitleSort:   m.SortTitle,
+		SortTitle:   m.SortTitle,
 		ReleaseDate: m.ReleaseDate,
 		Summary:     m.Summary,
-		Thumb:       m.Thumb,
-		Art:         m.Art,
+		Thumb:       thumbURL,
+		Art:         artURL,
 		CreatedAt:   m.CreatedAt,
 		UpdatedAt:   m.UpdatedAt,
 		DeletedAt:   m.DeletedAt,

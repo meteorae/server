@@ -1,0 +1,13 @@
+type Person implements Item {
+  id: ID!
+  name: String!
+  sortName: String!
+  type: String!
+  birthDate: String
+  deathDate: String
+  summary: String
+  thumb: String
+  art: String
+  createdAt: Time!
+  updatedAt: Time!
+}

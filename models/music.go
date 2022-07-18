@@ -5,12 +5,13 @@ import (
 	"time"
 
 	"github.com/meteorae/meteorae-server/database"
+	"github.com/rs/zerolog/log"
 )
 
-type Album struct {
+type MusicAlbum struct {
 	*MetadataModel
 	Title       string
-	TitleSort   string
+	SortTitle   string
 	Artist      Person
 	ReleaseDate time.Time
 	Mediums     []Medium
@@ -21,15 +22,15 @@ type Album struct {
 	DeletedAt   time.Time
 }
 
-func (a Album) String() string {
+func (a MusicAlbum) String() string {
 	return a.Title
 }
 
-func (a Album) ToItemMetadata() database.ItemMetadata {
+func (a MusicAlbum) ToItemMetadata() database.ItemMetadata {
 	return database.ItemMetadata{
 		ID:          a.ID,
 		Title:       a.Title,
-		SortTitle:   a.TitleSort,
+		SortTitle:   a.SortTitle,
 		ReleaseDate: a.ReleaseDate,
 		Thumb:       a.Thumb,
 		Art:         a.Art,
@@ -43,34 +44,46 @@ func (a Album) ToItemMetadata() database.ItemMetadata {
 
 // NewTrackFromItemMetadata creates a Artist from a database.ItemMetadata.
 // This should only be used when fetching a track from the database.
-func NewAlbumFromItemMetadata(m database.ItemMetadata) (Album, error) {
-	artist, err := database.GetItemByID(m.ParentID)
-	if err != nil {
-		return Album{}, err
+func NewMusicAlbumFromItemMetadata(m database.ItemMetadata) MusicAlbum {
+	thumbURL := ""
+	if m.Thumb != "" {
+		thumbURL = fmt.Sprintf("/image/transcode?url=/metadata/%d/thumb", m.ID)
 	}
 
-	return Album{
+	artURL := ""
+	if m.Art != "" {
+		artURL = fmt.Sprintf("/image/transcode?url=/metadata/%d/art", m.ID)
+	}
+
+	artist, err := database.GetItemByID(m.ParentID)
+	if err != nil {
+		log.Err(err).Msg("Failed to get artist for album")
+	}
+
+	return MusicAlbum{
 		MetadataModel: &MetadataModel{
 			ID: m.ID,
 		},
 		Title:       m.Title,
-		TitleSort:   m.SortTitle,
+		SortTitle:   m.SortTitle,
 		Artist:      NewPersonFromItemMetadata(artist),
 		ReleaseDate: m.ReleaseDate,
-		Thumb:       m.Thumb,
-		Art:         m.Art,
+		Thumb:       thumbURL,
+		Art:         artURL,
 		CreatedAt:   m.CreatedAt,
 		UpdatedAt:   m.UpdatedAt,
 		DeletedAt:   m.DeletedAt,
-	}, nil
+	}
 }
 
 type Medium struct {
 	*MetadataModel
 	Title     string
+	SortTitle string
 	Sequence  int64
 	Tracks    []Track
 	AlbumID   uint
+	Thumb     string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt time.Time
@@ -116,6 +129,7 @@ func NewMediumFromItemMetadata(m database.ItemMetadata) (Medium, error) {
 type Track struct {
 	*MetadataModel
 	Title       string
+	SortTitle   string
 	Artist      []string
 	AlbumArtist string
 	AlbumName   string
@@ -123,6 +137,7 @@ type Track struct {
 	Sequence    int
 	MediumID    uint
 	DiscIndex   int
+	Thumb       string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	DeletedAt   time.Time
@@ -160,6 +175,10 @@ func (t Track) ToItemMetadata() database.ItemMetadata {
 
 	if len(t.Parts) > 0 {
 		itemMetadata.Parts = t.Parts
+	}
+
+	if t.Thumb != "" {
+		itemMetadata.Thumb = t.Thumb
 	}
 
 	return itemMetadata

@@ -1,0 +1,32 @@
+extend type Query {
+  "Query the specified library."
+  library(id: ID!): Library
+  "Query all libraries."
+  libraries: [Library]
+}
+
+extend type Mutation {
+  "Add a new library of the specified type, with the provided name, language and location. This will trigger a scan for all locations provided."
+  addLibrary(
+    type: String!
+    name: String!
+    language: String!
+    locations: [String!]!
+  ): Library!
+}
+
+extend type Subscription {
+  onLibraryAdded: Library!
+}
+
+"Library information."
+type Library {
+  id: ID!
+  name: String!
+  type: String!
+  language: String!
+  locations: [String!]!
+  createdAt: Time!
+  updatedAt: Time!
+  scannedAt: Time!
+}

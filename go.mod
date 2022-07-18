@@ -3,13 +3,13 @@ module github.com/meteorae/meteorae-server
 go 1.18
 
 require (
-	github.com/99designs/gqlgen v0.16.0
+	github.com/99designs/gqlgen v0.17.2
 	github.com/gorilla/mux v1.8.0
 	github.com/meteorae/go-difflib v1.2.1-0.20201106014440-df6fc4a0b7c4
 	github.com/panjf2000/ants/v2 v2.5.0
 	github.com/ryanbradynd05/go-tmdb v0.0.0-20201006144520-c0566c3d1506
 	github.com/spf13/viper v1.12.0
-	github.com/vektah/gqlparser/v2 v2.3.1
+	github.com/vektah/gqlparser/v2 v2.4.1
 	gopkg.in/vansante/go-ffprobe.v2 v2.0.3
 	gorm.io/datatypes v1.0.6
 	gorm.io/driver/sqlite v1.3.4
@@ -46,7 +46,7 @@ require (
 	github.com/agnivade/levenshtein v1.1.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
-	github.com/gorilla/websocket v1.5.0 // indirect
+	github.com/gorilla/websocket v1.5.0
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/ianbruene/go-difflib v1.2.0 // indirect
 	github.com/kylelemons/go-gypsy v1.0.0 // indirect
@@ -82,6 +82,7 @@ require (
 	github.com/justinas/alice v1.2.0
 	github.com/mattn/go-sqlite3 v1.14.13 // indirect
 	github.com/mholt/archiver/v3 v3.5.1
+	github.com/rs/cors v1.8.2
 	github.com/rs/zerolog v1.27.0
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4 // indirect
 	golang.org/x/exp v0.0.0-20220706164943-b4a6d9510983

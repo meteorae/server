@@ -7,7 +7,7 @@ import (
 
 	"github.com/dhowden/tag"
 	"github.com/meteorae/meteorae-server/database"
-	"github.com/meteorae/meteorae-server/graph/model"
+	"github.com/meteorae/meteorae-server/helpers"
 	"github.com/meteorae/meteorae-server/models"
 	"github.com/meteorae/meteorae-server/scanners/filter"
 	"github.com/meteorae/meteorae-server/utils"
@@ -59,11 +59,11 @@ func GetName() string {
 	return "Audio Scanner"
 }
 
-func Scan(path string, files, dirs *[]string, mediaList *[]model.Item, extensions []string, root string) {
+func Scan(path string, files, dirs *[]string, mediaList *[]models.Item, extensions []string, root string) {
 	filter.Scan(path, files, dirs, mediaList, extensions, root)
 }
 
-func Process(path string, files, dirs *[]string, mediaList *[]model.Item, extensions []string, root string) {
+func Process(path string, files, dirs *[]string, mediaList *[]models.Item, extensions []string, root string) {
 	if len(*files) == 0 {
 		return
 	}
@@ -71,7 +71,7 @@ func Process(path string, files, dirs *[]string, mediaList *[]model.Item, extens
 	albumTracks := make([]models.Track, 0, len(*files))
 
 	for _, file := range *files {
-		artist, album, title, track, disc, albumArtist := getInfoFromTags(filepath.Join(root, path, file))
+		artist, album, title, track, disc, albumArtist, albumArt := getInfoFromTags(filepath.Join(root, path, file))
 
 		if albumArtist != "" && utils.IsStringInSlice(strings.ToLower(albumArtist), variousArtists) {
 			albumArtist = "Various Artists"
@@ -87,6 +87,18 @@ func Process(path string, files, dirs *[]string, mediaList *[]model.Item, extens
 
 		title = strings.TrimSpace(title)
 
+		albumArtHash := ""
+		if albumArt != nil {
+			savedHash, err := helpers.SaveImageToCache(albumArt.Data)
+			if err != nil {
+				log.Err(err).Msgf("Failed to save album art for %s", file)
+			}
+
+			if savedHash != "" {
+				albumArtHash = savedHash
+			}
+		}
+
 		trackItem := models.Track{
 			MetadataModel: &models.MetadataModel{
 				Parts: []database.MediaPart{
@@ -101,6 +113,7 @@ func Process(path string, files, dirs *[]string, mediaList *[]model.Item, extens
 			Artist:      []string{artist},
 			DiscIndex:   disc,
 			Sequence:    track,
+			Thumb:       albumArtHash,
 		}
 
 		albumTracks = append(albumTracks, trackItem)
@@ -206,7 +219,7 @@ func Process(path string, files, dirs *[]string, mediaList *[]model.Item, extens
 	}
 }
 
-func getInfoFromTags(file string) (string, string, string, int, int, string) {
+func getInfoFromTags(file string) (string, string, string, int, int, string, *tag.Picture) {
 	if strings.HasSuffix(strings.ToLower(file), "mp3") ||
 		strings.HasSuffix(strings.ToLower(file), "mp4") ||
 		strings.HasSuffix(strings.ToLower(file), "m4a") ||
@@ -214,22 +227,22 @@ func getInfoFromTags(file string) (string, string, string, int, int, string) {
 		strings.HasSuffix(strings.ToLower(file), "m4p") ||
 		strings.HasSuffix(strings.ToLower(file), "ogg") ||
 		strings.HasSuffix(strings.ToLower(file), "flac") {
-		artist, album, title, track, disc, albumArtist := getTags(file)
+		artist, album, title, track, disc, albumArtist, albumArt := getTags(file)
 
-		return artist, album, title, track, disc, albumArtist
+		return artist, album, title, track, disc, albumArtist, albumArt
 	}
 
 	// TODO: Figure out support for OggOpus and WMA
 
-	return "", "", "", 0, 0, ""
+	return "", "", "", 0, 0, "", nil
 }
 
-func getTags(file string) (string, string, string, int, int, string) {
+func getTags(file string) (string, string, string, int, int, string, *tag.Picture) {
 	mediaFile, err := os.Open(file)
 	if err != nil {
 		log.Err(err).Msgf("Failed to open file %s", file)
 
-		return "", "", "", 0, 0, ""
+		return "", "", "", 0, 0, "", nil
 	}
 	defer mediaFile.Close()
 
@@ -237,11 +250,11 @@ func getTags(file string) (string, string, string, int, int, string) {
 	if err != nil {
 		log.Err(err).Msgf("Failed to read tags from file %s", file)
 
-		return "", "", "", 0, 0, ""
+		return "", "", "", 0, 0, "", nil
 	}
 
 	trackNumber, _ := metadata.Track()
 	discNumber, _ := metadata.Disc()
 
-	return metadata.Artist(), metadata.Album(), metadata.Title(), trackNumber, discNumber, metadata.AlbumArtist()
+	return metadata.Artist(), metadata.Album(), metadata.Title(), trackNumber, discNumber, metadata.AlbumArtist(), metadata.Picture()
 }

@@ -1,0 +1,12 @@
+"Item information about a movie."
+type MusicAlbum implements Item {
+  id: ID!
+  title: String!
+  sortTitle: String!
+  releaseDate: String
+  artist: Person
+  thumb: String
+  art: String
+  createdAt: Time!
+  updatedAt: Time!
+}

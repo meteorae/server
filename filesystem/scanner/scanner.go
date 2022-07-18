@@ -10,13 +10,14 @@ import (
 
 	movieagent "github.com/meteorae/meteorae-server/agents/movie"
 	"github.com/meteorae/meteorae-server/database"
-	"github.com/meteorae/meteorae-server/graph/model"
+	"github.com/meteorae/meteorae-server/helpers"
 	"github.com/meteorae/meteorae-server/models"
 	"github.com/meteorae/meteorae-server/scanners/audio"
 	movieScanner "github.com/meteorae/meteorae-server/scanners/movie"
 	"github.com/meteorae/meteorae-server/scanners/music"
 	"github.com/meteorae/meteorae-server/scanners/photos"
 	"github.com/meteorae/meteorae-server/scanners/video"
+	"github.com/meteorae/meteorae-server/subscriptions"
 	"github.com/meteorae/meteorae-server/utils"
 	"github.com/panjf2000/ants/v2"
 	"github.com/rs/zerolog/log"
@@ -42,7 +43,10 @@ func filterFiles(files []os.FileInfo) ([]string, []string) {
 }
 
 func scanDirectory(directory, root string, library database.Library) {
-	var mediaList []model.Item
+	var (
+		items     []*database.ItemMetadata
+		mediaList []models.Item
+	)
 
 	fullPath := filepath.Join(root, directory)
 
@@ -103,11 +107,13 @@ func scanDirectory(directory, root string, library database.Library) {
 
 	if len(mediaList) > 0 {
 		// Iterate over mediaList and assert types, then convert to database.ItemMetadata
-		var items []database.ItemMetadata
-
 		for _, media := range mediaList {
 			if media, ok := media.(models.Movie); ok {
-				items = append(items, media.ToItemMetadata())
+				mediaItem := media.ToItemMetadata()
+
+				mediaItem.Library = library
+
+				items = append(items, &mediaItem)
 			}
 
 			if media, ok := media.(models.Track); ok {
@@ -121,8 +127,9 @@ func scanDirectory(directory, root string, library database.Library) {
 				artist, err = database.GetItemByTitleAndType(media.AlbumArtist, database.PersonItem)
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					artist = database.ItemMetadata{
-						Title: media.AlbumArtist,
-						Type:  database.PersonItem,
+						Title:   media.AlbumArtist,
+						Library: library,
+						Type:    database.PersonItem,
 					}
 
 					artist, err = database.CreateItem(artist)
@@ -144,6 +151,8 @@ func scanDirectory(directory, root string, library database.Library) {
 					album = database.ItemMetadata{
 						Title:    media.AlbumName,
 						ParentID: artist.ID,
+						Library:  library,
+						Thumb:    media.Thumb,
 						Type:     database.MusicAlbumItem,
 					}
 
@@ -169,6 +178,7 @@ func scanDirectory(directory, root string, library database.Library) {
 						Title:    fmt.Sprintf("Disc %d", media.DiscIndex),
 						ParentID: album.ID,
 						Sequence: media.DiscIndex,
+						Library:  library,
 						Type:     database.MusicMediumItem,
 					}
 
@@ -188,7 +198,9 @@ func scanDirectory(directory, root string, library database.Library) {
 
 				itemMetadata := media.ToItemMetadata()
 
-				items = append(items, itemMetadata)
+				itemMetadata.Library = library
+
+				items = append(items, &itemMetadata)
 			}
 
 			if media, ok := media.(models.Photo); ok {
@@ -205,8 +217,9 @@ func scanDirectory(directory, root string, library database.Library) {
 				album, err := database.GetItemByTitleAndType(photoAlbumName, database.ImageAlbumItem)
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					album = database.ItemMetadata{
-						Title: photoAlbumName,
-						Type:  database.ImageAlbumItem,
+						Title:   photoAlbumName,
+						Library: library,
+						Type:    database.ImageAlbumItem,
 					}
 
 					album, err = database.CreateItem(album)
@@ -223,8 +236,9 @@ func scanDirectory(directory, root string, library database.Library) {
 
 				itemMetadata := media.ToItemMetadata()
 				itemMetadata.ParentID = album.ID
+				itemMetadata.Library = library
 
-				items = append(items, itemMetadata)
+				items = append(items, &itemMetadata)
 			}
 
 			if media, ok := media.(models.VideoClip); ok {
@@ -238,8 +252,9 @@ func scanDirectory(directory, root string, library database.Library) {
 				album, err := database.GetItemByTitleAndType(photoAlbumName, database.ImageAlbumItem)
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					album = database.ItemMetadata{
-						Title: photoAlbumName,
-						Type:  database.ImageAlbumItem,
+						Title:   photoAlbumName,
+						Library: library,
+						Type:    database.ImageAlbumItem,
 					}
 
 					album, err = database.CreateItem(album)
@@ -256,40 +271,43 @@ func scanDirectory(directory, root string, library database.Library) {
 
 				itemMetadata := media.ToItemMetadata()
 				itemMetadata.ParentID = album.ID
+				itemMetadata.Library = library
 
-				items = append(items, itemMetadata)
+				items = append(items, &itemMetadata)
 			}
 		}
 
-		// If we have more than 500 items, break up the batch to avoid hitting SQLite's limits.
-		if len(items) > itemChunkSize {
-			chunkifiedItems := utils.ChunkMediaSlice(items, itemChunkSize)
+		chunkifiedItems := utils.ChunkMediaSlice(items, itemChunkSize)
 
-			for _, chunk := range chunkifiedItems {
-				err := database.CreateItemBatch(chunk)
-				if err != nil {
-					log.Err(err).Msg("Failed to create items")
+		for _, chunk := range chunkifiedItems {
+			err := database.CreateItemBatch(&chunk)
+			if err != nil {
+				log.Err(err).Msg("Failed to create items")
+			}
+
+			for _, item := range chunk {
+				for _, observer := range utils.SubsciptionsManager.ItemAddedObservers {
+					observer <- helpers.GetItemFromItemMetadata(*item)
 				}
 			}
-		} else {
-			err = database.CreateItemBatch(items)
-			if err != nil {
-				log.Err(err).Msgf("Failed to create movie batch")
-			}
-		}
-	}
 
-	// TODO: We may want to call a scheduled task instead, but we need scheduled tasks first.
-	err = ants.Submit(func() {
-		for _, movie := range mediaList {
-			movieItem, ok := movie.(models.Movie)
-			if ok {
-				movieagent.Search(movieItem)
+			// TODO: We may want to call a scheduled task instead, but we need scheduled tasks first.
+			err = ants.Submit(func() {
+				for _, item := range chunk {
+					switch item.Type {
+					case database.MovieItem:
+						movieagent.Search(*item)
+					}
+				}
+			})
+			if err != nil {
+				log.Err(err).Msg("could not schedule agent job")
 			}
 		}
-	})
-	if err != nil {
-		log.Err(err).Msg("could not schedule agent job")
+
+		if len(items) > 0 {
+			subscriptions.OnHubUpdated(library)
+		}
 	}
 
 	for _, dir := range dirs {

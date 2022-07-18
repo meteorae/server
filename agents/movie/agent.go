@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/helpers"
-	"github.com/meteorae/meteorae-server/models"
 	"github.com/meteorae/meteorae-server/utils"
 	"github.com/rs/zerolog/log"
 	"github.com/ryanbradynd05/go-tmdb"
@@ -28,19 +28,19 @@ func GetName() string {
 }
 
 // TODO: Currently this returns only the first result, since we can't fix mismatches anyway.
-func getMovieResults(media models.Movie) (tmdb.Movie, error) {
+func getMovieResults(item database.ItemMetadata) (tmdb.Movie, error) {
 	options := map[string]string{
 		"language":      "en-US", // Make this configurable
 		"include_adult": "false", // Make this configurable
 	}
 
-	if media.ReleaseDate.Year() > 0 {
-		options["year"] = fmt.Sprintf("%d", media.ReleaseDate.Year())
+	if item.ReleaseDate.Year() > 0 {
+		options["year"] = fmt.Sprintf("%d", item.ReleaseDate.Year())
 	}
 
-	searchResults, err := tmdbAPI.SearchMovie(media.Title, options)
+	searchResults, err := tmdbAPI.SearchMovie(item.Title, options)
 	if err != nil {
-		log.Err(err).Msgf("Failed to search for movie %s", media.Title)
+		log.Err(err).Msgf("Failed to search for movie %s", item.Title)
 
 		return tmdb.Movie{}, err
 	}
@@ -50,7 +50,7 @@ func getMovieResults(media models.Movie) (tmdb.Movie, error) {
 
 		movieData, err := tmdbAPI.GetMovieInfo(resultMovie.ID, map[string]string{})
 		if err != nil {
-			log.Err(err).Msgf("failed to fetch information for movie \"%s\": %w", media.Title, err)
+			log.Err(err).Msgf("failed to fetch information for movie \"%s\": %w", item.Title, err)
 		}
 
 		return *movieData, nil
@@ -59,17 +59,17 @@ func getMovieResults(media models.Movie) (tmdb.Movie, error) {
 	return tmdb.Movie{}, errNoResultsFound
 }
 
-func Search(media models.Movie) {
-	movie, err := getMovieResults(media)
+func Search(item database.ItemMetadata) {
+	movie, err := getMovieResults(item)
 	if err != nil {
-		log.Err(err).Msgf("Failed to search for movie %s", media.Title)
+		log.Err(err).Msgf("Failed to search for movie %s", item.Title)
 
 		return
 	}
 
 	releaseDate, err := time.Parse("2006-01-02", movie.ReleaseDate)
 	if err != nil {
-		log.Err(err).Msgf("Failed to parse release date for movie \"%s\"", media.Title)
+		log.Err(err).Msgf("Failed to parse release date for movie \"%s\"", item.Title)
 
 		releaseDate = time.Time{}
 	}
@@ -88,7 +88,7 @@ func Search(media models.Movie) {
 
 		artHash, err = helpers.SaveExternalImageToCache(artPath)
 		if err != nil {
-			log.Err(err).Msgf("Failed to download backdrop for movie \"%s\"", media.Title)
+			log.Err(err).Msgf("Failed to download backdrop for movie \"%s\"", item.Title)
 		}
 	}
 
@@ -99,19 +99,23 @@ func Search(media models.Movie) {
 
 		posterHash, err = helpers.SaveExternalImageToCache(posterPath)
 		if err != nil {
-			log.Err(err).Msgf("failed to download poster for movie \"%s\"", media.Title)
+			log.Err(err).Msgf("failed to download poster for movie \"%s\"", item.Title)
 		}
 	}
 
-	media.Title = movie.Title
-	media.TitleSort = utils.CleanSortTitle(movie.Title)
-	media.ReleaseDate = releaseDate
-	media.Summary = movie.Overview
-	media.Thumb = posterHash
-	media.Art = artHash
+	item.Title = movie.Title
+	item.SortTitle = utils.CleanSortTitle(movie.Title)
+	item.ReleaseDate = releaseDate
+	item.Summary = movie.Overview
+	item.Thumb = posterHash
+	item.Art = artHash
 
-	err = media.ToItemMetadata().Update()
+	err = item.Update()
 	if err != nil {
-		log.Err(err).Msgf("Failed to update movie %s", media.Title)
+		log.Err(err).Msgf("Failed to update movie %s", item.Title)
+	}
+
+	for _, observer := range utils.SubsciptionsManager.ItemUpdatedObservers {
+		observer <- helpers.GetItemFromItemMetadata(item)
 	}
 }

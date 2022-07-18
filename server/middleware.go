@@ -1,23 +1,29 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
-	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/99designs/gqlgen/graphql/playground"
+	gqlHandler "github.com/99designs/gqlgen/graphql/handler"
+	gqlExtension "github.com/99designs/gqlgen/graphql/handler/extension"
+	gqlLru "github.com/99designs/gqlgen/graphql/handler/lru"
+	gqlTransport "github.com/99designs/gqlgen/graphql/handler/transport"
+	gqlPlayground "github.com/99designs/gqlgen/graphql/playground"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
 	"github.com/justinas/alice"
+	"github.com/meteorae/meteorae-server/api"
 	"github.com/meteorae/meteorae-server/database"
-	"github.com/meteorae/meteorae-server/graph"
-	"github.com/meteorae/meteorae-server/graph/generated"
 	"github.com/meteorae/meteorae-server/helpers"
+	"github.com/meteorae/meteorae-server/models"
 	"github.com/meteorae/meteorae-server/server/handlers/image/transcode"
 	"github.com/meteorae/meteorae-server/server/handlers/library"
 	"github.com/meteorae/meteorae-server/server/handlers/web"
 	"github.com/meteorae/meteorae-server/utils"
+	"github.com/rs/cors"
 	"github.com/rs/zerolog/hlog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
@@ -99,7 +105,33 @@ func GetWebServer() (*http.Server, error) {
 	// Setup webserver and serve GraphQL handler
 	router := mux.NewRouter()
 
-	queryHandler := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: &graph.Resolver{}}))
+	recoverFunc := func(ctx context.Context, err interface{}) error {
+		log.Error().Interface("error", err).Msg("A GraphQL error occurred")
+
+		message := fmt.Sprintf("Internal system error. Error <%v>", err)
+
+		return errors.New(message)
+	}
+
+	queryHandler := gqlHandler.New(models.NewExecutableSchema(models.Config{Resolvers: &api.Resolver{}}))
+	queryHandler.SetRecoverFunc(recoverFunc)
+	queryHandler.AddTransport(gqlTransport.Websocket{
+		Upgrader: websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+		},
+		KeepAlivePingInterval: 10 * time.Second,
+	})
+	queryHandler.AddTransport(gqlTransport.Options{})
+	queryHandler.AddTransport(gqlTransport.GET{})
+	queryHandler.AddTransport(gqlTransport.POST{})
+	queryHandler.AddTransport(gqlTransport.MultipartForm{
+		MaxUploadSize: 1024 << 20, // 1GB
+	})
+
+	queryHandler.SetQueryCache(gqlLru.New(1000))
+	queryHandler.Use(gqlExtension.Introspection{})
 
 	transcodeHandler, err := transcode.NewImageHandler()
 	if err != nil {
@@ -131,12 +163,13 @@ func GetWebServer() (*http.Server, error) {
 	spa := web.SPAHandler{}
 
 	router.Handle("/setup", loggingHandler.Then(http.HandlerFunc(setupHandler))).Methods("GET")
-	router.Handle("/query", loggingHandler.Then(queryHandler))
-	router.Handle("/playground", loggingHandler.Then(playground.Handler("GraphQL playground", "/query")))
+	router.Handle("/graphql", loggingHandler.Then(queryHandler))
+	router.Handle("/playground", loggingHandler.Then(gqlPlayground.Handler("GraphQL playground", "/query")))
 	router.Handle("/image/transcode", loggingHandler.Then(http.HandlerFunc(transcodeHandler.HTTPHandler)))
 	router.Handle("/library/{metadata}/{part}/file.{ext}",
 		loggingHandler.Then(http.HandlerFunc(library.MediaPartHTTPHandler)))
 	router.PathPrefix("/web").Handler(loggingHandler.Then(spa))
+	router.Use(cors.AllowAll().Handler)
 	router.Use(LoggingMiddleware)
 	router.Use(AuthMiddleware)
 

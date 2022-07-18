@@ -2,20 +2,21 @@ package helpers
 
 import (
 	"github.com/meteorae/meteorae-server/database"
-	"github.com/meteorae/meteorae-server/graph/model"
 	"github.com/meteorae/meteorae-server/models"
 )
 
-func GetItemFromItemMetadata(itemMetadata database.ItemMetadata) model.Item {
-	var item model.Item
+func GetItemFromItemMetadata(itemMetadata database.ItemMetadata) models.Item {
+	var item models.Item
 
 	switch itemMetadata.Type {
 	case database.MovieItem:
 		item = models.NewMovieFromItemMetadata(itemMetadata)
+	case database.MusicAlbumItem:
+		item = models.NewMusicAlbumFromItemMetadata(itemMetadata)
+	case database.ImageAlbumItem:
+		item = models.NewImageAlbumFromItemMetadata(itemMetadata)
 	case database.CollectionItem,
-		database.ImageAlbumItem,
 		database.ImageItem,
-		database.MusicAlbumItem,
 		database.MusicMediumItem,
 		database.MusicTrackItem,
 		database.PersonItem,

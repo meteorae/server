@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/meteorae/meteorae-server/graph/model"
+	"github.com/meteorae/meteorae-server/models"
 	"github.com/meteorae/meteorae-server/scanners/filter"
 	"github.com/meteorae/meteorae-server/utils"
 	"github.com/rs/zerolog/log"
@@ -332,7 +332,7 @@ func CleanName(name string) (string, int) {
 	return strings.Title(cleanName), year
 }
 
-func Scan(path string, files, dirs *[]string, mediaList *[]model.Item, extensions []string, root string) {
+func Scan(path string, files, dirs *[]string, mediaList *[]models.Item, extensions []string, root string) {
 	log.Debug().Str("scanner", GetName()).Msgf("Scanning %s", path)
 
 	filter.Scan(path, files, dirs, mediaList, extensions, root)

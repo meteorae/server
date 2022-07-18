@@ -8,12 +8,14 @@ import (
 
 type PhotoAlbum struct {
 	*MetadataModel
-	Title     string
-	Thumb     string
-	Art       string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt time.Time
+	Title       string
+	SortTitle   string
+	ReleaseDate time.Time
+	Thumb       string
+	Art         string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	DeletedAt   time.Time
 }
 
 func (p PhotoAlbum) String() string {
@@ -27,6 +29,22 @@ func (p PhotoAlbum) ToItemMetadata() database.ItemMetadata {
 	}
 
 	return itemMetadata
+}
+
+func NewImageAlbumFromItemMetadata(itemMetadata database.ItemMetadata) *PhotoAlbum {
+	return &PhotoAlbum{
+		MetadataModel: &MetadataModel{
+			ID: itemMetadata.ID,
+		},
+		Title:       itemMetadata.Title,
+		SortTitle:   itemMetadata.SortTitle,
+		ReleaseDate: itemMetadata.ReleaseDate,
+		Thumb:       itemMetadata.Thumb,
+		Art:         itemMetadata.Art,
+		CreatedAt:   itemMetadata.CreatedAt,
+		UpdatedAt:   itemMetadata.UpdatedAt,
+		DeletedAt:   itemMetadata.DeletedAt,
+	}
 }
 
 type Photo struct {

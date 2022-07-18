@@ -11,12 +11,10 @@ var errInvalidLibraryType = errors.New("invalid library type")
 type LibraryType string
 
 const (
-	MovieLibrary      LibraryType = "movie"
-	AnimeMovieLibrary LibraryType = "animeMovie"
-	TVLibrary         LibraryType = "tv"
-	AnimeTVLibrary    LibraryType = "animeTV"
-	MusicLibrary      LibraryType = "music"
-	ImageLibrary      LibraryType = "image"
+	MovieLibrary LibraryType = "movie"
+	TVLibrary    LibraryType = "tv"
+	MusicLibrary LibraryType = "music"
+	ImageLibrary LibraryType = "image"
 )
 
 func (l LibraryType) String() string {
@@ -46,16 +44,8 @@ func (l *LibraryType) UnmarshalText(text []byte) error {
 		*l = MovieLibrary
 
 		return nil
-	case "animeMovie":
-		*l = AnimeMovieLibrary
-
-		return nil
 	case "tv":
 		*l = TVLibrary
-
-		return nil
-	case "animeTV":
-		*l = AnimeTVLibrary
 
 		return nil
 	case "music":

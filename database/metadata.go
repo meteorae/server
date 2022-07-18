@@ -149,16 +149,27 @@ func GetChildrenCountFromItem(id uint) (int64, error) {
 	return count, nil
 }
 
-func GetLatestItemsFromLibrary(libraryID uint, limit int) ([]ItemMetadata, error) {
+func GetLatestItemsFromLibrary(library Library, limit int) ([]ItemMetadata, error) {
 	var items []ItemMetadata
 
-	itemsResult := db.
-		Limit(limit).
-		Where("library_id = ? AND parent_id = 0", libraryID).
-		Order("created_at desc").
-		Find(&items)
-	if itemsResult.Error != nil {
-		return nil, fmt.Errorf("failed to get items: %w", itemsResult.Error)
+	if library.Type == MovieLibrary || library.Type == ImageLibrary {
+		itemsResult := db.
+			Limit(limit).
+			Where("library_id = ? AND parent_id = 0", library.ID).
+			Order("created_at desc").
+			Find(&items)
+		if itemsResult.Error != nil {
+			return nil, fmt.Errorf("failed to get items: %w", itemsResult.Error)
+		}
+	} else if library.Type == MusicLibrary {
+		itemsResult := db.
+			Limit(limit).
+			Where("library_id = ? AND type = ?", library.ID, MusicAlbumItem).
+			Order("created_at desc").
+			Find(&items)
+		if itemsResult.Error != nil {
+			return nil, fmt.Errorf("failed to get items: %w", itemsResult.Error)
+		}
 	}
 
 	return items, nil
@@ -172,7 +183,7 @@ func CreateItem(item ItemMetadata) (ItemMetadata, error) {
 	return item, nil
 }
 
-func CreateItemBatch(itemList []ItemMetadata) error {
+func CreateItemBatch(itemList *[]*ItemMetadata) error {
 	if result := db.Create(&itemList); result.Error != nil {
 		return result.Error
 	}

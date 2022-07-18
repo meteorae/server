@@ -89,8 +89,8 @@ func HashFileBytes(fileBytes []byte) ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
-func ChunkMediaSlice(slice []database.ItemMetadata, chunkSize int) [][]database.ItemMetadata {
-	var chunks [][]database.ItemMetadata
+func ChunkMediaSlice(slice []*database.ItemMetadata, chunkSize int) [][]*database.ItemMetadata {
+	var chunks [][]*database.ItemMetadata
 	for {
 		if len(slice) == 0 {
 			break

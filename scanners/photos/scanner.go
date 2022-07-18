@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/meteorae/meteorae-server/database"
-	"github.com/meteorae/meteorae-server/graph/model"
 	"github.com/meteorae/meteorae-server/models"
 	"github.com/meteorae/meteorae-server/scanners/filter"
 	"github.com/meteorae/meteorae-server/utils"
@@ -48,7 +47,7 @@ func GetName() string {
 	return "Photo Scanner"
 }
 
-func Scan(path string, files, dirs *[]string, mediaList *[]model.Item, extensions []string, root string) {
+func Scan(path string, files, dirs *[]string, mediaList *[]models.Item, extensions []string, root string) {
 	filter.Scan(path, files, dirs, mediaList, extensions, root)
 
 	for _, filePath := range *files {

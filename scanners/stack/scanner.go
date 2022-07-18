@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/meteorae/go-difflib/difflib"
-	"github.com/meteorae/meteorae-server/graph/model"
 	"github.com/meteorae/meteorae-server/models"
 	"github.com/meteorae/meteorae-server/scanners/video"
 )
@@ -15,8 +14,8 @@ func GetName() string {
 	return "Media Stack Scanner"
 }
 
-func Scan(path string, files, dirs *[]string, mediaList *[]model.Item, extensions []string, root string) {
-	var stackMap map[string][]model.Item
+func Scan(path string, files, dirs *[]string, mediaList *[]models.Item, extensions []string, root string) {
+	var stackMap map[string][]models.Item
 
 	stackDiffs := "123456789abcdefghijklmn"
 	stackSuffixes := []string{
@@ -99,7 +98,7 @@ func Scan(path string, files, dirs *[]string, mediaList *[]model.Item, extension
 										if _, ok := stackMap[root]; ok {
 											stackMap[root] = append(stackMap[root], m2)
 										} else {
-											stackMap[root] = []model.Item{m1}
+											stackMap[root] = []models.Item{m1}
 											stackMap[root] = append(stackMap[root], m2)
 										}
 									}

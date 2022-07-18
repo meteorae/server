@@ -202,7 +202,7 @@ func SaveLocalImageToCache(filePath string) (string, error) {
 		return "", fmt.Errorf("failed to open local image file: %w", err)
 	}
 
-	return saveImageToCache(file)
+	return SaveImageToCache(file)
 }
 
 // Saves a remote image file to the image cache.
@@ -221,12 +221,12 @@ func SaveExternalImageToCache(filePath string) (string, error) {
 		return "", fmt.Errorf("failed to copy remote image into memory: %w", err)
 	}
 
-	return saveImageToCache(fileBuffer.Bytes())
+	return SaveImageToCache(fileBuffer.Bytes())
 }
 
 // Internal method to generate the hash of the image file and save it to the cache.
 // Returns the hash of the image file.
-func saveImageToCache(file []byte) (string, error) {
+func SaveImageToCache(file []byte) (string, error) {
 	hash, err := utils.HashFileBytes(file)
 	if err != nil {
 		return "", fmt.Errorf("failed to hash remote image file: %w", err)

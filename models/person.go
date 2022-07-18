@@ -14,9 +14,21 @@ const (
 	PersonTypeGroup
 )
 
+func (p PersonType) String() string {
+	switch p {
+	case PersonTypeIndividual:
+		return "individual"
+	case PersonTypeGroup:
+		return "group"
+	default:
+		return "unknown"
+	}
+}
+
 type Person struct {
 	*MetadataModel
 	Name      string
+	SortName  string
 	BirthDate time.Time
 	DeathDate time.Time
 	Type      PersonType
@@ -32,7 +44,7 @@ func (p Person) String() string {
 }
 
 func NewPersonFromItemMetadata(m database.ItemMetadata) Person {
-	return Person{
+	person := Person{
 		MetadataModel: &MetadataModel{
 			ID: m.ID,
 		},
@@ -46,6 +58,14 @@ func NewPersonFromItemMetadata(m database.ItemMetadata) Person {
 		CreatedAt: m.CreatedAt,
 		UpdatedAt: m.UpdatedAt,
 	}
+
+	if m.SortTitle != "" {
+		person.SortName = m.SortTitle
+	} else {
+		person.SortName = m.Title
+	}
+
+	return person
 }
 
 func NewPersonSliceFromItemMetadata(m []database.ItemMetadata) []Person {

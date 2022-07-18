@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/meteorae/meteorae-server/database"
-	"github.com/meteorae/meteorae-server/graph/model"
 	"github.com/meteorae/meteorae-server/models"
 	"github.com/meteorae/meteorae-server/scanners/stack"
 	"github.com/meteorae/meteorae-server/scanners/video"
@@ -32,7 +31,7 @@ func GetName() string {
 }
 
 // TODO: Add ISO support.
-func Scan(path string, files, dirs *[]string, mediaList *[]model.Item, extensions []string, root string) {
+func Scan(path string, files, dirs *[]string, mediaList *[]models.Item, extensions []string, root string) {
 	video.Scan(path, files, dirs, mediaList, extensions, root)
 
 	// Check for DVD rips.
