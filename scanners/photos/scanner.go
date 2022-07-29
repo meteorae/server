@@ -4,10 +4,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/meteorae/meteorae-server/database"
-	"github.com/meteorae/meteorae-server/models"
 	"github.com/meteorae/meteorae-server/scanners/filter"
+	"github.com/meteorae/meteorae-server/sdk"
 	"github.com/meteorae/meteorae-server/utils"
+	"github.com/rs/zerolog/log"
 )
 
 var PhotoFileExtensions = []string{
@@ -47,7 +47,9 @@ func GetName() string {
 	return "Photo Scanner"
 }
 
-func Scan(path string, files, dirs *[]string, mediaList *[]models.Item, extensions []string, root string) {
+func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions []string, root string) {
+	log.Debug().Str("scanner", GetName()).Msgf("Scanning %s", path)
+
 	filter.Scan(path, files, dirs, mediaList, extensions, root)
 
 	for _, filePath := range *files {
@@ -57,30 +59,22 @@ func Scan(path string, files, dirs *[]string, mediaList *[]models.Item, extensio
 		fileName := file[:len(file)-len(fileExtension)]
 
 		if utils.IsStringInSlice(fileExtension, PhotoFileExtensions) {
-			photo := models.Photo{
-				Title: fileName,
-				MetadataModel: &models.MetadataModel{
-					Parts: []database.MediaPart{
-						{
-							FilePath: filepath.Join(root, path, filePath),
-						},
+			photo := sdk.Image{
+				ItemInfo: &sdk.ItemInfo{
+					Title: fileName,
+					Parts: []string{
+						filepath.Join(root, path, filePath),
 					},
 				},
-				PhotoAlbum: models.PhotoAlbum{},
 			}
 
 			*mediaList = append(*mediaList, photo)
 		} else {
-			videoClip := models.VideoClip{
-				Title: fileName,
-				MetadataModel: &models.MetadataModel{
-					Parts: []database.MediaPart{
-						{
-							FilePath: filepath.Join(root, path, filePath),
-						},
-					},
+			videoClip := sdk.Video{
+				ItemInfo: &sdk.ItemInfo{
+					Title: fileName,
+					Parts: []string{filepath.Join(root, path, filePath)},
 				},
-				PhotoAlbum: models.PhotoAlbum{},
 			}
 
 			*mediaList = append(*mediaList, videoClip)

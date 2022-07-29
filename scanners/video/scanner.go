@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/meteorae/meteorae-server/models"
 	"github.com/meteorae/meteorae-server/scanners/filter"
+	"github.com/meteorae/meteorae-server/sdk"
 	"github.com/meteorae/meteorae-server/utils"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/exp/maps"
@@ -73,31 +73,31 @@ var (
 	}
 	ignoreTrailersRegex = []string{`-trailer\.`}
 	ignoreExtrasRegex   = []string{
-		`^trailer.?$`,
-		`-deleted\.`,
-		`-behindthescenes\.`,
-		`-interview\.`,
-		`-scene\.`,
-		`-featurette\.`,
-		`-short\.`,
-		`-other\.`,
+		`(?i)^trailer.?$`,
+		`(?i)-deleted\.`,
+		`(?i)-behindthescenes\.`,
+		`(?i)-interview\.`,
+		`(?i)-scene\.`,
+		`(?i)-featurette\.`,
+		`(?i)-short\.`,
+		`(?i)-other\.`,
 	}
-	ignoreExtrasStarsWithRegex = []string{`^movie-trailer.*`}
+	ignoreExtrasStarsWithRegex = []string{`(?i)^movie-trailer.*`}
 	ignoreDirectoriesRegex     = []string{
-		`\\bextras?\\b`,
-		`!?samples?`,
-		`bonus`,
-		`.*bonus disc.*`,
-		`bdmv`,
-		`video_ts`,
-		`^interview.?$`,
-		`^scene.?$`,
-		`^trailer.?$`,
-		`^deleted.?(scene.?)?$`,
-		`^behind.?the.?scenes$`,
-		`^featurette.?$`,
-		`^short.?$`,
-		`^other.?$`,
+		`(?i)\\bextras?\\b`,
+		`(?i)!?samples?`,
+		`(?i)bonus`,
+		`(?i).*bonus disc.*`,
+		`(?i)bdmv`,
+		`(?i)video_ts`,
+		`(?i)^interview.?$`,
+		`(?i)^scene.?$`,
+		`(?i)^trailer.?$`,
+		`(?i)^deleted.?(scene.?)?$`,
+		`(?i)^behind.?the.?scenes$`,
+		`(?i)^featurette.?$`,
+		`(?i)^short.?$`,
+		`(?i)^other.?$`,
 	}
 	ignoreSuffixes = []string{`.dvdmedia`}
 
@@ -121,10 +121,10 @@ var (
 	sourceSlices = maps.Values(sourceMap)
 
 	audioRegex = []string{
-		`([^0-9])5\.1[ ]*ch(.)`,
-		`([^0-9])5\.1([^0-9]?)`,
-		`([^0-9])7\.1[ ]*ch(.)`,
-		`([^0-9])7\.1([^0-9])`,
+		`(?i)([^0-9])5\.1[ ]*ch(.)`,
+		`(?i)([^0-9])5\.1([^0-9]?)`,
+		`(?i)([^0-9])7\.1[ ]*ch(.)`,
+		`(?i)([^0-9])7\.1([^0-9])`,
 	}
 	edition      = []string{"se"}
 	formatTokens = []string{
@@ -188,11 +188,11 @@ var (
 	}
 	subsTokens = []string{"multi", "multisubs"}
 
-	yearRegex = regexp.MustCompile(`\b(((?:19[0-9]|20[0-9])[0-9]))\b`)
+	yearRegex = regexp.MustCompile(`(?i)\b(((?:19[0-9]|20[0-9])[0-9]))\b`)
 
-	bracketsRegex  = regexp.MustCompile(`\[[^\]]+\]`)
-	tokenRegex     = regexp.MustCompile(`([^ \-_\.\(\)+]+)`)
-	separatorRegex = regexp.MustCompile(`[\.\-_\(\)+]+`)
+	bracketsRegex  = regexp.MustCompile(`(?i)\[[^\]]+\]`)
+	tokenRegex     = regexp.MustCompile(`(?i)([^ \-_\.\(\)+]+)`)
+	separatorRegex = regexp.MustCompile(`(?i)[\.\-_\(\)+]+`)
 )
 
 func init() {
@@ -283,14 +283,16 @@ func CleanName(name string) (string, int) {
 	finalTokens := []string{}
 
 	for i, tokenValue := range tokenBitmap {
+		good := tokenValue
+
 		// If there is only a few tokens, we do not remove anything.
 		// This avoids removing the title of a movie.
 		if len(tokenBitmap) <= 2 {
-			tokenValue = true
+			good = true
 		}
 
-		if tokenValue && countBad < 2 {
-			if cleanTokens[i] == "*yearbreak*" {
+		if good && countBad < 2 {
+			if strings.ToLower(cleanTokens[i]) == "*yearbreak*" {
 				// If the year is not the first token, we can skip the rest.
 				if i == 0 {
 					continue
@@ -300,14 +302,14 @@ func CleanName(name string) (string, int) {
 			} else {
 				finalTokens = append(finalTokens, cleanTokens[i])
 			}
-		} else if !tokenValue && cleanTokens[i] == "web" {
+		} else if !good && cleanTokens[i] == "web" {
 			// Web-dl gets split up during tokenization, so we need to check for it manually.
 			if i+1 < len(cleanTokens) && cleanTokens[i+1] == "dl" {
-				i += 1 // nolint:ineffassign
+				i += 1 //nolint:ineffassign
 			}
 		}
 
-		if tokenValue {
+		if good {
 			countGood += 1
 		} else {
 			countBad += 1
@@ -332,7 +334,7 @@ func CleanName(name string) (string, int) {
 	return strings.Title(cleanName), year
 }
 
-func Scan(path string, files, dirs *[]string, mediaList *[]models.Item, extensions []string, root string) {
+func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions []string, root string) {
 	log.Debug().Str("scanner", GetName()).Msgf("Scanning %s", path)
 
 	filter.Scan(path, files, dirs, mediaList, extensions, root)

@@ -6,10 +6,8 @@ import (
 	"strings"
 
 	"github.com/dhowden/tag"
-	"github.com/meteorae/meteorae-server/database"
-	"github.com/meteorae/meteorae-server/helpers"
-	"github.com/meteorae/meteorae-server/models"
 	"github.com/meteorae/meteorae-server/scanners/filter"
+	"github.com/meteorae/meteorae-server/sdk"
 	"github.com/meteorae/meteorae-server/utils"
 	"github.com/rs/zerolog/log"
 )
@@ -59,19 +57,21 @@ func GetName() string {
 	return "Audio Scanner"
 }
 
-func Scan(path string, files, dirs *[]string, mediaList *[]models.Item, extensions []string, root string) {
-	filter.Scan(path, files, dirs, mediaList, extensions, root)
-}
+func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions []string, root string) {
+	log.Debug().Str("scanner", GetName()).Msgf("Scanning %s", path)
 
-func Process(path string, files, dirs *[]string, mediaList *[]models.Item, extensions []string, root string) {
+	filter.Scan(path, files, dirs, mediaList, extensions, root)
+
+	log.Debug().Str("scanner", GetName()).Msgf("Processing %s", path)
+
 	if len(*files) == 0 {
 		return
 	}
 
-	albumTracks := make([]models.Track, 0, len(*files))
+	albumTracks := make([]sdk.MusicTrack, 0, len(*files))
 
 	for _, file := range *files {
-		artist, album, title, track, disc, albumArtist, albumArt := getInfoFromTags(filepath.Join(root, path, file))
+		artist, album, title, track, disc, albumArtist, _ := getInfoFromTags(filepath.Join(root, path, file))
 
 		if albumArtist != "" && utils.IsStringInSlice(strings.ToLower(albumArtist), variousArtists) {
 			albumArtist = "Various Artists"
@@ -87,40 +87,25 @@ func Process(path string, files, dirs *[]string, mediaList *[]models.Item, exten
 
 		title = strings.TrimSpace(title)
 
-		albumArtHash := ""
-		if albumArt != nil {
-			savedHash, err := helpers.SaveImageToCache(albumArt.Data)
-			if err != nil {
-				log.Err(err).Msgf("Failed to save album art for %s", file)
-			}
-
-			if savedHash != "" {
-				albumArtHash = savedHash
-			}
-		}
-
-		trackItem := models.Track{
-			MetadataModel: &models.MetadataModel{
-				Parts: []database.MediaPart{
-					{
-						FilePath: filepath.Join(root, path, file),
-					},
+		trackItem := sdk.MusicTrack{
+			ItemInfo: &sdk.ItemInfo{
+				Parts: []string{
+					filepath.Join(root, path, file),
 				},
+				Title: title,
 			},
-			Title:       title,
 			AlbumArtist: albumArtist,
 			AlbumName:   album,
 			Artist:      []string{artist},
 			DiscIndex:   disc,
-			Sequence:    track,
-			Thumb:       albumArtHash,
+			TrackIndex:  track,
 		}
 
 		albumTracks = append(albumTracks, trackItem)
 	}
 
 	var (
-		albumMap  = map[string][]models.Track{}
+		albumMap  = map[string][]sdk.MusicTrack{}
 		artistMap = map[string]int{}
 	)
 
@@ -129,7 +114,7 @@ func Process(path string, files, dirs *[]string, mediaList *[]models.Item, exten
 		if _, ok := albumMap[strings.ToLower(track.AlbumName)]; ok {
 			albumMap[strings.ToLower(track.AlbumName)] = append(albumMap[strings.ToLower(track.AlbumName)], track)
 		} else {
-			albumMap[strings.ToLower(track.AlbumName)] = []models.Track{track}
+			albumMap[strings.ToLower(track.AlbumName)] = []sdk.MusicTrack{track}
 		}
 
 		// Count instances of identical artist names
@@ -149,7 +134,7 @@ func Process(path string, files, dirs *[]string, mediaList *[]models.Item, exten
 
 	percentSameArtist := 0
 	if len(albumTracks) > 0 {
-		percentSameArtist = int(float64(maxArtistCount) / float64(len(albumTracks)) * 100) // nolint:gomnd
+		percentSameArtist = int(float64(maxArtistCount) / float64(len(albumTracks)) * 100) //nolint:gomnd
 	}
 
 	for album, tracks := range albumMap {
@@ -256,5 +241,11 @@ func getTags(file string) (string, string, string, int, int, string, *tag.Pictur
 	trackNumber, _ := metadata.Track()
 	discNumber, _ := metadata.Disc()
 
-	return metadata.Artist(), metadata.Album(), metadata.Title(), trackNumber, discNumber, metadata.AlbumArtist(), metadata.Picture()
+	return metadata.Artist(),
+		metadata.Album(),
+		metadata.Title(),
+		trackNumber,
+		discNumber,
+		metadata.AlbumArtist(),
+		metadata.Picture()
 }

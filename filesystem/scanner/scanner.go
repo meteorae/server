@@ -8,18 +8,16 @@ import (
 	"path/filepath"
 	"time"
 
-	movieagent "github.com/meteorae/meteorae-server/agents/movie"
+	"github.com/google/uuid"
 	"github.com/meteorae/meteorae-server/database"
-	"github.com/meteorae/meteorae-server/helpers"
-	"github.com/meteorae/meteorae-server/models"
 	"github.com/meteorae/meteorae-server/scanners/audio"
 	movieScanner "github.com/meteorae/meteorae-server/scanners/movie"
-	"github.com/meteorae/meteorae-server/scanners/music"
+	musicScanner "github.com/meteorae/meteorae-server/scanners/music"
 	"github.com/meteorae/meteorae-server/scanners/photos"
+	tvScanner "github.com/meteorae/meteorae-server/scanners/tv"
 	"github.com/meteorae/meteorae-server/scanners/video"
-	"github.com/meteorae/meteorae-server/subscriptions"
+	"github.com/meteorae/meteorae-server/sdk"
 	"github.com/meteorae/meteorae-server/utils"
-	"github.com/panjf2000/ants/v2"
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 )
@@ -44,8 +42,8 @@ func filterFiles(files []os.FileInfo) ([]string, []string) {
 
 func scanDirectory(directory, root string, library database.Library) {
 	var (
-		items     []*database.ItemMetadata
-		mediaList []models.Item
+		items     []database.ItemMetadata
+		mediaList []sdk.Item
 	)
 
 	fullPath := filepath.Join(root, directory)
@@ -59,11 +57,14 @@ func scanDirectory(directory, root string, library database.Library) {
 
 	files, dirs := filterFiles(directoryContent)
 
+	// TODO: Replace this by using library.Scanner to determine the scanner to use
 	switch library.Type {
 	case database.MovieLibrary:
 		movieScanner.Scan(directory, &files, &dirs, &mediaList, video.VideoFileExtensions, root)
+	case database.TVLibrary:
+		tvScanner.Scan(directory, &files, &dirs, &mediaList, video.VideoFileExtensions, root)
 	case database.MusicLibrary:
-		music.Scan(directory, &files, &dirs, &mediaList, audio.AudioFileExtensions, root)
+		musicScanner.Scan(directory, &files, &dirs, &mediaList, audio.AudioFileExtensions, root)
 	case database.ImageLibrary:
 		// Photo libraries also support video clips.
 		imagesAndVideosExtensions := append(photos.PhotoFileExtensions, video.VideoFileExtensions...)
@@ -72,14 +73,13 @@ func scanDirectory(directory, root string, library database.Library) {
 	}
 
 	// Check if files are already in the database. We don't want to add stuff twice.
-	// Note: This has the side effect of preventing a directory from being in two libraries, as done currently.
 	var existingMedia []database.ItemMetadata
 
 	for _, media := range mediaList {
-		if metadataMedia, ok := media.(models.MetadataModel); ok {
-			item, err := database.GetItemByPath(metadataMedia.Parts[0].FilePath)
+		if media, ok := media.(sdk.ItemInfo); ok {
+			item, err := database.GetItemByUUID(uuid.NewSHA1(library.UUID, []byte(media.Parts[0])))
 			if err != nil {
-				log.Err(err).Msgf("Failed to get media by path %s", metadataMedia.Parts[0].FilePath)
+				log.Err(err).Msgf("Failed to get media by path %s", media.Parts[0])
 
 				continue
 			}
@@ -93,8 +93,8 @@ func scanDirectory(directory, root string, library database.Library) {
 
 	for _, media := range existingMedia {
 		for i, m := range mediaList {
-			if m, ok := m.(models.MetadataModel); ok {
-				if m.ID == media.ID {
+			if m, ok := m.(sdk.ItemInfo); ok {
+				if uuid.NewSHA1(library.UUID, []byte(m.Parts[0])) == media.UUID {
 					mediaList = append(mediaList[:i], mediaList[i+1:]...)
 
 					break
@@ -108,18 +108,112 @@ func scanDirectory(directory, root string, library database.Library) {
 	if len(mediaList) > 0 {
 		// Iterate over mediaList and assert types, then convert to database.ItemMetadata
 		for _, media := range mediaList {
-			if media, ok := media.(models.Movie); ok {
-				mediaItem := media.ToItemMetadata()
+			if media, ok := media.(sdk.Movie); ok {
+				// Check if item exists in database, to avoid scanning it in twice.
+				if _, err := database.GetItemByUUID(uuid.NewSHA1(library.UUID, []byte(fullPath))); err != nil {
+					// If item doesn't exist, add it.
+					if errors.Is(err, gorm.ErrRecordNotFound) {
+						items = append(items, database.ItemMetadata{
+							Title:       media.Title,
+							ReleaseDate: media.ReleaseDate,
+							LibraryID:   library.ID,
+							UUID:        uuid.NewSHA1(library.UUID, []byte(media.Parts[0])),
+							Type:        database.MovieItem,
+						})
 
-				mediaItem.Library = library
+						continue
+					} else {
+						log.Err(err).Msgf("Failed to get item by UUID %s", media.UUID)
 
-				items = append(items, &mediaItem)
+						continue
+					}
+				} else {
+					// If item exists, just skip it for now.
+					log.Debug().Msgf("Skipping %s, already in database.", media.Parts[0])
+
+					continue
+				}
 			}
 
-			if media, ok := media.(models.Track); ok {
+			if media, ok := media.(sdk.TVEpisode); ok {
+				// Check if item exists in database, to avoid scanning it in twice.
+				if _, err := database.GetItemByUUID(uuid.NewSHA1(library.UUID, []byte(fullPath))); err != nil {
+				} else {
+					// If item exists, just skip it for now.
+					// TODO: We should schedule a metadata refresh here.
+					log.Debug().Msgf("Skipping %s, already in database.", media.Parts[0])
+
+					continue
+				}
+
+				var (
+					series database.ItemMetadata
+					season database.ItemMetadata
+				)
+
+				// Check if the series exists in the database.
+				// If not, create it.
+				series, err := database.GetItemByTitleAndType(media.SeriesTitle, database.TVShowItem)
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					series = database.ItemMetadata{
+						Title:     media.SeriesTitle,
+						LibraryID: library.ID,
+						Type:      database.TVShowItem,
+						UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
+					}
+
+					series, err = database.CreateItem(series)
+					if err != nil {
+						log.Err(err).Msgf("Failed to create series %s", series.Title)
+
+						continue
+					}
+				} else if err != nil {
+					log.Err(err).Msgf("Failed to get series by title %s", media.Title)
+
+					continue
+				}
+
+				// Check if the album exists in the database.
+				// If not, create it.
+				season, err = database.GetItemByParentWithIndex(series.ID, media.Season)
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					season = database.ItemMetadata{
+						Title:     fmt.Sprintf("Season %d", media.Season),
+						ParentID:  series.ID,
+						Sequence:  media.Season,
+						LibraryID: library.ID,
+						Type:      database.TVSeasonItem,
+						UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
+					}
+
+					season, err = database.CreateItem(season)
+					if err != nil {
+						log.Err(err).Msgf("Failed to create season %d for series %s", media.Season, series.Title)
+
+						continue
+					}
+				} else if err != nil {
+					log.Err(err).Msgf("Failed to get season %d for series %s", media.Season, series.Title)
+
+					continue
+				}
+
+				items = append(items, database.ItemMetadata{
+					Title:     media.Title,
+					ParentID:  season.ID,
+					Sequence:  media.Episode,
+					LibraryID: library.ID,
+					UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
+					Type:      database.TVEpisodeItem,
+				})
+			}
+
+			if media, ok := media.(sdk.MusicTrack); ok {
 				var (
 					artist database.ItemMetadata
 					album  database.ItemMetadata
+					medium database.ItemMetadata
 				)
 
 				// Check if the album artist exists in the database.
@@ -127,9 +221,10 @@ func scanDirectory(directory, root string, library database.Library) {
 				artist, err = database.GetItemByTitleAndType(media.AlbumArtist, database.PersonItem)
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					artist = database.ItemMetadata{
-						Title:   media.AlbumArtist,
-						Library: library,
-						Type:    database.PersonItem,
+						Title:     media.AlbumArtist,
+						LibraryID: library.ID,
+						Type:      database.PersonItem,
+						UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
 					}
 
 					artist, err = database.CreateItem(artist)
@@ -149,11 +244,12 @@ func scanDirectory(directory, root string, library database.Library) {
 				album, err = database.GetItemByTitleAndType(media.AlbumName, database.MusicAlbumItem)
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					album = database.ItemMetadata{
-						Title:    media.AlbumName,
-						ParentID: artist.ID,
-						Library:  library,
-						Thumb:    media.Thumb,
-						Type:     database.MusicAlbumItem,
+						Title:     media.AlbumName,
+						ParentID:  artist.ID,
+						LibraryID: library.ID,
+						Thumb:     media.Thumb,
+						Type:      database.MusicAlbumItem,
+						UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
 					}
 
 					album, err = database.CreateItem(album)
@@ -168,18 +264,17 @@ func scanDirectory(directory, root string, library database.Library) {
 					continue
 				}
 
-				media.AlbumID = album.ID
-
 				// Check if the medium exists in the database.
 				// If not, create it.
-				medium, err := database.GetItemByParentWithIndex(album.ID, media.DiscIndex)
+				medium, err = database.GetItemByParentWithIndex(album.ID, media.DiscIndex)
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					medium = database.ItemMetadata{
-						Title:    fmt.Sprintf("Disc %d", media.DiscIndex),
-						ParentID: album.ID,
-						Sequence: media.DiscIndex,
-						Library:  library,
-						Type:     database.MusicMediumItem,
+						Title:     fmt.Sprintf("Disc %d", media.DiscIndex),
+						ParentID:  album.ID,
+						Sequence:  media.DiscIndex,
+						LibraryID: library.ID,
+						Type:      database.MusicMediumItem,
+						UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
 					}
 
 					medium, err = database.CreateItem(medium)
@@ -189,21 +284,22 @@ func scanDirectory(directory, root string, library database.Library) {
 						continue
 					}
 				} else if err != nil {
-					log.Err(err).Msgf("Failed to get medium by ID %d", media.MediumID)
+					log.Err(err).Msgf("Failed to get medium for album %s", media.AlbumName)
 
 					continue
 				}
 
-				media.MediumID = medium.ID
-
-				itemMetadata := media.ToItemMetadata()
-
-				itemMetadata.Library = library
-
-				items = append(items, &itemMetadata)
+				items = append(items, database.ItemMetadata{
+					Title:     media.Title,
+					ParentID:  medium.ID,
+					Sequence:  media.TrackIndex,
+					LibraryID: library.ID,
+					UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
+					Type:      database.MusicTrackItem,
+				})
 			}
 
-			if media, ok := media.(models.Photo); ok {
+			if media, ok := media.(sdk.Image); ok {
 				var album database.ItemMetadata
 
 				// Just use the directory name for the album name.
@@ -217,9 +313,10 @@ func scanDirectory(directory, root string, library database.Library) {
 				album, err := database.GetItemByTitleAndType(photoAlbumName, database.ImageAlbumItem)
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					album = database.ItemMetadata{
-						Title:   photoAlbumName,
-						Library: library,
-						Type:    database.ImageAlbumItem,
+						Title:     photoAlbumName,
+						LibraryID: library.ID,
+						Type:      database.ImageAlbumItem,
+						UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
 					}
 
 					album, err = database.CreateItem(album)
@@ -234,14 +331,16 @@ func scanDirectory(directory, root string, library database.Library) {
 					continue
 				}
 
-				itemMetadata := media.ToItemMetadata()
-				itemMetadata.ParentID = album.ID
-				itemMetadata.Library = library
-
-				items = append(items, &itemMetadata)
+				items = append(items, database.ItemMetadata{
+					Title:     media.Title,
+					ParentID:  album.ID,
+					LibraryID: library.ID,
+					UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
+					Type:      database.ImageItem,
+				})
 			}
 
-			if media, ok := media.(models.VideoClip); ok {
+			if media, ok := media.(sdk.Video); ok {
 				var album database.ItemMetadata
 
 				// Just use the directory name for the album name.
@@ -252,9 +351,10 @@ func scanDirectory(directory, root string, library database.Library) {
 				album, err := database.GetItemByTitleAndType(photoAlbumName, database.ImageAlbumItem)
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					album = database.ItemMetadata{
-						Title:   photoAlbumName,
-						Library: library,
-						Type:    database.ImageAlbumItem,
+						Title:     photoAlbumName,
+						LibraryID: library.ID,
+						Type:      database.ImageAlbumItem,
+						UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
 					}
 
 					album, err = database.CreateItem(album)
@@ -269,44 +369,23 @@ func scanDirectory(directory, root string, library database.Library) {
 					continue
 				}
 
-				itemMetadata := media.ToItemMetadata()
-				itemMetadata.ParentID = album.ID
-				itemMetadata.Library = library
-
-				items = append(items, &itemMetadata)
+				items = append(items, database.ItemMetadata{
+					Title:     media.Title,
+					ParentID:  album.ID,
+					LibraryID: library.ID,
+					UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
+					Type:      database.VideoClipItem,
+				})
 			}
 		}
 
 		chunkifiedItems := utils.ChunkMediaSlice(items, itemChunkSize)
 
 		for _, chunk := range chunkifiedItems {
-			err := database.CreateItemBatch(&chunk)
+			err := database.CreateItemBatch(chunk)
 			if err != nil {
 				log.Err(err).Msg("Failed to create items")
 			}
-
-			for _, item := range chunk {
-				for _, observer := range utils.SubsciptionsManager.ItemAddedObservers {
-					observer <- helpers.GetItemFromItemMetadata(*item)
-				}
-			}
-
-			// TODO: We may want to call a scheduled task instead, but we need scheduled tasks first.
-			err = ants.Submit(func() {
-				for _, item := range chunk {
-					switch item.Type {
-					case database.MovieItem:
-						movieagent.Search(*item)
-					}
-				}
-			})
-			if err != nil {
-				log.Err(err).Msg("could not schedule agent job")
-			}
-		}
-
-		if len(items) > 0 {
-			subscriptions.OnHubUpdated(library)
 		}
 	}
 
@@ -325,4 +404,6 @@ func ScanDirectory(directory string, library database.Library) {
 	}
 
 	scanDirectory(".", directory, library)
+
+	// TODO: Schedule a metadata update for the library.
 }

@@ -49,7 +49,7 @@ func TimeTrack(start time.Time) {
 	elapsed := time.Since(start)
 
 	// Skip this function, and fetch the PC and file for its parent.
-	pc, _, _, _ := runtime.Caller(1) // nolint:dogsled
+	pc, _, _, _ := runtime.Caller(1) //nolint:dogsled
 
 	// Retrieve a function object this functions parent.
 	funcObj := runtime.FuncForPC(pc)

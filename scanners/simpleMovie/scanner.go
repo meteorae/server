@@ -4,9 +4,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/meteorae/meteorae-server/database"
-	"github.com/meteorae/meteorae-server/models"
 	"github.com/meteorae/meteorae-server/scanners/video"
+	"github.com/meteorae/meteorae-server/sdk"
 	"github.com/rs/zerolog/log"
 )
 
@@ -14,7 +13,7 @@ func GetName() string {
 	return "Simple Movie Scanner"
 }
 
-func Scan(path string, files, dirs *[]string, mediaList *[]models.Item, extensions []string, root string) {
+func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions []string, root string) {
 	log.Debug().Str("scanner", GetName()).Msgf("Scanning %s", path)
 
 	video.Scan(path, files, dirs, mediaList, extensions, root)
@@ -24,16 +23,14 @@ func Scan(path string, files, dirs *[]string, mediaList *[]models.Item, extensio
 		log.Debug().Str("scanner", GetName()).Msgf("Adding %s", file)
 		name, year := video.CleanName(file)
 
-		movie := models.Movie{
-			MetadataModel: &models.MetadataModel{
-				Parts: []database.MediaPart{
-					{
-						FilePath: filepath.Join(root, path, file),
-					},
+		movie := sdk.Movie{
+			ItemInfo: &sdk.ItemInfo{
+				Parts: []string{
+					filepath.Join(root, path, file),
 				},
+				Title:       name,
+				ReleaseDate: time.Date(year, time.January, 1, 0, 0, 0, 0, time.UTC),
 			},
-			Title:       name,
-			ReleaseDate: time.Date(year, time.January, 1, 0, 0, 0, 0, time.UTC),
 		}
 
 		*mediaList = append(*mediaList, movie)

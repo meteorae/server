@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/bmatcuk/doublestar/v4"
-	"github.com/meteorae/meteorae-server/models"
+	"github.com/meteorae/meteorae-server/sdk"
 	"github.com/meteorae/meteorae-server/utils"
 	"github.com/rs/zerolog/log"
 )
@@ -81,7 +81,7 @@ func ParsePlexIgnore(filename string, ignoredFiles, ignoredDirs *[]string, cwd s
 	}
 }
 
-func Scan(path string, files, dirs *[]string, mediaList *[]models.Item, extensions []string, root string) {
+func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions []string, root string) {
 	log.Debug().Str("scanner", GetName()).Msgf("Scanning %s", path)
 
 	filesToRemove := []string{}

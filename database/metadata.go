@@ -3,9 +3,44 @@ package database
 import (
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/imdario/mergo"
+	"github.com/rs/zerolog/log"
 )
 
 type ItemType uint
+
+func (t ItemType) String() string {
+	switch t {
+	case MovieItem:
+		return "MovieItem"
+	case MusicAlbumItem:
+		return "MusicAlbumItem"
+	case MusicMediumItem:
+		return "MusicMediumItem"
+	case MusicTrackItem:
+		return "MusicTrackItem"
+	case TVSeasonItem:
+		return "TVSeasonItem"
+	case TVShowItem:
+		return "TVShowItem"
+	case TVEpisodeItem:
+		return "TVEpisodeItem"
+	case ImageItem:
+		return "ImageItem"
+	case ImageAlbumItem:
+		return "ImageAlbumItem"
+	case PersonItem:
+		return "PersonItem"
+	case CollectionItem:
+		return "CollectionItem"
+	case VideoClipItem:
+		return "VideoClipItem"
+	}
+
+	return "UnknownItemType"
+}
 
 const (
 	MovieItem ItemType = iota
@@ -23,24 +58,25 @@ const (
 )
 
 type ItemMetadata struct {
-	ID            uint     `gorm:"primary_key" json:"id"`
-	Title         string   `gorm:"type:VARCHAR(255)" json:"title"`
-	SortTitle     string   `gorm:"type:VARCHAR(255) COLLATE NOCASE" json:"sortTitle"`
-	OriginalTitle string   `gorm:"type:VARCHAR(255)" json:"originalTitle"`
-	Tagline       string   `gorm:"type:VARCHAR(255)" json:"tagline"`
-	Summary       string   `json:"summary"`
-	Type          ItemType `gorm:"not null;type:INT" json:"type"`
-	// ExternalID []ExternalIdentifier
-	ReleaseDate      time.Time `json:"releaseDate"`
-	EndDate          time.Time `json:"endDate"`
-	Popularity       float32   `json:"popularity"`
-	ParentID         uint      `json:"parentId"`
-	Sequence         int       `json:"sequence"`
-	AbsoluteSequence int       `json:"absoluteSequence"`
-	Duration         uint      `json:"duration"`
-	OriginalLanguage string    `json:"originalLanguage"`
-	Thumb            string    `json:"thumb"`
-	Art              string    `json:"art"`
+	ID                  uint      `gorm:"primary_key" json:"id"`
+	Title               string    `gorm:"type:VARCHAR(255)" json:"title"`
+	SortTitle           string    `gorm:"type:VARCHAR(255) COLLATE NOCASE" json:"sortTitle"`
+	OriginalTitle       string    `gorm:"type:VARCHAR(255)" json:"originalTitle"`
+	Tagline             string    `gorm:"type:VARCHAR(255)" json:"tagline"`
+	Summary             string    `json:"summary"`
+	Type                ItemType  `gorm:"not null;type:INT" json:"type"`
+	UUID                uuid.UUID `gorm:"not null;type:UUID" json:"uuid"`
+	ExternalIdentifiers []ExternalIdentifier
+	ReleaseDate         time.Time `json:"releaseDate"`
+	EndDate             time.Time `json:"endDate"`
+	Popularity          float32   `json:"popularity"`
+	ParentID            uint      `json:"parentId"`
+	Sequence            int       `json:"sequence"`
+	AbsoluteSequence    int       `json:"absoluteSequence"`
+	Duration            uint      `json:"duration"`
+	OriginalLanguage    string    `json:"originalLanguage"`
+	Thumb               string    `json:"thumb"`
+	Art                 string    `json:"art"`
 	// ExtraInfo        datatypes.JSON `json:"extraInfo"`
 	Parts     []MediaPart `json:"mediaPart"`
 	LibraryID uint
@@ -48,6 +84,18 @@ type ItemMetadata struct {
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 	DeletedAt time.Time `json:"deleteAt"`
+}
+
+func (item *ItemMetadata) AfterCreate() {
+	for _, observer := range SubsciptionsManager.ItemAddedObservers {
+		observer <- item
+	}
+}
+
+func (item *ItemMetadata) AfterUpdate() {
+	for _, observer := range SubsciptionsManager.ItemUpdatedObservers {
+		observer <- item
+	}
 }
 
 // Returns the requested fields from the specified item.
@@ -81,6 +129,27 @@ func GetItemsByID(ids []uint) ([]ItemMetadata, error) {
 	}
 
 	return items, nil
+}
+
+func GetItemByUUID(uuid uuid.UUID) (ItemMetadata, error) {
+	var item ItemMetadata
+
+	if result := db.Where("uuid = ?", uuid).First(&item); result.Error != nil {
+		return ItemMetadata{}, result.Error
+	}
+
+	return item, nil
+}
+
+func GetItemByUUIDAndType(uuid uuid.UUID, itemType ItemType) (ItemMetadata, error) {
+	var item ItemMetadata
+
+	result := db.Where("uuid = ? AND type = ?", uuid, itemType).First(&item)
+	if result.Error != nil {
+		return ItemMetadata{}, result.Error
+	}
+
+	return item, nil
 }
 
 func GetItemByTitleAndType(title string, itemType ItemType) (ItemMetadata, error) {
@@ -161,6 +230,16 @@ func GetLatestItemsFromLibrary(library Library, limit int) ([]ItemMetadata, erro
 		if itemsResult.Error != nil {
 			return nil, fmt.Errorf("failed to get items: %w", itemsResult.Error)
 		}
+	} else if library.Type == TVLibrary {
+		// Eventually replace this by properly grouped episodes
+		itemsResult := db.
+			Limit(limit).
+			Where("library_id = ? AND type = ?", library.ID, TVShowItem).
+			Order("updated_at desc").
+			Find(&items)
+		if itemsResult.Error != nil {
+			return nil, fmt.Errorf("failed to get episodes: %w", itemsResult.Error)
+		}
 	} else if library.Type == MusicLibrary {
 		itemsResult := db.
 			Limit(limit).
@@ -183,7 +262,7 @@ func CreateItem(item ItemMetadata) (ItemMetadata, error) {
 	return item, nil
 }
 
-func CreateItemBatch(itemList *[]*ItemMetadata) error {
+func CreateItemBatch(itemList []ItemMetadata) error {
 	if result := db.Create(&itemList); result.Error != nil {
 		return result.Error
 	}
@@ -191,9 +270,13 @@ func CreateItemBatch(itemList *[]*ItemMetadata) error {
 	return nil
 }
 
-func (i ItemMetadata) Update() error {
-	if result := db.Save(&i); result.Error != nil {
+func (i *ItemMetadata) Update(update ItemMetadata) error {
+	if result := db.Model(&i).Where("id = ?", i.ID).Updates(update); result.Error != nil {
 		return result.Error
+	}
+
+	if err := mergo.Merge(i, update, mergo.WithOverride); err != nil {
+		log.Err(err).Msg("failed to merge updates into item")
 	}
 
 	return nil

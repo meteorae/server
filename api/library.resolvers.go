@@ -12,7 +12,6 @@ import (
 	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/filesystem/scanner"
 	"github.com/meteorae/meteorae-server/models"
-	"github.com/meteorae/meteorae-server/utils"
 	ants "github.com/panjf2000/ants/v2"
 	"github.com/rs/zerolog/log"
 )
@@ -52,7 +51,7 @@ func (r *mutationResolver) AddLibrary(ctx context.Context, typeArg string, name 
 		}
 	}
 
-	for _, observer := range utils.SubsciptionsManager.LibraryAddedObservers {
+	for _, observer := range database.SubsciptionsManager.LibraryAddedObservers {
 		observer <- library
 	}
 
@@ -77,14 +76,14 @@ func (r *subscriptionResolver) OnLibraryAdded(ctx context.Context) (<-chan *data
 
 	go func() {
 		<-ctx.Done()
-		utils.SubsciptionsManager.Lock()
-		delete(utils.SubsciptionsManager.LibraryAddedObservers, id)
-		utils.SubsciptionsManager.Unlock()
+		database.SubsciptionsManager.Lock()
+		delete(database.SubsciptionsManager.LibraryAddedObservers, id)
+		database.SubsciptionsManager.Unlock()
 	}()
-	utils.SubsciptionsManager.Lock()
+	database.SubsciptionsManager.Lock()
 
-	utils.SubsciptionsManager.LibraryAddedObservers[id] = msg
-	utils.SubsciptionsManager.Unlock()
+	database.SubsciptionsManager.LibraryAddedObservers[id] = msg
+	database.SubsciptionsManager.Unlock()
 
 	return msg, nil
 }

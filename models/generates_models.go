@@ -12,9 +12,14 @@ type AuthPayload struct {
 	User  *database.User `json:"user"`
 }
 
+type Image struct {
+	Hash *string `json:"hash"`
+	URL  *string `json:"url"`
+}
+
 type LatestResult struct {
-	Library *database.Library `json:"library"`
-	Items   []Item            `json:"items"`
+	Library *database.Library        `json:"library"`
+	Items   []*database.ItemMetadata `json:"items"`
 }
 
 type ServerInfo struct {

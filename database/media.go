@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/meteorae/meteorae-server/sdk"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/vansante/go-ffprobe.v2"
 	"gorm.io/datatypes"
@@ -26,36 +27,11 @@ type MediaPart struct {
 	DeletedAt        gorm.DeletedAt `gorm:"index"`
 }
 
-type IdentifierType int8
-
-const (
-	ImdbIdentifier IdentifierType = iota
-	TmdbIdentifier
-	AnidbIdentifier
-	TvdbIdentifier
-	MusicbrainzIdentifier
-	FacebookIdentifier
-	TwitterIdentifier
-	InstagramIdentifier
-)
-
-func (d IdentifierType) String() string {
-	return [...]string{
-		"IMDB ID",
-		"TheMovieDB ID",
-		"AniDB ID",
-		"TVDB ID",
-		"MusicBrainz ID",
-		"Facebook ID",
-		"Twitter ID",
-		"Instagram ID",
-	}[d]
-}
-
 type ExternalIdentifier struct {
-	ID             uint           `gorm:"primary_key" json:"id"`
-	IdentifierType IdentifierType `gorm:"not null"`
-	Identifier     string         `gorm:"not null"`
+	ID             uint               `gorm:"primary_key" json:"id"`
+	IdentifierType sdk.IdentifierType `gorm:"not null"`
+	Identifier     string             `gorm:"not null"`
+	ItemMetadataID uint               `gorm:"not null"`
 }
 
 type StreamType int8

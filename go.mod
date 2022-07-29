@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/99designs/gqlgen v0.17.2
 	github.com/gorilla/mux v1.8.0
+	github.com/kisielk/godepgraph v0.0.0-20220719222756-573dc89cecc8
 	github.com/meteorae/go-difflib v1.2.1-0.20201106014440-df6fc4a0b7c4
 	github.com/panjf2000/ants/v2 v2.5.0
 	github.com/ryanbradynd05/go-tmdb v0.0.0-20201006144520-c0566c3d1506
@@ -43,7 +44,7 @@ require (
 )
 
 require (
-	github.com/agnivade/levenshtein v1.1.1 // indirect
+	github.com/agnivade/levenshtein v1.1.1
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.0
@@ -77,6 +78,7 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.4.1
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/schema v1.2.0
+	github.com/imdario/mergo v0.3.13
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/justinas/alice v1.2.0
@@ -86,5 +88,5 @@ require (
 	github.com/rs/zerolog v1.27.0
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4 // indirect
 	golang.org/x/exp v0.0.0-20220706164943-b4a6d9510983
-	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/text v0.3.7
 )

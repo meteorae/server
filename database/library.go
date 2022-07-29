@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 var errInvalidLibraryType = errors.New("invalid library type")
@@ -14,7 +16,7 @@ const (
 	MovieLibrary LibraryType = "movie"
 	TVLibrary    LibraryType = "tv"
 	MusicLibrary LibraryType = "music"
-	ImageLibrary LibraryType = "image"
+	ImageLibrary LibraryType = "photo"
 )
 
 func (l LibraryType) String() string {
@@ -52,7 +54,7 @@ func (l *LibraryType) UnmarshalText(text []byte) error {
 		*l = MusicLibrary
 
 		return nil
-	case "image":
+	case "photo":
 		*l = ImageLibrary
 
 		return nil
@@ -65,8 +67,12 @@ type Library struct {
 	ID               uint              `gorm:"primary_key" json:"id"`
 	Name             string            `json:"name"`
 	Type             LibraryType       `json:"type"`
+	UUID             uuid.UUID         `json:"uuid"`
 	Language         string            `json:"language"`
 	LibraryLocations []LibraryLocation `gorm:"not null" json:"libraryLocations"`
+	Scanner          string            `json:"scanner"`
+	Agent            string            `json:"agent"`
+	Settings         string            `json:"settings"`
 	CreatedAt        time.Time         `json:"createdAt"`
 	UpdatedAt        time.Time         `json:"updatedAt"`
 	ScannedAt        time.Time         `json:"scannedAt"`
@@ -103,6 +109,7 @@ func CreateLibrary(name, language, typeArg string, locations []string) (*Library
 	library := Library{
 		Name:             name,
 		Type:             libraryType,
+		UUID:             uuid.New(),
 		Language:         language,
 		LibraryLocations: libraryLocations,
 	}

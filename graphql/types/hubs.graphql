@@ -3,11 +3,7 @@ extend type Query {
   latest(limit: Int = 20): [LatestResult]
 }
 
-extend type Subscription {
-  onLatestItemAdded: [LatestResult]
-}
-
 type LatestResult {
   library: Library!
-  items: [Item]
+  items: [Item!]!
 }

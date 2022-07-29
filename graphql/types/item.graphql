@@ -12,7 +12,26 @@ extend type Subscription {
   onItemUpdated: Item!
 }
 
+type Image {
+  hash: String
+  url: String
+}
+
 "Item information."
-interface Item {
+type Item {
   id: ID!
+  title: String!
+  sortTitle: String!
+  startDate: String
+  endDate: String
+  summary: String
+  artist: Item
+  series: Item
+  season: Item
+  index: Int!
+  thumb: Image
+  art: Image
+  type: String!
+  createdAt: Time!
+  updatedAt: Time!
 }

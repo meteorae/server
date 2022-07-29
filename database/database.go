@@ -68,7 +68,7 @@ func initSchema(transaction *gorm.DB) error {
 		return fmt.Errorf("failed to run database initialization migrations: %w", err)
 	}
 
-	// Create the virtual tables
+	// Create the virtual tables for FTS4
 	result := transaction.Exec(
 		/* sql */ `CREATE VIRTUAL TABLE fts4_item_metadata USING fts4(
 			content=item_metadata,

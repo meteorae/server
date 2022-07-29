@@ -14,9 +14,11 @@ struct_tag: gqlgen
 
 autobind:
   - "github.com/meteorae/meteorae-server/database"
-  - "github.com/meteorae/meteorae-server/models"
 
 models:
+  Item:
+    model:
+      - "github.com/meteorae/meteorae-server/database.ItemMetadata"
   ID:
     model:
       - github.com/99designs/gqlgen/graphql.ID
