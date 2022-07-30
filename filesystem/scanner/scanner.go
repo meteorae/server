@@ -6,15 +6,14 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/meteorae/meteorae-server/database"
+	"github.com/meteorae/meteorae-server/scanners"
 	"github.com/meteorae/meteorae-server/scanners/audio"
-	movieScanner "github.com/meteorae/meteorae-server/scanners/movie"
-	musicScanner "github.com/meteorae/meteorae-server/scanners/music"
 	"github.com/meteorae/meteorae-server/scanners/photos"
-	tvScanner "github.com/meteorae/meteorae-server/scanners/tv"
 	"github.com/meteorae/meteorae-server/scanners/video"
 	"github.com/meteorae/meteorae-server/sdk"
 	"github.com/meteorae/meteorae-server/utils"
@@ -57,19 +56,27 @@ func scanDirectory(directory, root string, library database.Library) {
 
 	files, dirs := filterFiles(directoryContent)
 
-	// TODO: Replace this by using library.Scanner to determine the scanner to use
+	var extensions []string
+
 	switch library.Type {
 	case database.MovieLibrary:
-		movieScanner.Scan(directory, &files, &dirs, &mediaList, video.VideoFileExtensions, root)
+		extensions = video.VideoFileExtensions
 	case database.TVLibrary:
-		tvScanner.Scan(directory, &files, &dirs, &mediaList, video.VideoFileExtensions, root)
+		extensions = video.VideoFileExtensions
 	case database.MusicLibrary:
-		musicScanner.Scan(directory, &files, &dirs, &mediaList, audio.AudioFileExtensions, root)
+		extensions = audio.AudioFileExtensions
 	case database.ImageLibrary:
-		// Photo libraries also support video clips.
-		imagesAndVideosExtensions := append(photos.PhotoFileExtensions, video.VideoFileExtensions...)
+		extensions = append(photos.PhotoFileExtensions, video.VideoFileExtensions...)
+	}
 
-		photos.Scan(directory, &files, &dirs, &mediaList, imagesAndVideosExtensions, root)
+	scanFunc := scanners.GetScanFuncByName(library.Type.String(), library.Scanner)
+
+	if scanFunc != nil {
+		scanFunc(directory, &files, &dirs, &mediaList, extensions, root)
+	} else {
+		log.Err(errors.New("Scanner not found")).Msgf("Failed to scan directory %s", fullPath)
+
+		return
 	}
 
 	// Check if files are already in the database. We don't want to add stuff twice.
@@ -300,40 +307,76 @@ func scanDirectory(directory, root string, library database.Library) {
 			}
 
 			if media, ok := media.(sdk.Image); ok {
-				var album database.ItemMetadata
+				paths := strings.Split(directory, string(os.PathSeparator))
 
-				// Just use the directory name for the album name.
-				photoAlbumName := filepath.Base(directory)
-				if photoAlbumName == "." {
-					photoAlbumName = "Uncategorized"
-				}
+				// If we're in the library root, we don't have a parent.
+				var parentAlbumID uint
+				if len(paths) == 1 && paths[0] == "." {
+					parentAlbumID = 0
+				} else if len(paths) == 2 {
+					// Figure out if the parent directory has an album.
+					album, err := database.GetItemByUUID(uuid.NewSHA1(library.UUID, []byte(fullPath)))
+					if errors.Is(err, gorm.ErrRecordNotFound) {
+						album = database.ItemMetadata{
+							Title:     paths[1],
+							LibraryID: library.ID,
+							Type:      database.ImageAlbumItem,
+							UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
+						}
 
-				// Check if a photo album exists in the database.
-				// If not, create it.
-				album, err := database.GetItemByTitleAndType(photoAlbumName, database.ImageAlbumItem)
-				if errors.Is(err, gorm.ErrRecordNotFound) {
-					album = database.ItemMetadata{
-						Title:     photoAlbumName,
-						LibraryID: library.ID,
-						Type:      database.ImageAlbumItem,
-						UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
-					}
+						album, err = database.CreateItem(album)
+						if err != nil {
+							log.Err(err).Msgf("Failed to create album %s", album.Title)
 
-					album, err = database.CreateItem(album)
-					if err != nil {
-						log.Err(err).Msgf("Failed to create album %s", album.Title)
+							continue
+						}
+					} else if err != nil {
+						log.Err(err).Msgf("Failed to get album for %s", fullPath)
 
 						continue
 					}
-				} else if err != nil {
-					log.Err(err).Msgf("Failed to get album by title %s", photoAlbumName)
 
-					continue
+					parentAlbumID = album.ID
+				} else {
+					// Figure out if the parent directory has an album.
+					album, err := database.GetItemByUUID(uuid.NewSHA1(library.UUID, []byte(fullPath)))
+					if errors.Is(err, gorm.ErrRecordNotFound) {
+						parentDirectory := filepath.Dir(fullPath)
+
+						// Figure out if the parent directory has an parentAlbum.
+						parentAlbum, err := database.GetItemByUUID(uuid.NewSHA1(library.UUID, []byte(parentDirectory)))
+						if err != nil {
+							log.Err(err).Msgf("Failed to get album for path %s", parentDirectory)
+
+							continue
+						}
+
+						album = database.ItemMetadata{
+							Title:     paths[len(paths)-1],
+							LibraryID: library.ID,
+							ParentID:  parentAlbum.ID,
+							Type:      database.ImageAlbumItem,
+							UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
+						}
+
+						album, err = database.CreateItem(album)
+						if err != nil {
+							log.Err(err).Msgf("Failed to create album %s", album.Title)
+
+							continue
+						}
+					} else if err != nil {
+						log.Err(err).Msgf("Failed to get album for %s", fullPath)
+
+						continue
+					}
+
+					parentAlbumID = album.ID
 				}
 
 				items = append(items, database.ItemMetadata{
 					Title:     media.Title,
-					ParentID:  album.ID,
+					ParentID:  parentAlbumID,
 					LibraryID: library.ID,
 					UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
 					Type:      database.ImageItem,
@@ -341,37 +384,76 @@ func scanDirectory(directory, root string, library database.Library) {
 			}
 
 			if media, ok := media.(sdk.Video); ok {
-				var album database.ItemMetadata
+				paths := strings.Split(directory, string(os.PathSeparator))
 
-				// Just use the directory name for the album name.
-				photoAlbumName := filepath.Base(directory)
+				// If we're in the library root, we don't have a parent.
+				var parentAlbumID uint
+				if len(paths) == 1 && paths[0] == "." {
+					parentAlbumID = 0
+				} else if len(paths) == 2 {
+					// Figure out if the parent directory has an album.
+					album, err := database.GetItemByUUID(uuid.NewSHA1(library.UUID, []byte(fullPath)))
+					if errors.Is(err, gorm.ErrRecordNotFound) {
+						album = database.ItemMetadata{
+							Title:     paths[1],
+							LibraryID: library.ID,
+							Type:      database.ImageAlbumItem,
+							UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
+						}
 
-				// Check if a photo album exists in the database.
-				// If not, create it.
-				album, err := database.GetItemByTitleAndType(photoAlbumName, database.ImageAlbumItem)
-				if errors.Is(err, gorm.ErrRecordNotFound) {
-					album = database.ItemMetadata{
-						Title:     photoAlbumName,
-						LibraryID: library.ID,
-						Type:      database.ImageAlbumItem,
-						UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
-					}
+						album, err = database.CreateItem(album)
+						if err != nil {
+							log.Err(err).Msgf("Failed to create album %s", album.Title)
 
-					album, err = database.CreateItem(album)
-					if err != nil {
-						log.Err(err).Msgf("Failed to create album %s", album.Title)
+							continue
+						}
+					} else if err != nil {
+						log.Err(err).Msgf("Failed to get album for %s", fullPath)
 
 						continue
 					}
-				} else if err != nil {
-					log.Err(err).Msgf("Failed to get album by title %s", photoAlbumName)
 
-					continue
+					parentAlbumID = album.ID
+				} else {
+					// Figure out if the parent directory has an album.
+					album, err := database.GetItemByUUID(uuid.NewSHA1(library.UUID, []byte(fullPath)))
+					if errors.Is(err, gorm.ErrRecordNotFound) {
+						parentDirectory := filepath.Dir(fullPath)
+
+						// Figure out if the parent directory has an parentAlbum.
+						parentAlbum, err := database.GetItemByUUID(uuid.NewSHA1(library.UUID, []byte(parentDirectory)))
+						if err != nil {
+							log.Err(err).Msgf("Failed to get album for path %s", parentDirectory)
+
+							continue
+						}
+
+						album = database.ItemMetadata{
+							Title:     paths[len(paths)-1],
+							LibraryID: library.ID,
+							ParentID:  parentAlbum.ID,
+							Type:      database.ImageAlbumItem,
+							UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
+						}
+
+						album, err = database.CreateItem(album)
+						if err != nil {
+							log.Err(err).Msgf("Failed to create album %s", album.Title)
+
+							continue
+						}
+					} else if err != nil {
+						log.Err(err).Msgf("Failed to get album for %s", fullPath)
+
+						continue
+					}
+
+					parentAlbumID = album.ID
 				}
 
 				items = append(items, database.ItemMetadata{
 					Title:     media.Title,
-					ParentID:  album.ID,
+					ParentID:  parentAlbumID,
 					LibraryID: library.ID,
 					UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
 					Type:      database.VideoClipItem,
@@ -404,6 +486,4 @@ func ScanDirectory(directory string, library database.Library) {
 	}
 
 	scanDirectory(".", directory, library)
-
-	// TODO: Schedule a metadata update for the library.
 }

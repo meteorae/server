@@ -73,6 +73,7 @@ type Library struct {
 	Scanner          string            `json:"scanner"`
 	Agent            string            `json:"agent"`
 	Settings         string            `json:"settings"`
+	Children         []ItemMetadata    `gorm:"foreignKey:ParentID"`
 	CreatedAt        time.Time         `json:"createdAt"`
 	UpdatedAt        time.Time         `json:"updatedAt"`
 	ScannedAt        time.Time         `json:"scannedAt"`
@@ -92,7 +93,7 @@ type LibraryLocation struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-func CreateLibrary(name, language, typeArg string, locations []string) (*Library, []LibraryLocation, error) {
+func CreateLibrary(name, language, typeArg string, locations []string, scanner string) (*Library, []LibraryLocation, error) {
 	var libraryLocations []LibraryLocation //nolint:prealloc
 	for _, location := range locations {
 		libraryLocations = append(libraryLocations, LibraryLocation{
@@ -112,6 +113,7 @@ func CreateLibrary(name, language, typeArg string, locations []string) (*Library
 		UUID:             uuid.New(),
 		Language:         language,
 		LibraryLocations: libraryLocations,
+		Scanner:          scanner,
 	}
 
 	if result := db.Create(&library); result.Error != nil {

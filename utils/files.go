@@ -91,6 +91,7 @@ func HashFileBytes(fileBytes []byte) ([]byte, error) {
 
 func ChunkMediaSlice(slice []database.ItemMetadata, chunkSize int) [][]database.ItemMetadata {
 	var chunks [][]database.ItemMetadata
+
 	for {
 		if len(slice) == 0 {
 			break

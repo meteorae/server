@@ -3,6 +3,8 @@ extend type Query {
   library(id: ID!): Library
   "Query all libraries."
   libraries: [Library]
+  "Query the availabel scanners for a library type."
+  scanners(libraryType: String!): [String!]
 }
 
 extend type Mutation {
@@ -12,6 +14,7 @@ extend type Mutation {
     name: String!
     language: String!
     locations: [String!]!
+    scanner: String!
   ): Library!
 }
 

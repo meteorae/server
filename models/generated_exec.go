@@ -94,7 +94,7 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AddLibrary         func(childComplexity int, typeArg string, name string, language string, locations []string) int
+		AddLibrary         func(childComplexity int, typeArg string, name string, language string, locations []string, scanner string) int
 		CompleteOnboarding func(childComplexity int) int
 		Login              func(childComplexity int, username string, password string) int
 		Register           func(childComplexity int, username string, password string) int
@@ -107,6 +107,7 @@ type ComplexityRoot struct {
 		Latest     func(childComplexity int, limit *int64) int
 		Libraries  func(childComplexity int) int
 		Library    func(childComplexity int, id string) int
+		Scanners   func(childComplexity int, libraryType string) int
 		ServerInfo func(childComplexity int) int
 		User       func(childComplexity int, id string) int
 		Users      func(childComplexity int, limit *int64, offset *int64) int
@@ -162,7 +163,7 @@ type MutationResolver interface {
 	CompleteOnboarding(ctx context.Context) (*ServerInfo, error)
 	Login(ctx context.Context, username string, password string) (*AuthPayload, error)
 	Register(ctx context.Context, username string, password string) (*AuthPayload, error)
-	AddLibrary(ctx context.Context, typeArg string, name string, language string, locations []string) (*database.Library, error)
+	AddLibrary(ctx context.Context, typeArg string, name string, language string, locations []string, scanner string) (*database.Library, error)
 }
 type QueryResolver interface {
 	ServerInfo(ctx context.Context) (*ServerInfo, error)
@@ -174,6 +175,7 @@ type QueryResolver interface {
 	Children(ctx context.Context, limit *int64, offset *int64, item string) ([]*database.ItemMetadata, error)
 	Library(ctx context.Context, id string) (*database.Library, error)
 	Libraries(ctx context.Context) ([]*database.Library, error)
+	Scanners(ctx context.Context, libraryType string) ([]string, error)
 }
 type SubscriptionResolver interface {
 	NewUpdateAvailable(ctx context.Context) (<-chan *UpdateInfo, error)
@@ -413,7 +415,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.AddLibrary(childComplexity, args["type"].(string), args["name"].(string), args["language"].(string), args["locations"].([]string)), true
+		return e.complexity.Mutation.AddLibrary(childComplexity, args["type"].(string), args["name"].(string), args["language"].(string), args["locations"].([]string), args["scanner"].(string)), true
 
 	case "Mutation.completeOnboarding":
 		if e.complexity.Mutation.CompleteOnboarding == nil {
@@ -512,6 +514,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.Library(childComplexity, args["id"].(string)), true
+
+	case "Query.scanners":
+		if e.complexity.Query.Scanners == nil {
+			break
+		}
+
+		args, err := ec.field_Query_scanners_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Scanners(childComplexity, args["libraryType"].(string)), true
 
 	case "Query.serverInfo":
 		if e.complexity.Query.ServerInfo == nil {
@@ -790,6 +804,8 @@ type Item {
   library(id: ID!): Library
   "Query all libraries."
   libraries: [Library]
+  "Query the availabel scanners for a library type."
+  scanners(libraryType: String!): [String!]
 }
 
 extend type Mutation {
@@ -799,6 +815,7 @@ extend type Mutation {
     name: String!
     language: String!
     locations: [String!]!
+    scanner: String!
   ): Library!
 }
 
@@ -894,6 +911,15 @@ func (ec *executionContext) field_Mutation_addLibrary_args(ctx context.Context, 
 		}
 	}
 	args["locations"] = arg3
+	var arg4 string
+	if tmp, ok := rawArgs["scanner"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("scanner"))
+		arg4, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["scanner"] = arg4
 	return args, nil
 }
 
@@ -1068,6 +1094,21 @@ func (ec *executionContext) field_Query_library_args(ctx context.Context, rawArg
 		}
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_scanners_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["libraryType"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("libraryType"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["libraryType"] = arg0
 	return args, nil
 }
 
@@ -2274,7 +2315,7 @@ func (ec *executionContext) _Mutation_addLibrary(ctx context.Context, field grap
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().AddLibrary(rctx, args["type"].(string), args["name"].(string), args["language"].(string), args["locations"].([]string))
+		return ec.resolvers.Mutation().AddLibrary(rctx, args["type"].(string), args["name"].(string), args["language"].(string), args["locations"].([]string), args["scanner"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2629,6 +2670,45 @@ func (ec *executionContext) _Query_libraries(ctx context.Context, field graphql.
 	res := resTmp.([]*database.Library)
 	fc.Result = res
 	return ec.marshalOLibrary2ᚕᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚐLibrary(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_scanners(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_scanners_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Scanners(rctx, args["libraryType"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]string)
+	fc.Result = res
+	return ec.marshalOString2ᚕstringᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -5117,6 +5197,26 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			out.Concurrently(i, func() graphql.Marshaler {
 				return rrm(innerCtx)
 			})
+		case "scanners":
+			field := field
+
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_scanners(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx, innerFunc)
+			}
+
+			out.Concurrently(i, func() graphql.Marshaler {
+				return rrm(innerCtx)
+			})
 		case "__type":
 			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___type(ctx, field)
@@ -6422,6 +6522,44 @@ func (ec *executionContext) unmarshalOString2string(ctx context.Context, v inter
 func (ec *executionContext) marshalOString2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
 	res := graphql.MarshalString(v)
 	return res
+}
+
+func (ec *executionContext) unmarshalOString2ᚕstringᚄ(ctx context.Context, v interface{}) ([]string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []interface{}
+	if v != nil {
+		vSlice = graphql.CoerceList(v)
+	}
+	var err error
+	res := make([]string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNString2string(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOString2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNString2string(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalOString2ᚖstring(ctx context.Context, v interface{}) (*string, error) {

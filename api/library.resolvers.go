@@ -10,9 +10,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/meteorae/meteorae-server/database"
-	"github.com/meteorae/meteorae-server/filesystem/scanner"
+	filesystemScanner "github.com/meteorae/meteorae-server/filesystem/scanner"
 	"github.com/meteorae/meteorae-server/models"
-	ants "github.com/panjf2000/ants/v2"
+	"github.com/meteorae/meteorae-server/scanners"
+	"github.com/meteorae/meteorae-server/tasks"
 	"github.com/rs/zerolog/log"
 )
 
@@ -33,8 +34,8 @@ func (r *libraryResolver) Locations(ctx context.Context, obj *database.Library) 
 	return locations, nil
 }
 
-func (r *mutationResolver) AddLibrary(ctx context.Context, typeArg string, name string, language string, locations []string) (*database.Library, error) {
-	library, libraryLocations, err := database.CreateLibrary(name, language, typeArg, locations)
+func (r *mutationResolver) AddLibrary(ctx context.Context, typeArg string, name string, language string, locations []string, scanner string) (*database.Library, error) {
+	library, libraryLocations, err := database.CreateLibrary(name, language, typeArg, locations, scanner)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to create library")
 
@@ -42,13 +43,17 @@ func (r *mutationResolver) AddLibrary(ctx context.Context, typeArg string, name 
 	}
 
 	// TODO: Move this to a library manager
-	for _, location := range libraryLocations {
-		err := ants.Submit(func() {
-			scanner.ScanDirectory(location.RootPath, *library)
-		})
-		if err != nil {
-			log.Err(err).Msgf("Failed to schedule directory scan for %s", location.RootPath)
+	err = tasks.LibraryScanQueue.Submit(func() {
+		log.Info().Msgf("Scanning library %s", library.Name)
+
+		for _, location := range libraryLocations {
+			log.Info().Str("library", library.Name).Msgf("Scanning location %s", location.RootPath)
+
+			filesystemScanner.ScanDirectory(location.RootPath, *library)
 		}
+	})
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to dispatch library scan task")
 	}
 
 	for _, observer := range database.SubsciptionsManager.LibraryAddedObservers {
@@ -68,6 +73,12 @@ func (r *queryResolver) Libraries(ctx context.Context) ([]*database.Library, err
 	libraries := database.GetLibraries()
 
 	return libraries, nil
+}
+
+func (r *queryResolver) Scanners(ctx context.Context, libraryType string) ([]string, error) {
+	scanners := scanners.GetScannerNamesForLibraryType(libraryType)
+
+	return scanners, nil
 }
 
 func (r *subscriptionResolver) OnLibraryAdded(ctx context.Context) (<-chan *database.Library, error) {

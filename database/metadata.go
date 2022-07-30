@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/imdario/mergo"
 	"github.com/rs/zerolog/log"
+	"gorm.io/gorm"
 )
 
 type ItemType uint
@@ -67,35 +68,39 @@ type ItemMetadata struct {
 	Type                ItemType  `gorm:"not null;type:INT" json:"type"`
 	UUID                uuid.UUID `gorm:"not null;type:UUID" json:"uuid"`
 	ExternalIdentifiers []ExternalIdentifier
-	ReleaseDate         time.Time `json:"releaseDate"`
-	EndDate             time.Time `json:"endDate"`
-	Popularity          float32   `json:"popularity"`
-	ParentID            uint      `json:"parentId"`
-	Sequence            int       `json:"sequence"`
-	AbsoluteSequence    int       `json:"absoluteSequence"`
-	Duration            uint      `json:"duration"`
-	OriginalLanguage    string    `json:"originalLanguage"`
-	Thumb               string    `json:"thumb"`
-	Art                 string    `json:"art"`
+	ReleaseDate         time.Time      `json:"releaseDate"`
+	EndDate             time.Time      `json:"endDate"`
+	Popularity          float32        `json:"popularity"`
+	ParentID            uint           `json:"parentId"`
+	Children            []ItemMetadata `gorm:"foreignkey:ParentID" json:"children"`
+	Sequence            int            `json:"sequence"`
+	AbsoluteSequence    int            `json:"absoluteSequence"`
+	Duration            uint           `json:"duration"`
+	OriginalLanguage    string         `json:"originalLanguage"`
+	Thumb               string         `json:"thumb"`
+	Art                 string         `json:"art"`
 	// ExtraInfo        datatypes.JSON `json:"extraInfo"`
 	Parts     []MediaPart `json:"mediaPart"`
 	LibraryID uint
-	Library   Library   `gorm:"not null" json:"library"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 	DeletedAt time.Time `json:"deleteAt"`
 }
 
-func (item *ItemMetadata) AfterCreate() {
+func (item *ItemMetadata) AfterCreate(*gorm.DB) error {
 	for _, observer := range SubsciptionsManager.ItemAddedObservers {
 		observer <- item
 	}
+
+	return nil
 }
 
-func (item *ItemMetadata) AfterUpdate() {
+func (item *ItemMetadata) AfterUpdate(*gorm.DB) error {
 	for _, observer := range SubsciptionsManager.ItemUpdatedObservers {
 		observer <- item
 	}
+
+	return nil
 }
 
 // Returns the requested fields from the specified item.

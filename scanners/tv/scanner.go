@@ -62,7 +62,7 @@ func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions 
 	paths := strings.Split(path, string(os.PathSeparator))
 	shouldStack := true //nolint:ifshort // False positive
 
-	if len(paths) == 1 && paths[0] == "" {
+	if len(paths) == 1 && paths[0] == "." {
 		// Top level directory
 		for _, file := range *files {
 			var (

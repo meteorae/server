@@ -10,7 +10,7 @@ import (
 )
 
 func GetName() string {
-	return "Simple Movie Scanner"
+	return "Video Files Scanner"
 }
 
 func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions []string, root string) {
