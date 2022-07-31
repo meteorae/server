@@ -108,7 +108,7 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 				return
 			}
 
-			itemID, err := strconv.ParseUint(metadataID, 10, 64)
+			itemID, err := strconv.ParseUint(metadataID, 10, 32)
 			if err != nil {
 				http.Error(writer, "Invalid metadata ID", http.StatusBadRequest)
 

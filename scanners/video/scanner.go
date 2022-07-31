@@ -210,13 +210,13 @@ func CleanName(name string) (string, int) {
 	// Always ensure the name is lowercase
 	strings.ToLower(name)
 
-	year := 0
+	var year int64 = 0
 
 	// Some movies have a year in the title, so we match all years and take the rightmost one.
 	yearMatch := yearRegex.FindAllString(name, -1)
 
 	if len(yearMatch) > 0 && yearMatch[len(yearMatch)-1] != "" {
-		year, _ = strconv.Atoi(yearMatch[len(yearMatch)-1])
+		year, _ = strconv.ParseInt(yearMatch[len(yearMatch)-1], 10, 32)
 
 		// Remove the year from the name, to allow us to break early later on.
 		// Anything after the year should be garbage.
@@ -331,7 +331,7 @@ func CleanName(name string) (string, int) {
 		cleanName = cleanAkaName[1]
 	}
 
-	return strings.Title(cleanName), year
+	return strings.Title(cleanName), int(year)
 }
 
 func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions []string, root string) {

@@ -96,7 +96,7 @@ func (r *itemResolver) Type(ctx context.Context, obj *database.ItemMetadata) (st
 }
 
 func (r *queryResolver) Item(ctx context.Context, id string) (*database.ItemMetadata, error) {
-	itemID, err := strconv.ParseUint(id, 10, 64)
+	itemID, err := strconv.ParseUint(id, 10, 32)
 	if err != nil {
 		return &database.ItemMetadata{}, fmt.Errorf("invalid item id")
 	}
@@ -141,7 +141,7 @@ func (r *queryResolver) Items(ctx context.Context, limit *int64, offset *int64, 
 }
 
 func (r *queryResolver) Children(ctx context.Context, limit *int64, offset *int64, item string) (*models.ItemsResult, error) {
-	parsedItemID, err := strconv.ParseUint(item, 10, 64)
+	parsedItemID, err := strconv.ParseUint(item, 10, 32)
 	if err != nil {
 		return nil, fmt.Errorf("invalid item id")
 	}
@@ -153,7 +153,7 @@ func (r *queryResolver) Children(ctx context.Context, limit *int64, offset *int6
 		return nil, fmt.Errorf("failed to get items: %w", err)
 	}
 
-	parsedItemID, err = strconv.ParseUint(item, 10, 64)
+	parsedItemID, err = strconv.ParseUint(item, 10, 32)
 	if err != nil {
 		return nil, fmt.Errorf("invalid item id")
 	}
@@ -226,6 +226,7 @@ type itemResolver struct{ *Resolver }
 func (r *itemResolver) IsRefreshing(ctx context.Context, obj *database.ItemMetadata) (bool, error) {
 	panic(fmt.Errorf("not implemented"))
 }
+
 func (r *itemResolver) IsAnalyzing(ctx context.Context, obj *database.ItemMetadata) (bool, error) {
 	panic(fmt.Errorf("not implemented"))
 }
