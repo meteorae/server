@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 var errInvalidLibraryType = errors.New("invalid library type")
@@ -77,10 +78,28 @@ type Library struct {
 	CreatedAt        time.Time         `json:"createdAt"`
 	UpdatedAt        time.Time         `json:"updatedAt"`
 	ScannedAt        time.Time         `json:"scannedAt"`
+
+	IsScanning bool `gorm:"-" json:"isScanning"`
 }
 
 func (Library) TableName() string {
 	return "libraries"
+}
+
+func (library *Library) AfterCreate(*gorm.DB) error {
+	for _, observer := range SubsciptionsManager.LibraryAddedObservers {
+		observer <- library
+	}
+
+	return nil
+}
+
+func (library *Library) AfterUpdate(*gorm.DB) error {
+	for _, observer := range SubsciptionsManager.LibraryUpdatedObservers {
+		observer <- library
+	}
+
+	return nil
 }
 
 type LibraryLocation struct {
@@ -93,7 +112,11 @@ type LibraryLocation struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-func CreateLibrary(name, language, typeArg string, locations []string, scanner string) (*Library, []LibraryLocation, error) {
+func CreateLibrary(
+	name, language, typeArg string,
+	locations []string,
+	scanner, agent string,
+) (*Library, []LibraryLocation, error) {
 	var libraryLocations []LibraryLocation //nolint:prealloc
 	for _, location := range locations {
 		libraryLocations = append(libraryLocations, LibraryLocation{
@@ -114,6 +137,7 @@ func CreateLibrary(name, language, typeArg string, locations []string, scanner s
 		Language:         language,
 		LibraryLocations: libraryLocations,
 		Scanner:          scanner,
+		Agent:            agent,
 	}
 
 	if result := db.Create(&library); result.Error != nil {

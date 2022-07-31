@@ -17,6 +17,11 @@ type Image struct {
 	URL  *string `json:"url"`
 }
 
+type ItemsResult struct {
+	Items []*database.ItemMetadata `json:"items"`
+	Total *int64                   `json:"total"`
+}
+
 type LatestResult struct {
 	Library *database.Library        `json:"library"`
 	Items   []*database.ItemMetadata `json:"items"`

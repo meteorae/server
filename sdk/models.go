@@ -32,7 +32,8 @@ const (
 	TmdbIdentifier
 	AnidbIdentifier
 	TvdbIdentifier
-	MusicbrainzIdentifier
+	MusicbrainzArtistIdentifier
+	MusicbrainzReleaseIdentifier
 	FacebookIdentifier
 	TwitterIdentifier
 	InstagramIdentifier
@@ -44,7 +45,8 @@ func (d IdentifierType) String() string {
 		"TheMovieDB ID",
 		"AniDB ID",
 		"TVDB ID",
-		"MusicBrainz ID",
+		"MusicBrainz Artist ID",
+		"MusicBrainz Release ID",
 		"Facebook ID",
 		"Twitter ID",
 		"Instagram ID",
@@ -64,6 +66,23 @@ type Movie struct {
 	TmdbID int
 }
 
+// A TVShow represents information about a TV series, obtained through scanning or through an agent.
+type TVShow struct {
+	*ItemInfo
+	Tagline    string
+	Summary    string
+	Genres     []string
+	Popularity float32
+	Studios    []string
+	Countries  []string
+	// Credits       []Credit
+	SeriesTitle string
+	Season      int
+	Episode     int
+	TmdbID      int
+	TvdbID      int
+}
+
 // A TVEpisode represents information about an individual episode of a TV series,
 // obtained through scanning or through an agent.
 type TVEpisode struct {
@@ -80,6 +99,14 @@ type TVEpisode struct {
 	Episode     int
 	TmdbID      int
 	TvdbID      int
+}
+
+type MusicAlbum struct {
+	*ItemInfo
+	AlbumArtist         string
+	Artist              []string
+	MusicBrainzAlbumID  string
+	MusicBrainzArtistID string
 }
 
 // A MusicTrack represents information about an individual track of a music album,

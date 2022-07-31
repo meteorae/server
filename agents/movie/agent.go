@@ -1,6 +1,7 @@
 package movie
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -26,17 +27,16 @@ var (
 var tmdbAPI *tmdb.TMDb = tmdb.Init(config)
 
 func GetName() string {
-	return "Movie Agent"
+	return "Meteorae Movie Agent"
 }
 
-// TODO: Currently this returns only the first result, since we can't fix mismatches anyway.
-func getMovieResults(item database.ItemMetadata) ([]sdk.Movie, error) {
+func GetSearchResults(item database.ItemMetadata) ([]sdk.Item, error) {
 	options := map[string]string{
-		"language":      "en-US", // Make this configurable
-		"include_adult": "false", // Make this configurable
+		"language":      "en-US", // TODO: Make this configurable
+		"include_adult": "false", // TODO: Make this configurable
 	}
 
-	if item.ReleaseDate.Year() > 0 {
+	if !item.ReleaseDate.IsZero() {
 		options["year"] = fmt.Sprintf("%d", item.ReleaseDate.Year())
 	}
 
@@ -44,10 +44,10 @@ func getMovieResults(item database.ItemMetadata) ([]sdk.Movie, error) {
 	if err != nil {
 		log.Err(err).Msgf("Failed to search for movie %s", item.Title)
 
-		return []sdk.Movie{}, err
+		return []sdk.Item{}, err
 	}
 
-	results := make([]sdk.Movie, 0, len(searchResults.Results))
+	results := make([]sdk.Item, 0, len(searchResults.Results))
 
 	for _, result := range searchResults.Results {
 		releaseDate, err := time.Parse("2006-01-02", result.ReleaseDate)
@@ -68,21 +68,29 @@ func getMovieResults(item database.ItemMetadata) ([]sdk.Movie, error) {
 		})
 	}
 
-	return []sdk.Movie{}, errNoResultsFound
+	if len(results) > 0 {
+		return results, nil
+	}
+
+	return []sdk.Item{}, errNoResultsFound
 }
 
-func Search(item database.ItemMetadata) {
-	results, err := getMovieResults(item)
+func GetMetadata(item database.ItemMetadata) (database.ItemMetadata, error) {
+	results, err := GetSearchResults(item)
 	if err != nil {
 		log.Err(err).Msgf("Failed to get movie results %s", item.Title)
 
-		return
+		return database.ItemMetadata{}, err
 	}
 
-	if len(results) > 0 {
-		resultMovie := results[0]
+	if len(results) == 0 {
+		return database.ItemMetadata{}, nil
+	}
 
-		movieData, err := tmdbAPI.GetMovieInfo(resultMovie.TmdbID, map[string]string{})
+	resultMovie := results[0]
+
+	if media, ok := resultMovie.(sdk.Movie); ok {
+		movieData, err := tmdbAPI.GetMovieInfo(media.TmdbID, map[string]string{})
 		if err != nil {
 			log.Err(err).Msgf("failed to fetch information for movie \"%s\": %w", item.Title, err)
 		}
@@ -123,7 +131,7 @@ func Search(item database.ItemMetadata) {
 			}
 		}
 
-		err = item.Update(database.ItemMetadata{
+		return database.ItemMetadata{
 			Title:            movieData.Title,
 			OriginalTitle:    movieData.OriginalTitle,
 			SortTitle:        utils.CleanSortTitle(movieData.Title),
@@ -133,9 +141,8 @@ func Search(item database.ItemMetadata) {
 			OriginalLanguage: languageTag.String(),
 			Thumb:            posterHash,
 			Art:              artHash,
-		})
-		if err != nil {
-			log.Err(err).Msgf("Failed to update movie %s", item.Title)
-		}
+		}, nil
 	}
+
+	return database.ItemMetadata{}, errors.New("unsupported item type")
 }

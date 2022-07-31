@@ -112,31 +112,38 @@ func (r *queryResolver) Item(ctx context.Context, id string) (*database.ItemMeta
 	return &item, nil
 }
 
-func (r *queryResolver) Items(ctx context.Context, limit *int64, offset *int64, libraryID string) ([]*database.ItemMetadata, error) {
-	parsedLibraryID, err := strconv.ParseUint(libraryID, 10, 64)
-	if err != nil {
-		return make([]*database.ItemMetadata, 0), fmt.Errorf("invalid item id")
-	}
+func (r *queryResolver) Items(ctx context.Context, limit *int64, offset *int64, libraryID string) (*models.ItemsResult, error) {
+	library := database.GetLibrary(libraryID)
 
-	items, err := database.GetItemsFromLibrary(uint(parsedLibraryID), limit, offset)
+	items, err := database.GetItemsFromLibrary(library, limit, offset)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get items")
 
 		return nil, fmt.Errorf("failed to get items: %w", err)
 	}
 
-	resultItems := make([]*database.ItemMetadata, 0, len(items))
-	for _, item := range items {
-		resultItems = append(resultItems, &item)
+	count, err := database.GetItemsCountFromLibrary(library.ID)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get items count")
+
+		return nil, fmt.Errorf("failed to get items count: %w", err)
 	}
 
-	return resultItems, nil
+	resultItems := make([]*database.ItemMetadata, 0, len(items))
+	for _, item := range items {
+		resultItems = append(resultItems, item)
+	}
+
+	return &models.ItemsResult{
+		Items: resultItems,
+		Total: &count,
+	}, nil
 }
 
-func (r *queryResolver) Children(ctx context.Context, limit *int64, offset *int64, item string) ([]*database.ItemMetadata, error) {
+func (r *queryResolver) Children(ctx context.Context, limit *int64, offset *int64, item string) (*models.ItemsResult, error) {
 	parsedItemID, err := strconv.ParseUint(item, 10, 64)
 	if err != nil {
-		return make([]*database.ItemMetadata, 0), fmt.Errorf("invalid item id")
+		return nil, fmt.Errorf("invalid item id")
 	}
 
 	items, err := database.GetChildrenFromItem(uint(parsedItemID), limit, offset)
@@ -146,12 +153,27 @@ func (r *queryResolver) Children(ctx context.Context, limit *int64, offset *int6
 		return nil, fmt.Errorf("failed to get items: %w", err)
 	}
 
+	parsedItemID, err = strconv.ParseUint(item, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid item id")
+	}
+
+	count, err := database.GetChildrenCountFromItem(uint(parsedItemID))
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get items count")
+
+		return nil, fmt.Errorf("failed to get items count: %w", err)
+	}
+
 	resultItems := make([]*database.ItemMetadata, 0, len(items))
 	for _, item := range items {
 		resultItems = append(resultItems, &item)
 	}
 
-	return resultItems, nil
+	return &models.ItemsResult{
+		Items: resultItems,
+		Total: &count,
+	}, nil
 }
 
 func (r *subscriptionResolver) OnItemAdded(ctx context.Context) (<-chan *database.ItemMetadata, error) {
@@ -194,3 +216,16 @@ func (r *subscriptionResolver) OnItemUpdated(ctx context.Context) (<-chan *datab
 func (r *Resolver) Item() models.ItemResolver { return &itemResolver{r} }
 
 type itemResolver struct{ *Resolver }
+
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//    it when you're done.
+//  - You have helper methods in this file. Move them out to keep these resolver files clean.
+func (r *itemResolver) IsRefreshing(ctx context.Context, obj *database.ItemMetadata) (bool, error) {
+	panic(fmt.Errorf("not implemented"))
+}
+func (r *itemResolver) IsAnalyzing(ctx context.Context, obj *database.ItemMetadata) (bool, error) {
+	panic(fmt.Errorf("not implemented"))
+}

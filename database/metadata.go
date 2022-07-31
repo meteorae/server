@@ -80,11 +80,13 @@ type ItemMetadata struct {
 	Thumb               string         `json:"thumb"`
 	Art                 string         `json:"art"`
 	// ExtraInfo        datatypes.JSON `json:"extraInfo"`
-	Parts     []MediaPart `json:"mediaPart"`
-	LibraryID uint
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	DeletedAt time.Time `json:"deleteAt"`
+	Parts        []MediaPart `json:"mediaPart"`
+	LibraryID    uint
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
+	DeletedAt    time.Time `json:"deleteAt"`
+	IsRefreshing bool      `gorm:"-" json:"isRefreshing"`
+	IsAnalyzing  bool      `gorm:"-" json:"isAnalyzing"`
 }
 
 func (item *ItemMetadata) AfterCreate(*gorm.DB) error {
@@ -146,6 +148,17 @@ func GetItemByUUID(uuid uuid.UUID) (ItemMetadata, error) {
 	return item, nil
 }
 
+func GetItemByLibrayAndType(library Library, itemType ItemType) ([]ItemMetadata, error) {
+	var items []ItemMetadata
+
+	result := db.Where("library_id = ? AND type = ?", library.ID, itemType).Find(&items)
+	if result.Error != nil {
+		return []ItemMetadata{}, result.Error
+	}
+
+	return items, nil
+}
+
 func GetItemByUUIDAndType(uuid uuid.UUID, itemType ItemType) (ItemMetadata, error) {
 	var item ItemMetadata
 
@@ -169,16 +182,28 @@ func GetItemByTitleAndType(title string, itemType ItemType) (ItemMetadata, error
 }
 
 // Returns all the top-level items from the specified library.
-func GetItemsFromLibrary(libraryID uint, limit, offset *int64) ([]ItemMetadata, error) {
-	var items []ItemMetadata
+func GetItemsFromLibrary(library Library, limit, offset *int64) ([]*ItemMetadata, error) {
+	var items []*ItemMetadata
 
-	result := db.
-		Limit(int(*limit)).
-		Offset(int(*offset)).
-		Where("library_id = ? AND parent_id = 0", libraryID).
-		Find(&items)
-	if result.Error != nil {
-		return nil, result.Error
+	switch library.Type {
+	case MusicLibrary:
+		result := db.
+			Limit(int(*limit)).
+			Offset(int(*offset)).
+			Where("library_id = ? AND type = ?", library.ID, MusicAlbumItem).
+			Find(&items)
+		if result.Error != nil {
+			return nil, result.Error
+		}
+	default:
+		result := db.
+			Limit(int(*limit)).
+			Offset(int(*offset)).
+			Where("library_id = ? AND parent_id = 0", library.ID).
+			Find(&items)
+		if result.Error != nil {
+			return nil, result.Error
+		}
 	}
 
 	return items, nil

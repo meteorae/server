@@ -60,21 +60,29 @@ type ComplexityRoot struct {
 	}
 
 	Item struct {
-		Art       func(childComplexity int) int
-		Artist    func(childComplexity int) int
-		CreatedAt func(childComplexity int) int
-		EndDate   func(childComplexity int) int
-		ID        func(childComplexity int) int
-		Index     func(childComplexity int) int
-		Season    func(childComplexity int) int
-		Series    func(childComplexity int) int
-		SortTitle func(childComplexity int) int
-		StartDate func(childComplexity int) int
-		Summary   func(childComplexity int) int
-		Thumb     func(childComplexity int) int
-		Title     func(childComplexity int) int
-		Type      func(childComplexity int) int
-		UpdatedAt func(childComplexity int) int
+		Art          func(childComplexity int) int
+		Artist       func(childComplexity int) int
+		CreatedAt    func(childComplexity int) int
+		DeletedAt    func(childComplexity int) int
+		EndDate      func(childComplexity int) int
+		ID           func(childComplexity int) int
+		Index        func(childComplexity int) int
+		IsAnalyzing  func(childComplexity int) int
+		IsRefreshing func(childComplexity int) int
+		Season       func(childComplexity int) int
+		Series       func(childComplexity int) int
+		SortTitle    func(childComplexity int) int
+		StartDate    func(childComplexity int) int
+		Summary      func(childComplexity int) int
+		Thumb        func(childComplexity int) int
+		Title        func(childComplexity int) int
+		Type         func(childComplexity int) int
+		UpdatedAt    func(childComplexity int) int
+	}
+
+	ItemsResult struct {
+		Items func(childComplexity int) int
+		Total func(childComplexity int) int
 	}
 
 	LatestResult struct {
@@ -83,24 +91,27 @@ type ComplexityRoot struct {
 	}
 
 	Library struct {
+		Agent     func(childComplexity int) int
 		CreatedAt func(childComplexity int) int
 		ID        func(childComplexity int) int
 		Language  func(childComplexity int) int
 		Locations func(childComplexity int) int
 		Name      func(childComplexity int) int
 		ScannedAt func(childComplexity int) int
+		Scanner   func(childComplexity int) int
 		Type      func(childComplexity int) int
 		UpdatedAt func(childComplexity int) int
 	}
 
 	Mutation struct {
-		AddLibrary         func(childComplexity int, typeArg string, name string, language string, locations []string, scanner string) int
+		AddLibrary         func(childComplexity int, typeArg string, name string, language string, locations []string, scanner string, agent string) int
 		CompleteOnboarding func(childComplexity int) int
 		Login              func(childComplexity int, username string, password string) int
 		Register           func(childComplexity int, username string, password string) int
 	}
 
 	Query struct {
+		Agents     func(childComplexity int, libraryType string) int
 		Children   func(childComplexity int, limit *int64, offset *int64, item string) int
 		Item       func(childComplexity int, id string) int
 		Items      func(childComplexity int, limit *int64, offset *int64, libraryID string) int
@@ -163,7 +174,7 @@ type MutationResolver interface {
 	CompleteOnboarding(ctx context.Context) (*ServerInfo, error)
 	Login(ctx context.Context, username string, password string) (*AuthPayload, error)
 	Register(ctx context.Context, username string, password string) (*AuthPayload, error)
-	AddLibrary(ctx context.Context, typeArg string, name string, language string, locations []string, scanner string) (*database.Library, error)
+	AddLibrary(ctx context.Context, typeArg string, name string, language string, locations []string, scanner string, agent string) (*database.Library, error)
 }
 type QueryResolver interface {
 	ServerInfo(ctx context.Context) (*ServerInfo, error)
@@ -171,11 +182,12 @@ type QueryResolver interface {
 	Users(ctx context.Context, limit *int64, offset *int64) ([]*database.User, error)
 	Latest(ctx context.Context, limit *int64) ([]*LatestResult, error)
 	Item(ctx context.Context, id string) (*database.ItemMetadata, error)
-	Items(ctx context.Context, limit *int64, offset *int64, libraryID string) ([]*database.ItemMetadata, error)
-	Children(ctx context.Context, limit *int64, offset *int64, item string) ([]*database.ItemMetadata, error)
+	Items(ctx context.Context, limit *int64, offset *int64, libraryID string) (*ItemsResult, error)
+	Children(ctx context.Context, limit *int64, offset *int64, item string) (*ItemsResult, error)
 	Library(ctx context.Context, id string) (*database.Library, error)
 	Libraries(ctx context.Context) ([]*database.Library, error)
 	Scanners(ctx context.Context, libraryType string) ([]string, error)
+	Agents(ctx context.Context, libraryType string) ([]string, error)
 }
 type SubscriptionResolver interface {
 	NewUpdateAvailable(ctx context.Context) (<-chan *UpdateInfo, error)
@@ -251,6 +263,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Item.CreatedAt(childComplexity), true
 
+	case "Item.deletedAt":
+		if e.complexity.Item.DeletedAt == nil {
+			break
+		}
+
+		return e.complexity.Item.DeletedAt(childComplexity), true
+
 	case "Item.endDate":
 		if e.complexity.Item.EndDate == nil {
 			break
@@ -271,6 +290,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Item.Index(childComplexity), true
+
+	case "Item.isAnalyzing":
+		if e.complexity.Item.IsAnalyzing == nil {
+			break
+		}
+
+		return e.complexity.Item.IsAnalyzing(childComplexity), true
+
+	case "Item.isRefreshing":
+		if e.complexity.Item.IsRefreshing == nil {
+			break
+		}
+
+		return e.complexity.Item.IsRefreshing(childComplexity), true
 
 	case "Item.season":
 		if e.complexity.Item.Season == nil {
@@ -335,6 +368,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Item.UpdatedAt(childComplexity), true
 
+	case "ItemsResult.items":
+		if e.complexity.ItemsResult.Items == nil {
+			break
+		}
+
+		return e.complexity.ItemsResult.Items(childComplexity), true
+
+	case "ItemsResult.total":
+		if e.complexity.ItemsResult.Total == nil {
+			break
+		}
+
+		return e.complexity.ItemsResult.Total(childComplexity), true
+
 	case "LatestResult.items":
 		if e.complexity.LatestResult.Items == nil {
 			break
@@ -348,6 +395,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.LatestResult.Library(childComplexity), true
+
+	case "Library.agent":
+		if e.complexity.Library.Agent == nil {
+			break
+		}
+
+		return e.complexity.Library.Agent(childComplexity), true
 
 	case "Library.createdAt":
 		if e.complexity.Library.CreatedAt == nil {
@@ -391,6 +445,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Library.ScannedAt(childComplexity), true
 
+	case "Library.scanner":
+		if e.complexity.Library.Scanner == nil {
+			break
+		}
+
+		return e.complexity.Library.Scanner(childComplexity), true
+
 	case "Library.type":
 		if e.complexity.Library.Type == nil {
 			break
@@ -415,7 +476,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.AddLibrary(childComplexity, args["type"].(string), args["name"].(string), args["language"].(string), args["locations"].([]string), args["scanner"].(string)), true
+		return e.complexity.Mutation.AddLibrary(childComplexity, args["type"].(string), args["name"].(string), args["language"].(string), args["locations"].([]string), args["scanner"].(string), args["agent"].(string)), true
 
 	case "Mutation.completeOnboarding":
 		if e.complexity.Mutation.CompleteOnboarding == nil {
@@ -447,6 +508,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.Register(childComplexity, args["username"].(string), args["password"].(string)), true
+
+	case "Query.agents":
+		if e.complexity.Query.Agents == nil {
+			break
+		}
+
+		args, err := ec.field_Query_agents_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Agents(childComplexity, args["libraryType"].(string)), true
 
 	case "Query.children":
 		if e.complexity.Query.Children == nil {
@@ -765,9 +838,14 @@ type LatestResult {
   "Query the specified item."
   item(id: ID!): Item
   "Query all items."
-  items(limit: Int = 20, offset: Int = 0, libraryId: ID!): [Item]
+  items(limit: Int = 20, offset: Int = 0, libraryId: ID!): ItemsResult
   "Query the children of the provided item."
-  children(limit: Int = 20, offset: Int = 0, item: ID!): [Item]
+  children(limit: Int = 20, offset: Int = 0, item: ID!): ItemsResult
+}
+
+type ItemsResult {
+  items: [Item]
+  total: Int
 }
 
 extend type Subscription {
@@ -797,6 +875,9 @@ type Item {
   type: String!
   createdAt: Time!
   updatedAt: Time!
+  deletedAt: Time!
+  isRefreshing: Boolean!
+  isAnalyzing: Boolean!
 }
 `, BuiltIn: false},
 	{Name: "graphql/types/library.graphql", Input: `extend type Query {
@@ -806,6 +887,8 @@ type Item {
   libraries: [Library]
   "Query the availabel scanners for a library type."
   scanners(libraryType: String!): [String!]
+  "Query the available agents for a library type."
+  agents(libraryType: String!): [String!]
 }
 
 extend type Mutation {
@@ -816,6 +899,7 @@ extend type Mutation {
     language: String!
     locations: [String!]!
     scanner: String!
+    agent: String!
   ): Library!
 }
 
@@ -830,6 +914,8 @@ type Library {
   type: String!
   language: String!
   locations: [String!]!
+  scanner: String!
+  agent: String!
   createdAt: Time!
   updatedAt: Time!
   scannedAt: Time!
@@ -920,6 +1006,15 @@ func (ec *executionContext) field_Mutation_addLibrary_args(ctx context.Context, 
 		}
 	}
 	args["scanner"] = arg4
+	var arg5 string
+	if tmp, ok := rawArgs["agent"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("agent"))
+		arg5, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["agent"] = arg5
 	return args, nil
 }
 
@@ -983,6 +1078,21 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 		}
 	}
 	args["name"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_agents_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["libraryType"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("libraryType"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["libraryType"] = arg0
 	return args, nil
 }
 
@@ -1824,6 +1934,175 @@ func (ec *executionContext) _Item_updatedAt(ctx context.Context, field graphql.C
 	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Item_deletedAt(ctx context.Context, field graphql.CollectedField, obj *database.ItemMetadata) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Item",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.DeletedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Item_isRefreshing(ctx context.Context, field graphql.CollectedField, obj *database.ItemMetadata) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Item",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.IsRefreshing, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Item_isAnalyzing(ctx context.Context, field graphql.CollectedField, obj *database.ItemMetadata) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Item",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.IsAnalyzing, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ItemsResult_items(ctx context.Context, field graphql.CollectedField, obj *ItemsResult) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "ItemsResult",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Items, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*database.ItemMetadata)
+	fc.Result = res
+	return ec.marshalOItem2ᚕᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚐItemMetadata(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ItemsResult_total(ctx context.Context, field graphql.CollectedField, obj *ItemsResult) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "ItemsResult",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Total, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*int64)
+	fc.Result = res
+	return ec.marshalOInt2ᚖint64(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _LatestResult_library(ctx context.Context, field graphql.CollectedField, obj *LatestResult) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -2067,6 +2346,76 @@ func (ec *executionContext) _Library_locations(ctx context.Context, field graphq
 	res := resTmp.([]string)
 	fc.Result = res
 	return ec.marshalNString2ᚕstringᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Library_scanner(ctx context.Context, field graphql.CollectedField, obj *database.Library) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Library",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Scanner, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Library_agent(ctx context.Context, field graphql.CollectedField, obj *database.Library) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Library",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Agent, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Library_createdAt(ctx context.Context, field graphql.CollectedField, obj *database.Library) (ret graphql.Marshaler) {
@@ -2315,7 +2664,7 @@ func (ec *executionContext) _Mutation_addLibrary(ctx context.Context, field grap
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().AddLibrary(rctx, args["type"].(string), args["name"].(string), args["language"].(string), args["locations"].([]string), args["scanner"].(string))
+		return ec.resolvers.Mutation().AddLibrary(rctx, args["type"].(string), args["name"].(string), args["language"].(string), args["locations"].([]string), args["scanner"].(string), args["agent"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2557,9 +2906,9 @@ func (ec *executionContext) _Query_items(ctx context.Context, field graphql.Coll
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.([]*database.ItemMetadata)
+	res := resTmp.(*ItemsResult)
 	fc.Result = res
-	return ec.marshalOItem2ᚕᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚐItemMetadata(ctx, field.Selections, res)
+	return ec.marshalOItemsResult2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋmodelsᚐItemsResult(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_children(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -2596,9 +2945,9 @@ func (ec *executionContext) _Query_children(ctx context.Context, field graphql.C
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.([]*database.ItemMetadata)
+	res := resTmp.(*ItemsResult)
 	fc.Result = res
-	return ec.marshalOItem2ᚕᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋdatabaseᚐItemMetadata(ctx, field.Selections, res)
+	return ec.marshalOItemsResult2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋmodelsᚐItemsResult(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_library(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -2698,6 +3047,45 @@ func (ec *executionContext) _Query_scanners(ctx context.Context, field graphql.C
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return ec.resolvers.Query().Scanners(rctx, args["libraryType"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]string)
+	fc.Result = res
+	return ec.marshalOString2ᚕstringᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_agents(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_agents_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Agents(rctx, args["libraryType"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4745,6 +5133,71 @@ func (ec *executionContext) _Item(ctx context.Context, sel ast.SelectionSet, obj
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&invalids, 1)
 			}
+		case "deletedAt":
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Item_deletedAt(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "isRefreshing":
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Item_isRefreshing(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "isAnalyzing":
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Item_isAnalyzing(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var itemsResultImplementors = []string{"ItemsResult"}
+
+func (ec *executionContext) _ItemsResult(ctx context.Context, sel ast.SelectionSet, obj *ItemsResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, itemsResultImplementors)
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ItemsResult")
+		case "items":
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._ItemsResult_items(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
+		case "total":
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._ItemsResult_total(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -4887,6 +5340,26 @@ func (ec *executionContext) _Library(ctx context.Context, sel ast.SelectionSet, 
 				return innerFunc(ctx)
 
 			})
+		case "scanner":
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Library_scanner(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "agent":
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Library_agent(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
 		case "createdAt":
 			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Library_createdAt(ctx, field, obj)
@@ -5207,6 +5680,26 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_scanners(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx, innerFunc)
+			}
+
+			out.Concurrently(i, func() graphql.Marshaler {
+				return rrm(innerCtx)
+			})
+		case "agents":
+			field := field
+
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_agents(ctx, field)
 				return res
 			}
 
@@ -6409,6 +6902,13 @@ func (ec *executionContext) marshalOItem2ᚖgithubᚗcomᚋmeteoraeᚋmeteorae�
 		return graphql.Null
 	}
 	return ec._Item(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOItemsResult2ᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋmodelsᚐItemsResult(ctx context.Context, sel ast.SelectionSet, v *ItemsResult) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ItemsResult(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOLatestResult2ᚕᚖgithubᚗcomᚋmeteoraeᚋmeteoraeᚑserverᚋmodelsᚐLatestResult(ctx context.Context, sel ast.SelectionSet, v []*LatestResult) graphql.Marshaler {

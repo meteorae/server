@@ -5,6 +5,8 @@ extend type Query {
   libraries: [Library]
   "Query the availabel scanners for a library type."
   scanners(libraryType: String!): [String!]
+  "Query the available agents for a library type."
+  agents(libraryType: String!): [String!]
 }
 
 extend type Mutation {
@@ -15,6 +17,7 @@ extend type Mutation {
     language: String!
     locations: [String!]!
     scanner: String!
+    agent: String!
   ): Library!
 }
 
@@ -29,6 +32,8 @@ type Library {
   type: String!
   language: String!
   locations: [String!]!
+  scanner: String!
+  agent: String!
   createdAt: Time!
   updatedAt: Time!
   scannedAt: Time!

@@ -5,10 +5,11 @@ import (
 )
 
 type Subscriptions struct {
-	ItemAddedObservers    map[string]chan *ItemMetadata
-	ItemUpdatedObservers  map[string]chan *ItemMetadata
-	LibraryAddedObservers map[string]chan *Library
-	mu                    sync.Mutex
+	ItemAddedObservers      map[string]chan *ItemMetadata
+	ItemUpdatedObservers    map[string]chan *ItemMetadata
+	LibraryAddedObservers   map[string]chan *Library
+	LibraryUpdatedObservers map[string]chan *Library
+	mu                      sync.Mutex
 }
 
 func (s *Subscriptions) Lock() {
@@ -23,14 +24,9 @@ var SubsciptionsManager *Subscriptions
 
 func init() {
 	SubsciptionsManager = &Subscriptions{
-		ItemAddedObservers:    make(map[string]chan *ItemMetadata),
-		ItemUpdatedObservers:  make(map[string]chan *ItemMetadata),
-		LibraryAddedObservers: make(map[string]chan *Library),
-	}
-}
-
-func SendItemUpdated(item ItemMetadata) {
-	for _, observer := range SubsciptionsManager.ItemUpdatedObservers {
-		observer <- &item
+		ItemAddedObservers:      make(map[string]chan *ItemMetadata),
+		ItemUpdatedObservers:    make(map[string]chan *ItemMetadata),
+		LibraryAddedObservers:   make(map[string]chan *Library),
+		LibraryUpdatedObservers: make(map[string]chan *Library),
 	}
 }

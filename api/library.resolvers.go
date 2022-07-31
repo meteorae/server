@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/google/uuid"
+	"github.com/meteorae/meteorae-server/agents"
 	"github.com/meteorae/meteorae-server/database"
 	filesystemScanner "github.com/meteorae/meteorae-server/filesystem/scanner"
 	"github.com/meteorae/meteorae-server/models"
@@ -34,15 +35,14 @@ func (r *libraryResolver) Locations(ctx context.Context, obj *database.Library) 
 	return locations, nil
 }
 
-func (r *mutationResolver) AddLibrary(ctx context.Context, typeArg string, name string, language string, locations []string, scanner string) (*database.Library, error) {
-	library, libraryLocations, err := database.CreateLibrary(name, language, typeArg, locations, scanner)
+func (r *mutationResolver) AddLibrary(ctx context.Context, typeArg string, name string, language string, locations []string, scanner string, agent string) (*database.Library, error) {
+	library, libraryLocations, err := database.CreateLibrary(name, language, typeArg, locations, scanner, agent)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to create library")
 
 		return nil, fmt.Errorf("failed to create library: %w", err)
 	}
 
-	// TODO: Move this to a library manager
 	err = tasks.LibraryScanQueue.Submit(func() {
 		log.Info().Msgf("Scanning library %s", library.Name)
 
@@ -51,13 +51,12 @@ func (r *mutationResolver) AddLibrary(ctx context.Context, typeArg string, name 
 
 			filesystemScanner.ScanDirectory(location.RootPath, *library)
 		}
+
+		// After the scan is complete, queue up a metadata refresh.
+		agents.RefreshLibraryMetadata(*library)
 	})
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to dispatch library scan task")
-	}
-
-	for _, observer := range database.SubsciptionsManager.LibraryAddedObservers {
-		observer <- library
 	}
 
 	return library, nil
@@ -77,6 +76,17 @@ func (r *queryResolver) Libraries(ctx context.Context) ([]*database.Library, err
 
 func (r *queryResolver) Scanners(ctx context.Context, libraryType string) ([]string, error) {
 	scanners := scanners.GetScannerNamesForLibraryType(libraryType)
+
+	return scanners, nil
+}
+
+func (r *queryResolver) Agents(ctx context.Context, libraryType string) ([]string, error) {
+	libraryTypeValue, err := database.LibraryTypeFromString(libraryType)
+	if err != nil {
+		return nil, fmt.Errorf("invalid library type: %w", err)
+	}
+
+	scanners := agents.GetAgentNamesForLibraryType(libraryTypeValue)
 
 	return scanners, nil
 }

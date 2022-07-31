@@ -35,6 +35,7 @@ require (
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
+	github.com/michiwend/golang-pretty v0.0.0-20141116172505-8ac61812ea3f // indirect
 	github.com/nwaples/rardecode v1.1.0 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.1 // indirect
@@ -93,8 +94,10 @@ require (
 	github.com/justinas/alice v1.2.0
 	github.com/mattn/go-sqlite3 v1.14.13 // indirect
 	github.com/mholt/archiver/v3 v3.5.1
+	github.com/michiwend/gomusicbrainz v0.0.0-20181012083520-6c07e13dd396
 	github.com/rs/cors v1.8.2
 	github.com/rs/zerolog v1.27.0
+	github.com/shkh/lastfm-go v0.0.0-20191215035245-89a801c244e0
 	github.com/vmihailenco/taskq/v3 v3.2.8
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4 // indirect
 	golang.org/x/exp v0.0.0-20220706164943-b4a6d9510983

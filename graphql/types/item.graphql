@@ -2,9 +2,14 @@ extend type Query {
   "Query the specified item."
   item(id: ID!): Item
   "Query all items."
-  items(limit: Int = 20, offset: Int = 0, libraryId: ID!): [Item]
+  items(limit: Int = 20, offset: Int = 0, libraryId: ID!): ItemsResult
   "Query the children of the provided item."
-  children(limit: Int = 20, offset: Int = 0, item: ID!): [Item]
+  children(limit: Int = 20, offset: Int = 0, item: ID!): ItemsResult
+}
+
+type ItemsResult {
+  items: [Item]
+  total: Int
 }
 
 extend type Subscription {
@@ -34,4 +39,7 @@ type Item {
   type: String!
   createdAt: Time!
   updatedAt: Time!
+  deletedAt: Time!
+  isRefreshing: Boolean!
+  isAnalyzing: Boolean!
 }

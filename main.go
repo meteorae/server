@@ -13,6 +13,7 @@ import (
 
 	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/getsentry/sentry-go"
+	"github.com/meteorae/meteorae-server/agents"
 	_ "github.com/meteorae/meteorae-server/config"
 	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/helpers"
@@ -67,6 +68,7 @@ func main() {
 	defer vips.Shutdown()
 
 	scanners.InitScannersManager()
+	agents.InitAgentsManager()
 
 	// Initialize the task queue
 	err = tasks.StartTaskQueues()
@@ -75,6 +77,7 @@ func main() {
 
 		return
 	}
+
 	defer tasks.StopTaskQueues()
 
 	// Initialize the web server and all its components
