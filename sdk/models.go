@@ -103,21 +103,26 @@ type TVEpisode struct {
 
 type MusicAlbum struct {
 	*ItemInfo
-	AlbumArtist         string
-	Artist              []string
-	MusicBrainzAlbumID  string
-	MusicBrainzArtistID string
+	AlbumArtist             string
+	Artist                  []string
+	ArtistThumb             string
+	MusicBrainzAlbumGroupID string
+	MusicBrainzAlbumID      string
+	MusicBrainzArtistID     string
 }
 
 // A MusicTrack represents information about an individual track of a music album,
 // obtained through scanning or through an agent.
 type MusicTrack struct {
 	*ItemInfo
-	AlbumArtist string
-	AlbumName   string
-	DiscIndex   int
-	TrackIndex  int
-	Artist      []string
+	AlbumArtist             string
+	AlbumName               string
+	DiscIndex               int
+	TrackIndex              int
+	Artist                  []string
+	MusicBrainzAlbumGroupID string
+	MusicBrainzAlbumID      string
+	MusicBrainzArtistID     string
 }
 
 type Image struct {

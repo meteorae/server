@@ -59,28 +59,28 @@ const (
 )
 
 type ItemMetadata struct {
-	ID                  uint      `gorm:"primary_key" json:"id"`
-	Title               string    `gorm:"type:VARCHAR(255)" json:"title"`
-	SortTitle           string    `gorm:"type:VARCHAR(255) COLLATE NOCASE" json:"sortTitle"`
-	OriginalTitle       string    `gorm:"type:VARCHAR(255)" json:"originalTitle"`
-	Tagline             string    `gorm:"type:VARCHAR(255)" json:"tagline"`
-	Summary             string    `json:"summary"`
-	Type                ItemType  `gorm:"not null;type:INT" json:"type"`
-	UUID                uuid.UUID `gorm:"not null;type:UUID" json:"uuid"`
-	ExternalIdentifiers []ExternalIdentifier
-	ReleaseDate         time.Time      `json:"releaseDate"`
-	EndDate             time.Time      `json:"endDate"`
-	Popularity          float32        `json:"popularity"`
-	ParentID            uint           `json:"parentId"`
-	Children            []ItemMetadata `gorm:"foreignkey:ParentID" json:"children"`
-	Sequence            int            `json:"sequence"`
-	AbsoluteSequence    int            `json:"absoluteSequence"`
-	Duration            uint           `json:"duration"`
-	OriginalLanguage    string         `json:"originalLanguage"`
-	Thumb               string         `json:"thumb"`
-	Art                 string         `json:"art"`
+	ID                  uint                 `gorm:"primary_key" json:"id"`
+	Title               string               `gorm:"type:VARCHAR(255)" json:"title"`
+	SortTitle           string               `gorm:"type:VARCHAR(255) COLLATE NOCASE" json:"sortTitle"`
+	OriginalTitle       string               `gorm:"type:VARCHAR(255)" json:"originalTitle"`
+	Tagline             string               `gorm:"type:VARCHAR(255)" json:"tagline"`
+	Summary             string               `json:"summary"`
+	Type                ItemType             `gorm:"not null;type:INT" json:"type"`
+	UUID                uuid.UUID            `gorm:"not null;type:UUID" json:"uuid"`
+	ExternalIdentifiers []ExternalIdentifier `gorm:"foreignKey:ItemMetadataID"`
+	ReleaseDate         time.Time            `json:"releaseDate"`
+	EndDate             time.Time            `json:"endDate"`
+	Popularity          float32              `json:"popularity"`
+	ParentID            uint                 `json:"parentId"`
+	Children            []ItemMetadata       `gorm:"foreignkey:ParentID" json:"children"`
+	Sequence            int                  `json:"sequence"`
+	AbsoluteSequence    int                  `json:"absoluteSequence"`
+	Duration            uint                 `json:"duration"`
+	OriginalLanguage    string               `json:"originalLanguage"`
+	Thumb               string               `json:"thumb"`
+	Art                 string               `json:"art"`
 	// ExtraInfo        datatypes.JSON `json:"extraInfo"`
-	Parts        []MediaPart `json:"mediaPart"`
+	Parts        []MediaPart `gorm:"foreignKey:ItemMetadataID" json:"mediaPart"`
 	LibraryID    uint
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
@@ -107,10 +107,9 @@ func (item *ItemMetadata) AfterUpdate(*gorm.DB) error {
 
 // Returns the requested fields from the specified item.
 func GetItemByID(id uint) (ItemMetadata, error) {
-	// TODO: Figure out a way to only request specific fields for this
 	var item ItemMetadata
 
-	if result := db.First(&item, id); result.Error != nil {
+	if result := db.Preload("ExternalIdentifiers").First(&item, id); result.Error != nil {
 		return ItemMetadata{}, result.Error
 	}
 
@@ -209,15 +208,37 @@ func GetItemsFromLibrary(library Library, limit, offset *int64) ([]*ItemMetadata
 	return items, nil
 }
 
-func GetItemsCountFromLibrary(libraryID uint) (int64, error) {
+func GetItemsCountFromLibrary(library Library) (int64, error) {
 	var count int64
 
-	result := db.Model(&ItemMetadata{}).Where("library_id = ? AND parent_id = 0", libraryID).Count(&count)
-	if result.Error != nil {
-		return 0, result.Error
+	switch library.Type {
+	case MusicLibrary:
+		result := db.Model(&ItemMetadata{}).Where("library_id = ? AND type = ?", library.ID, MusicAlbumItem).Count(&count)
+		if result.Error != nil {
+			return 0, result.Error
+		}
+	default:
+		result := db.Model(&ItemMetadata{}).Where("library_id = ? AND parent_id = 0", library.ID).Count(&count)
+		if result.Error != nil {
+			return 0, result.Error
+		}
 	}
 
 	return count, nil
+}
+
+// Returns the first child of a given item with a given type.
+func GetChildFromItem(parentItemID uint, itemType ItemType) (ItemMetadata, error) {
+	var item ItemMetadata
+
+	result := db.
+		Where("parent_id = ? AND type = ?", parentItemID, itemType).
+		First(&item)
+	if result.Error != nil {
+		return ItemMetadata{}, result.Error
+	}
+
+	return item, nil
 }
 
 // Returns all the children of a given item.

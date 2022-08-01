@@ -92,7 +92,7 @@ func GetMetadata(item database.ItemMetadata) (database.ItemMetadata, error) {
 	if media, ok := resultMovie.(sdk.Movie); ok {
 		movieData, err := tmdbAPI.GetMovieInfo(media.TmdbID, map[string]string{})
 		if err != nil {
-			log.Err(err).Msgf("failed to fetch information for movie \"%s\": %w", item.Title, err)
+			log.Err(err).Msgf("failed to fetch information for movie \"%s\"", item.Title)
 		}
 
 		releaseDate, err := time.Parse("2006-01-02", movieData.ReleaseDate)

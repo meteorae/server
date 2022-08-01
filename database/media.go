@@ -140,6 +140,17 @@ func CreateMediaPart(mediaPart MediaPart) (*MediaPart, error) {
 	return &mediaPart, nil
 }
 
+func GetMediaParts(metadataID uint) ([]MediaPart, error) {
+	var mediaPart []MediaPart
+
+	result := db.Where("item_metadata_id = ?", metadataID).Find(&mediaPart)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return mediaPart, nil
+}
+
 func GetMediaPart(metadataID, mediaPartID string) (*MediaPart, error) {
 	var mediaPart MediaPart
 

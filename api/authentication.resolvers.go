@@ -61,7 +61,7 @@ func (r *mutationResolver) Register(ctx context.Context, username string, passwo
 }
 
 func (r *queryResolver) User(ctx context.Context, id string) (*database.User, error) {
-	userID, err := strconv.ParseUint(id, 10, 64)
+	userID, err := strconv.ParseUint(id, 10, 32)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse user ID: %w", err)
 	}

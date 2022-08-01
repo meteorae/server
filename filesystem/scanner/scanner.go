@@ -120,10 +120,19 @@ func scanDirectory(directory, root string, library database.Library) {
 				if _, err := database.GetItemByUUID(uuid.NewSHA1(library.UUID, []byte(fullPath))); err != nil {
 					// If item doesn't exist, add it.
 					if errors.Is(err, gorm.ErrRecordNotFound) {
+						parts := make([]database.MediaPart, 0, len(media.Parts))
+
+						for _, part := range media.Parts {
+							parts = append(parts, database.MediaPart{
+								FilePath: part,
+							})
+						}
+
 						items = append(items, database.ItemMetadata{
 							Title:       media.Title,
 							ReleaseDate: media.ReleaseDate,
 							LibraryID:   library.ID,
+							Parts:       parts,
 							UUID:        uuid.NewSHA1(library.UUID, []byte(media.Parts[0])),
 							Type:        database.MovieItem,
 						})
@@ -206,11 +215,20 @@ func scanDirectory(directory, root string, library database.Library) {
 					continue
 				}
 
+				parts := make([]database.MediaPart, 0, len(media.Parts))
+
+				for _, part := range media.Parts {
+					parts = append(parts, database.MediaPart{
+						FilePath: part,
+					})
+				}
+
 				items = append(items, database.ItemMetadata{
 					Title:     media.Title,
 					ParentID:  season.ID,
 					Sequence:  media.Episode,
 					LibraryID: library.ID,
+					Parts:     parts,
 					UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
 					Type:      database.TVEpisodeItem,
 				})
@@ -232,6 +250,13 @@ func scanDirectory(directory, root string, library database.Library) {
 						LibraryID: library.ID,
 						Type:      database.PersonItem,
 						UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
+					}
+
+					if media.MusicBrainzArtistID != "" {
+						artist.ExternalIdentifiers = append(artist.ExternalIdentifiers, database.ExternalIdentifier{
+							Identifier:     strings.Trim(strings.TrimSpace(media.MusicBrainzArtistID), "\x00"),
+							IdentifierType: sdk.MusicbrainzArtistIdentifier,
+						})
 					}
 
 					artist, err = database.CreateItem(artist)
@@ -257,6 +282,13 @@ func scanDirectory(directory, root string, library database.Library) {
 						Thumb:     media.Thumb,
 						Type:      database.MusicAlbumItem,
 						UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
+					}
+
+					if media.MusicBrainzAlbumID != "" {
+						album.ExternalIdentifiers = append(album.ExternalIdentifiers, database.ExternalIdentifier{
+							Identifier:     strings.Trim(strings.TrimSpace(media.MusicBrainzAlbumID), "\x00"),
+							IdentifierType: sdk.MusicbrainzReleaseIdentifier,
+						})
 					}
 
 					album, err = database.CreateItem(album)
@@ -296,11 +328,20 @@ func scanDirectory(directory, root string, library database.Library) {
 					continue
 				}
 
+				parts := make([]database.MediaPart, 0, len(media.Parts))
+
+				for _, part := range media.Parts {
+					parts = append(parts, database.MediaPart{
+						FilePath: part,
+					})
+				}
+
 				items = append(items, database.ItemMetadata{
 					Title:     media.Title,
 					ParentID:  medium.ID,
 					Sequence:  media.TrackIndex,
 					LibraryID: library.ID,
+					Parts:     parts,
 					UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
 					Type:      database.MusicTrackItem,
 				})
@@ -374,10 +415,19 @@ func scanDirectory(directory, root string, library database.Library) {
 					parentAlbumID = album.ID
 				}
 
+				parts := make([]database.MediaPart, 0, len(media.Parts))
+
+				for _, part := range media.Parts {
+					parts = append(parts, database.MediaPart{
+						FilePath: part,
+					})
+				}
+
 				items = append(items, database.ItemMetadata{
 					Title:     media.Title,
 					ParentID:  parentAlbumID,
 					LibraryID: library.ID,
+					Parts:     parts,
 					UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
 					Type:      database.ImageItem,
 				})
@@ -451,10 +501,19 @@ func scanDirectory(directory, root string, library database.Library) {
 					parentAlbumID = album.ID
 				}
 
+				parts := make([]database.MediaPart, 0, len(media.Parts))
+
+				for _, part := range media.Parts {
+					parts = append(parts, database.MediaPart{
+						FilePath: part,
+					})
+				}
+
 				items = append(items, database.ItemMetadata{
 					Title:     media.Title,
 					ParentID:  parentAlbumID,
 					LibraryID: library.ID,
+					Parts:     parts,
 					UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
 					Type:      database.VideoClipItem,
 				})

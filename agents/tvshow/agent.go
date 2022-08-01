@@ -149,7 +149,7 @@ func GetMetadata(item database.ItemMetadata) (database.ItemMetadata, error) {
 	if media, ok := resultShow.(sdk.TVShow); ok {
 		seriesData, err := tmdbAPI.GetTvInfo(media.TmdbID, map[string]string{})
 		if err != nil {
-			log.Err(err).Msgf("failed to fetch information for series \"%s\": %w", item.Title, err)
+			log.Err(err).Msgf("failed to fetch information for series \"%s\"", item.Title)
 		}
 
 		releaseDate, err := time.Parse("2006-01-02", seriesData.FirstAirDate)

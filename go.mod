@@ -18,6 +18,7 @@ require (
 )
 
 require (
+	github.com/andres-erbsen/clock v0.0.0-20160526145045-9e14626cd129 // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/bsm/redislock v0.7.1 // indirect
 	github.com/capnm/sysinfo v0.0.0-20130621111458-5909a53897f3 // indirect
@@ -99,6 +100,7 @@ require (
 	github.com/rs/zerolog v1.27.0
 	github.com/shkh/lastfm-go v0.0.0-20191215035245-89a801c244e0
 	github.com/vmihailenco/taskq/v3 v3.2.8
+	go.uber.org/ratelimit v0.2.0
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4 // indirect
 	golang.org/x/exp v0.0.0-20220706164943-b4a6d9510983
 	golang.org/x/text v0.3.7

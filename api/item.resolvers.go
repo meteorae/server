@@ -122,7 +122,7 @@ func (r *queryResolver) Items(ctx context.Context, limit *int64, offset *int64, 
 		return nil, fmt.Errorf("failed to get items: %w", err)
 	}
 
-	count, err := database.GetItemsCountFromLibrary(library.ID)
+	count, err := database.GetItemsCountFromLibrary(library)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get items count")
 

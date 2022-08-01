@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/dhowden/tag"
+	"github.com/dhowden/tag/mbz"
 	"github.com/meteorae/meteorae-server/scanners/filter"
 	"github.com/meteorae/meteorae-server/sdk"
 	"github.com/meteorae/meteorae-server/utils"
@@ -71,7 +72,7 @@ func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions 
 	albumTracks := make([]sdk.MusicTrack, 0, len(*files))
 
 	for _, file := range *files {
-		artist, album, title, track, disc, albumArtist, _ := getInfoFromTags(filepath.Join(root, path, file))
+		artist, album, title, track, disc, albumArtist, musicBrainzArtistID, musicBrainzAlbumID := getInfoFromTags(filepath.Join(root, path, file))
 
 		if albumArtist != "" && utils.IsStringInSlice(strings.ToLower(albumArtist), variousArtists) {
 			albumArtist = "Various Artists"
@@ -94,11 +95,13 @@ func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions 
 				},
 				Title: title,
 			},
-			AlbumArtist: albumArtist,
-			AlbumName:   album,
-			Artist:      []string{artist},
-			DiscIndex:   disc,
-			TrackIndex:  track,
+			AlbumArtist:         albumArtist,
+			AlbumName:           album,
+			Artist:              []string{artist},
+			DiscIndex:           disc,
+			TrackIndex:          track,
+			MusicBrainzAlbumID:  musicBrainzAlbumID,
+			MusicBrainzArtistID: musicBrainzArtistID,
 		}
 
 		albumTracks = append(albumTracks, trackItem)
@@ -204,7 +207,7 @@ func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions 
 	}
 }
 
-func getInfoFromTags(file string) (string, string, string, int, int, string, *tag.Picture) {
+func getInfoFromTags(file string) (string, string, string, int, int, string, string, string) {
 	if strings.HasSuffix(strings.ToLower(file), "mp3") ||
 		strings.HasSuffix(strings.ToLower(file), "mp4") ||
 		strings.HasSuffix(strings.ToLower(file), "m4a") ||
@@ -212,22 +215,22 @@ func getInfoFromTags(file string) (string, string, string, int, int, string, *ta
 		strings.HasSuffix(strings.ToLower(file), "m4p") ||
 		strings.HasSuffix(strings.ToLower(file), "ogg") ||
 		strings.HasSuffix(strings.ToLower(file), "flac") {
-		artist, album, title, track, disc, albumArtist, albumArt := getTags(file)
+		artist, album, title, track, disc, albumArtist, musicBrainzArtistID, musicBrainzAlbumID := getTags(file)
 
-		return artist, album, title, track, disc, albumArtist, albumArt
+		return artist, album, title, track, disc, albumArtist, musicBrainzArtistID, musicBrainzAlbumID
 	}
 
 	// TODO: Figure out support for OggOpus and WMA
 
-	return "", "", "", 0, 0, "", nil
+	return "", "", "", 0, 0, "", "", ""
 }
 
-func getTags(file string) (string, string, string, int, int, string, *tag.Picture) {
+func getTags(file string) (string, string, string, int, int, string, string, string) {
 	mediaFile, err := os.Open(file)
 	if err != nil {
 		log.Err(err).Msgf("Failed to open file %s", file)
 
-		return "", "", "", 0, 0, "", nil
+		return "", "", "", 0, 0, "", "", ""
 	}
 	defer mediaFile.Close()
 
@@ -235,11 +238,16 @@ func getTags(file string) (string, string, string, int, int, string, *tag.Pictur
 	if err != nil {
 		log.Err(err).Msgf("Failed to read tags from file %s", file)
 
-		return "", "", "", 0, 0, "", nil
+		return "", "", "", 0, 0, "", "", ""
 	}
 
 	trackNumber, _ := metadata.Track()
 	discNumber, _ := metadata.Disc()
+
+	musicBrainz := mbz.Extract(metadata)
+
+	musicBrainzArtistID := musicBrainz.Get(mbz.AlbumArtist)
+	musicBrainzAlbumID := musicBrainz.Get(mbz.Album)
 
 	return metadata.Artist(),
 		metadata.Album(),
@@ -247,5 +255,6 @@ func getTags(file string) (string, string, string, int, int, string, *tag.Pictur
 		trackNumber,
 		discNumber,
 		metadata.AlbumArtist(),
-		metadata.Picture()
+		musicBrainzArtistID,
+		musicBrainzAlbumID
 }
