@@ -148,8 +148,12 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 
 				switch {
 				case errors.Is(err, nil):
+					log.Debug().Str("path", imagePath).Msg("Cached image found")
+
 					isCached = true
 				case errors.Is(err, os.ErrNotExist):
+					log.Debug().Str("path", imagePath).Msg("Cached image not found")
+
 					isCached = false
 					shouldCache = true
 
@@ -249,10 +253,12 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 			}
 		}
 
+		var export []byte
+
 		// We store images internally in WebP for size and quality reasons.
 		// If the client doesn't support it, we convert it to JPEG
 		if isCached && !supportsWebP(acceptList) {
-			export, _, err := image.ExportJpeg(vips.NewJpegExportParams())
+			export, _, err = image.ExportJpeg(vips.NewJpegExportParams())
 			if err != nil {
 				log.Err(err).Msg("Failed to set image format")
 				http.Error(writer, "Failed to set image format", http.StatusInternalServerError)
@@ -261,19 +267,19 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 			}
 
 			buffer = *bytes.NewBuffer(export)
-		}
+		} else {
+			export, _, err = image.ExportWebp(vips.NewWebpExportParams())
+			if err != nil {
+				log.Err(err).Msg("Failed to set image format")
+				http.Error(writer, "Failed to set image format", http.StatusInternalServerError)
 
-		export, _, err := image.ExportJpeg(vips.NewJpegExportParams())
-		if err != nil {
-			log.Err(err).Msg("Failed to set image format")
-			http.Error(writer, "Failed to set image format", http.StatusInternalServerError)
-
-			return
+				return
+			}
 		}
 
 		buffer = *bytes.NewBuffer(export)
 
-		writer.Header().Set("Cache-Control", "max-age=604800")
+		writer.Header().Set("Cache-Control", "max-age=259200")
 
 		_, err = io.Copy(writer, &buffer)
 		if err != nil {
