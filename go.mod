@@ -83,7 +83,7 @@ require (
 	golang.org/x/image v0.0.0-20200927104501-e162460cd6b5 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3 // indirect
 	golang.org/x/net v0.0.0-20220520000938-2e3eb7b945c2
-	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
+	golang.org/x/sys v0.0.0-20220731174439-a90be440212d
 	golang.org/x/tools v0.1.10 // indirect
 	golang.org/x/xerrors v0.0.0-20220517211312-f3a8303e98df // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
@@ -94,6 +94,7 @@ require (
 	github.com/adrg/xdg v0.4.0
 	github.com/alexedwards/argon2id v0.0.0-20211130144151-3585854a6387
 	github.com/bmatcuk/doublestar/v4 v4.0.2
+	github.com/cloudfoundry/jibber_jabber v0.0.0-20151120183258-bcc4c8345a21
 	github.com/davidbyttow/govips/v2 v2.11.0
 	github.com/dhowden/tag v0.0.0-20201120070457-d52dcb253c63
 	github.com/getsentry/sentry-go v0.13.0
@@ -108,6 +109,7 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/justinas/alice v1.2.0
+	github.com/klauspost/cpuid/v2 v2.1.0
 	github.com/mattn/go-sqlite3 v1.14.13 // indirect
 	github.com/mholt/archiver/v3 v3.5.1
 	github.com/michiwend/gomusicbrainz v0.0.0-20181012083520-6c07e13dd396

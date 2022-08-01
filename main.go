@@ -52,10 +52,12 @@ func main() {
 
 	// Give the user some basic information about which version of Meteorae is running and on what
 	log.Info().Msgf("Starting Meteorae %s", helpers.Version)
+	log.Info().Msgf("Language: %s", helpers.SystemLocale)
 	log.Info().Msgf("Build Date: %s", helpers.BuildDate)
 	log.Info().Msgf("Git Commit: %s", helpers.GitCommit)
-	log.Info().Msgf("Go Version: %s", helpers.GoVersion)
+	log.Info().Msgf("Go Runtime Version: %s", helpers.GoVersion)
 	log.Info().Msgf("OS / Arch: %s", helpers.OsArch)
+	log.Info().Msgf("Processor: %d-core %s", helpers.CPUCoreCount, helpers.CPUName)
 
 	// Initialize the database
 	err := database.NewDatabase(log.Logger)
