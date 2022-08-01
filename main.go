@@ -3,12 +3,8 @@ package main
 import "C"
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"net/http"
-	"os"
-	"os/signal"
 	"time"
 
 	"github.com/davidbyttow/govips/v2/vips"
@@ -90,22 +86,19 @@ func main() {
 
 	log.Info().Msg("Starting the web server…")
 
-	if err := srv.ListenAndServe(); !errors.Is(err, nil) {
-		if !errors.Is(err, http.ErrServerClosed) {
-			log.Err(err).Msg("The web server encountered an error")
-		} else {
-			log.Info().Msg("The web server stopped")
-		}
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Err(err).Msg("The web server encountered an error")
+
+		return
 	}
 
-	c := make(chan os.Signal, 1)
-	// TODO: Handle SIGKILL, SIGQUIT and SIGTERM
-	signal.Notify(c, os.Interrupt)
+	log.Info().Msg("Web server started")
 
-	// Block until we get our signal
-	<-c
+	/*quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
 
-	log.Info().Msg("Received a SIGINT signal, shutting down gracefully…")
+	log.Info().Msg("Shutting down…")
 
 	// Shutdown the web server and force-quit if it takes too long
 	ctx, cancel := context.WithTimeout(context.Background(), serverShutdownTimeout)
@@ -114,5 +107,5 @@ func main() {
 	err = srv.Shutdown(ctx)
 	if err != nil {
 		log.Err(err).Msg("The web server encountered an error while shutting down")
-	}
+	}*/
 }

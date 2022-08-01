@@ -12,7 +12,10 @@ import (
 	gqlLru "github.com/99designs/gqlgen/graphql/handler/lru"
 	gqlTransport "github.com/99designs/gqlgen/graphql/handler/transport"
 	gqlPlayground "github.com/99designs/gqlgen/graphql/playground"
-	"github.com/gorilla/mux"
+	sentrygin "github.com/getsentry/sentry-go/gin"
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/websocket"
 	"github.com/justinas/alice"
 	"github.com/meteorae/meteorae-server/api"
@@ -23,10 +26,11 @@ import (
 	"github.com/meteorae/meteorae-server/server/handlers/library"
 	"github.com/meteorae/meteorae-server/server/handlers/web"
 	"github.com/meteorae/meteorae-server/utils"
-	"github.com/rs/cors"
 	"github.com/rs/zerolog/hlog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 	"gorm.io/gorm"
 )
 
@@ -103,7 +107,9 @@ func setupHandler(writer http.ResponseWriter, request *http.Request) {
 
 func GetWebServer() (*http.Server, error) {
 	// Setup webserver and serve GraphQL handler
-	router := mux.NewRouter()
+	router := gin.New()
+
+	router.UseH2C = true
 
 	recoverFunc := func(ctx context.Context, err interface{}) error {
 		log.Error().Interface("error", err).Msg("A GraphQL error occurred")
@@ -162,23 +168,40 @@ func GetWebServer() (*http.Server, error) {
 
 	spa := web.SPAHandler{}
 
-	router.Handle("/setup", loggingHandler.Then(http.HandlerFunc(setupHandler))).Methods("GET")
-	router.Handle("/graphql", loggingHandler.Then(queryHandler))
-	router.Handle("/playground", loggingHandler.Then(gqlPlayground.Handler("GraphQL playground", "/query")))
-	router.Handle("/image/transcode", loggingHandler.Then(http.HandlerFunc(transcodeHandler.HTTPHandler)))
-	router.Handle("/library/{metadata}/{part}/file.{ext}",
-		loggingHandler.Then(http.HandlerFunc(library.MediaPartHTTPHandler)))
-	router.PathPrefix("/web").Handler(loggingHandler.Then(spa))
-	router.Use(cors.AllowAll().Handler)
-	router.Use(LoggingMiddleware)
-	router.Use(AuthMiddleware)
+	gin.DebugPrintRouteFunc = func(httpMethod, absolutePath, handlerName string, nuHandlers int) {
+		log.Debug().
+			Str("method", httpMethod).
+			Str("path", absolutePath).
+			Str("handler", handlerName).
+			Int("handlers", nuHandlers).
+			Msg("")
+	}
+
+	router.Use(sentrygin.New(sentrygin.Options{
+		// Send the panic to Gin's recovery handler
+		Repanic: true,
+	}))
+	router.Use(cors.Default())
+
+	router.Any("/graphql", gin.WrapH(queryHandler))
+	router.GET("/playground", gin.WrapH(
+		handlers.CompressHandler(
+			gqlPlayground.Handler("GraphQL playground", "/query"))))
+	router.GET("/image/transcode", gin.WrapH(
+		handlers.CompressHandler(
+			http.HandlerFunc(transcodeHandler.HTTPHandler))))
+	router.GET("/library/{metadata}/{part}/file.{ext}", gin.WrapH(
+		http.HandlerFunc(library.MediaPartHTTPHandler)))
+	router.GET("/web", gin.WrapH(handlers.CompressHandler(spa)))
+
+	// TODO: If we're not in HTTP/2, we should keep the connection alive
+
+	h2s := http2.Server{}
 
 	port := viper.GetInt("port")
 
 	return &http.Server{
-		Handler:      router,
-		Addr:         fmt.Sprintf(":%d", port),
-		WriteTimeout: writeTimeout,
-		ReadTimeout:  readTimeout,
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: h2c.NewHandler(router, &h2s),
 	}, nil
 }

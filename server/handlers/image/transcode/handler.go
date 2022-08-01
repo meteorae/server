@@ -266,7 +266,7 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 				return
 			}
 
-			buffer = *bytes.NewBuffer(export)
+			writer.Header().Set("Content-Type", "image/jpeg")
 		} else {
 			export, _, err = image.ExportWebp(vips.NewWebpExportParams())
 			if err != nil {
@@ -275,11 +275,15 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 
 				return
 			}
+
+			writer.Header().Set("Content-Type", "image/webp")
 		}
 
 		buffer = *bytes.NewBuffer(export)
 
 		writer.Header().Set("Cache-Control", "max-age=259200")
+		writer.Header().Set("Content-Length", strconv.Itoa(len(buffer.Bytes())))
+		writer.Header().Set("ETag", imageHash)
 
 		_, err = io.Copy(writer, &buffer)
 		if err != nil {
@@ -291,6 +295,8 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 
 		return
 	}
+
+	request.Body.Close()
 }
 
 func supportsWebP(acceptList []string) bool {
