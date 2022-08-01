@@ -3,8 +3,11 @@ package main
 import "C"
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/davidbyttow/govips/v2/vips"
@@ -25,6 +28,9 @@ import (
 var serverShutdownTimeout = 10 * time.Second
 
 func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
 	// If crash reporting is enabled, initialize Sentry.
 	// We do this first so that we can capture any panics that occur during startup.
 	enableReporting := viper.GetBool("crash_reporting")
@@ -86,26 +92,28 @@ func main() {
 
 	log.Info().Msg("Starting the web server…")
 
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Err(err).Msg("The web server encountered an error")
+	// Initializing the server in a goroutine so that
+	// it won't block the graceful shutdown handling below
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Err(err).Msg("The web server encountered an error")
+
+			return
+		}
+	}()
+
+	<-ctx.Done()
+
+	stop()
+	log.Info().Msg("Shutting down gracefully…")
+
+	// Shutdown the web server and force-quit if it takes too long
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Error().Err(err).Msg("Failed to gracefully shutdown web server")
 
 		return
 	}
-
-	log.Info().Msg("Web server started")
-
-	/*quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	log.Info().Msg("Shutting down…")
-
-	// Shutdown the web server and force-quit if it takes too long
-	ctx, cancel := context.WithTimeout(context.Background(), serverShutdownTimeout)
-	defer cancel()
-
-	err = srv.Shutdown(ctx)
-	if err != nil {
-		log.Err(err).Msg("The web server encountered an error while shutting down")
-	}*/
 }

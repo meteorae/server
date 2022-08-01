@@ -82,7 +82,7 @@ require (
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	golang.org/x/image v0.0.0-20200927104501-e162460cd6b5 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3 // indirect
-	golang.org/x/net v0.0.0-20220520000938-2e3eb7b945c2 // indirect
+	golang.org/x/net v0.0.0-20220520000938-2e3eb7b945c2
 	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
 	golang.org/x/tools v0.1.10 // indirect
 	golang.org/x/xerrors v0.0.0-20220517211312-f3a8303e98df // indirect
@@ -96,7 +96,6 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.0.2
 	github.com/davidbyttow/govips/v2 v2.11.0
 	github.com/dhowden/tag v0.0.0-20201120070457-d52dcb253c63
-	github.com/fvbock/endless v0.0.0-20170109170031-447134032cb6
 	github.com/getsentry/sentry-go v0.13.0
 	github.com/gin-contrib/cors v1.4.0
 	github.com/gin-gonic/gin v1.8.1
