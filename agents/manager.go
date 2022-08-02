@@ -1,8 +1,15 @@
 package agents
 
 import (
+	"encoding/xml"
 	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
 
+	"github.com/adrg/xdg"
+	"github.com/imdario/mergo"
 	movieAgent "github.com/meteorae/meteorae-server/agents/movie"
 	musicAgent "github.com/meteorae/meteorae-server/agents/musicalbum"
 	TVShowAgent "github.com/meteorae/meteorae-server/agents/tvshow"
@@ -13,114 +20,158 @@ import (
 )
 
 type (
-	GetMetadataFuncType  func(database.ItemMetadata) (database.ItemMetadata, error)
+	GetMetadataFuncType  func(database.ItemMetadata) (sdk.Item, error)
 	GetSearchResultsFunc func(database.ItemMetadata) ([]sdk.Item, error)
 )
 
 type Agent struct {
+	Identifier           string
 	Name                 string
 	GetMetadataFunc      GetMetadataFuncType
 	GetSearchResultsFunc GetSearchResultsFunc
 }
 
 // Scanners are organised by item type.
-var scanners = map[database.ItemType][]Agent{}
+var scanners = map[database.LibraryType][]Agent{}
 
 func InitAgentsManager() {
-	scanners[database.MovieItem] = []Agent{
+	scanners[database.MovieLibrary] = []Agent{
 		{
+			Identifier:           movieAgent.GetIdentifier(),
 			Name:                 movieAgent.GetName(),
 			GetMetadataFunc:      movieAgent.GetMetadata,
 			GetSearchResultsFunc: movieAgent.GetSearchResults,
 		},
 	}
-	scanners[database.MusicAlbumItem] = []Agent{
+	scanners[database.MusicLibrary] = []Agent{
 		{
+			Identifier:           musicAgent.GetIdentifier(),
 			Name:                 musicAgent.GetName(),
 			GetMetadataFunc:      musicAgent.GetMetadata,
 			GetSearchResultsFunc: musicAgent.GetSearchResults,
 		},
 	}
-	scanners[database.MusicMediumItem] = []Agent{}
-	scanners[database.MusicTrackItem] = []Agent{}
-	scanners[database.TVShowItem] = []Agent{
+	scanners[database.TVLibrary] = []Agent{
 		{
+			Identifier:           TVShowAgent.GetIdentifier(),
 			Name:                 TVShowAgent.GetName(),
 			GetMetadataFunc:      TVShowAgent.GetMetadata,
 			GetSearchResultsFunc: TVShowAgent.GetSearchResults,
 		},
 	}
-	scanners[database.TVSeasonItem] = []Agent{}
-	scanners[database.TVEpisodeItem] = []Agent{}
-	scanners[database.ImageItem] = []Agent{}
-	scanners[database.ImageAlbumItem] = []Agent{}
-	scanners[database.PersonItem] = []Agent{}
-	scanners[database.CollectionItem] = []Agent{}
-	scanners[database.VideoClipItem] = []Agent{}
 }
 
 func GetAgentNamesForLibraryType(libraryType database.LibraryType) []string {
-	var itemTypesToCheck []database.ItemType
+	scannerNames := make([]string, 0, len(scanners[libraryType]))
 
-	// We only check for top-level items here.
-	switch libraryType {
-	case database.MovieLibrary:
-		itemTypesToCheck = []database.ItemType{database.MovieItem}
-	case database.TVLibrary:
-		itemTypesToCheck = []database.ItemType{database.TVShowItem}
-	case database.MusicLibrary:
-		itemTypesToCheck = []database.ItemType{database.MusicAlbumItem}
-	}
-
-	var scannerNames []string
-
-	// TODO: Should probably remove duplicates here, when/if we add more item types to check.
-	for _, itemType := range itemTypesToCheck {
-		for _, scanner := range scanners[itemType] {
-			scannerNames = append(scannerNames, scanner.Name)
-		}
+	for _, scanner := range scanners[libraryType] {
+		scannerNames = append(scannerNames, scanner.Name)
 	}
 
 	return scannerNames
 }
 
-func GetGetMetadataFuncByName(name string, itemType database.ItemType) GetMetadataFuncType {
-	for _, scanner := range scanners[itemType] {
-		if scanner.Name == name {
-			return scanner.GetMetadataFunc
+func GetAgentByName(name string, libraryType database.LibraryType) Agent {
+	for _, agent := range scanners[libraryType] {
+		if agent.Name == name {
+			return agent
 		}
 	}
 
-	return nil
+	return Agent{}
 }
 
-func GetGetSearchResultsFunc(name string, itemType database.ItemType) GetSearchResultsFunc {
-	for _, scanner := range scanners[itemType] {
-		if scanner.Name == name {
-			return scanner.GetSearchResultsFunc
-		}
-	}
-
-	return nil
-}
-
-func RefreshItemMetadata(item database.ItemMetadata, library database.Library) error {
-	// Get the scanner for this item.
-	scanner := GetGetMetadataFuncByName(library.Agent, item.Type)
-	if scanner == nil {
+func RefreshItemMetadata(item *database.ItemMetadata, library database.Library) error {
+	// Get the agent for this item.
+	agent := GetAgentByName(library.Agent, library.Type)
+	if agent.Identifier == "" {
 		return fmt.Errorf("no scanner found for item type: %s", item.Type)
 	}
 
 	// Get the metadata.
-	updatedItem, err := scanner(item)
+	updatedItem, err := agent.GetMetadataFunc(*item)
 	if err != nil {
 		return fmt.Errorf("failed to get metadata for item: %w", err)
 	}
 
+	var basicUpdateItem database.ItemMetadata
+
+	// Do we have images to save?
+	if len(updatedItem.GetThumbs()) > 0 {
+		for _, thumb := range updatedItem.GetThumbs() {
+			// Use the first thumbnail by default.
+			if thumb.SortOrder == 1 {
+				basicUpdateItem.Thumb = thumb.Media
+
+				break
+			}
+		}
+	}
+
+	if len(updatedItem.GetArt()) > 0 {
+		for _, art := range updatedItem.GetArt() {
+			// Use the first thumbnail by default.
+			if art.SortOrder == 1 {
+				basicUpdateItem.Art = art.Media
+
+				break
+			}
+		}
+	}
+
 	// Save the metadata.
-	err = item.Update(updatedItem)
+	err = SaveMetadataToXML(updatedItem, item.Type, agent.Identifier)
 	if err != nil {
 		return fmt.Errorf("failed to save metadata for item: %w", err)
+	}
+
+	err = item.Update(basicUpdateItem)
+	if err != nil {
+		return fmt.Errorf("failed to update item: %w", err)
+	}
+
+	mergo.Merge(item, basicUpdateItem, mergo.WithOverride)
+
+	return nil
+}
+
+func SaveMetadataToXML(item sdk.Item, itemType database.ItemType, agentIdentifier string) error {
+	// Get the item's metadata directory.
+	itemUUID := strings.ReplaceAll(item.GetUUID(), "-", "")
+	itemUUIDPrefix := itemUUID[:2]
+
+	metadataDir, err := xdg.DataFile(
+		filepath.Join("meteorae", "metadata", itemType.String(), itemUUIDPrefix, itemUUID, agentIdentifier, "info.xml"))
+	if err != nil {
+		return fmt.Errorf("failed to get metadata directory: %w", err)
+	}
+
+	var xmlFile []byte
+
+	if media, ok := item.(sdk.Movie); ok {
+		xmlFile, err = xml.MarshalIndent(media, "", " ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal item: %w", err)
+		}
+	}
+
+	if media, ok := item.(sdk.TVShow); ok {
+		xmlFile, err = xml.MarshalIndent(media, "", " ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal item: %w", err)
+		}
+	}
+
+	if media, ok := item.(sdk.MusicAlbum); ok {
+		xmlFile, err = xml.MarshalIndent(media, "", " ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal item: %w", err)
+		}
+	}
+
+	err = os.WriteFile(metadataDir, xmlFile, fs.FileMode(0o644))
+	if err != nil {
+		return fmt.Errorf("failed to save metadata: %w", err)
 	}
 
 	return nil
@@ -154,9 +205,9 @@ func RefreshLibraryMetadata(library database.Library) error {
 				observer <- &item
 			}
 
-			err := RefreshItemMetadata(item, library)
+			err := RefreshItemMetadata(&item, library)
 			if err != nil {
-				log.Error().Msgf("Failed to refresh metadata for item: %s", item.Title)
+				log.Err(err).Msgf("Failed to refresh metadata for item: %s", item.Title)
 			}
 
 			item.IsRefreshing = false

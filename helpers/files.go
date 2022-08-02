@@ -9,11 +9,11 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"path/filepath"
 
-	"github.com/adrg/xdg"
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/davidbyttow/govips/v2/vips"
+	"github.com/meteorae/meteorae-server/database"
+	"github.com/meteorae/meteorae-server/helpers/metadata"
 	"github.com/meteorae/meteorae-server/utils"
 )
 
@@ -194,25 +194,14 @@ func EnsurePathExists(path string) error {
 	return fmt.Errorf("failed to ensure path exists: %w", os.MkdirAll(path, BaseDirectoryPermissions))
 }
 
-// Saves a local image file to the image cache.
-// Returns the hash of the image file.
-func SaveLocalImageToCache(filePath string) (string, error) {
-	file, err := os.ReadFile(filePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to open local image file: %w", err)
-	}
-
-	return SaveImageToCache(file)
-}
-
 // Saves a remote image file to the image cache.
 // Returns the hash of the image file.
-func SaveExternalImageToCache(filePath string) (string, error) {
+func SaveExternalImageToCache(fileURL string, agent string, item database.ItemMetadata, filetype string) (string, error) {
 	var fileBuffer bytes.Buffer
 
-	response, err := http.Get(filePath) //#nosec
+	response, err := http.Get(fileURL) //#nosec
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch image \"%s\": %w", filePath, err)
+		return "", fmt.Errorf("failed to fetch image \"%s\": %w", fileURL, err)
 	}
 	defer response.Body.Close()
 
@@ -221,24 +210,20 @@ func SaveExternalImageToCache(filePath string) (string, error) {
 		return "", fmt.Errorf("failed to copy remote image into memory: %w", err)
 	}
 
-	return SaveImageToCache(fileBuffer.Bytes())
+	return SaveImageToCache(fileBuffer.Bytes(), agent, item, filetype)
 }
 
 // Internal method to generate the hash of the image file and save it to the cache.
 // Returns the hash of the image file.
-func SaveImageToCache(file []byte) (string, error) {
+func SaveImageToCache(file []byte, agent string, item database.ItemMetadata, filetype string) (string, error) {
 	hash, err := utils.HashFileBytes(file)
 	if err != nil {
 		return "", fmt.Errorf("failed to hash remote image file: %w", err)
 	}
 
 	fileHash := hex.EncodeToString(hash)
-	prefix := fileHash[0:2]
 
-	imageCachePath, err := xdg.CacheFile("meteorae/images")
-	if err != nil {
-		return "", fmt.Errorf("failed to get image cache path: %w", err)
-	}
+	imageCachePath := metadata.GetFilepathForAgentAndHash(agent, fileHash, item.UUID.String(), item.Type, filetype)
 
 	fileBuffer := bytes.NewBuffer(file)
 
@@ -252,16 +237,7 @@ func SaveImageToCache(file []byte) (string, error) {
 		return "", fmt.Errorf("failed to set image format: %w", err)
 	}
 
-	cachedFilePath := filepath.Join(imageCachePath, prefix, fileHash)
-
-	err = os.MkdirAll(cachedFilePath, BaseDirectoryPermissions)
-	if err != nil {
-		return "", fmt.Errorf("failed to create image cache directory: %w", err)
-	}
-
-	cachedFilePath = filepath.Join(cachedFilePath, "0x0.webp")
-
-	err = ioutil.WriteFile(cachedFilePath, export, BaseFilePermissions)
+	err = ioutil.WriteFile(imageCachePath, export, BaseFilePermissions)
 	if err != nil {
 		return "", fmt.Errorf("failed to write image to disk: %w", err)
 	}

@@ -133,7 +133,6 @@ func CreateLibrary(
 	library := Library{
 		Name:             name,
 		Type:             libraryType,
-		UUID:             uuid.New(),
 		Language:         language,
 		LibraryLocations: libraryLocations,
 		Scanner:          scanner,

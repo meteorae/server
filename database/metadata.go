@@ -15,32 +15,32 @@ type ItemType uint
 func (t ItemType) String() string {
 	switch t {
 	case MovieItem:
-		return "MovieItem"
+		return "Movie"
 	case MusicAlbumItem:
-		return "MusicAlbumItem"
+		return "MusicAlbum"
 	case MusicMediumItem:
-		return "MusicMediumItem"
+		return "MusicMedium"
 	case MusicTrackItem:
-		return "MusicTrackItem"
+		return "MusicTrack"
 	case TVSeasonItem:
-		return "TVSeasonItem"
+		return "TVSeason"
 	case TVShowItem:
-		return "TVShowItem"
+		return "TVShow"
 	case TVEpisodeItem:
-		return "TVEpisodeItem"
+		return "TVEpisode"
 	case ImageItem:
-		return "ImageItem"
+		return "Image"
 	case ImageAlbumItem:
-		return "ImageAlbumItem"
+		return "ImageAlbum"
 	case PersonItem:
-		return "PersonItem"
+		return "Person"
 	case CollectionItem:
-		return "CollectionItem"
+		return "Collection"
 	case VideoClipItem:
-		return "VideoClipItem"
+		return "VideoClip"
 	}
 
-	return "UnknownItemType"
+	return "Unknown"
 }
 
 const (

@@ -94,14 +94,22 @@ func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions 
 					filepath.Join(root, path, file),
 				},
 				Title: title,
+				Identifiers: []sdk.Identifier{
+					{
+						IdentifierType: sdk.MusicbrainzReleaseIdentifier,
+						Identifier:     musicBrainzAlbumID,
+					},
+					{
+						IdentifierType: sdk.MusicbrainzArtistIdentifier,
+						Identifier:     musicBrainzArtistID,
+					},
+				},
 			},
-			AlbumArtist:         albumArtist,
-			AlbumName:           album,
-			Artist:              []string{artist},
-			DiscIndex:           disc,
-			TrackIndex:          track,
-			MusicBrainzAlbumID:  musicBrainzAlbumID,
-			MusicBrainzArtistID: musicBrainzArtistID,
+			AlbumArtist: albumArtist,
+			AlbumName:   album,
+			Artist:      []string{artist},
+			DiscIndex:   disc,
+			TrackIndex:  track,
 		}
 
 		albumTracks = append(albumTracks, trackItem)

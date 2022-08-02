@@ -20,6 +20,7 @@ import (
 	"github.com/gorilla/schema"
 	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/helpers"
+	"github.com/meteorae/meteorae-server/helpers/metadata"
 	"github.com/rs/zerolog/log"
 )
 
@@ -115,25 +116,29 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 				return
 			}
 
-			metadata, err := database.GetItemByID(uint(itemID))
+			itemMetadata, err := database.GetItemByID(uint(itemID))
 			if err != nil {
 				log.Err(err).Msg("Failed to get metadata")
 
 				return
 			}
 
-			if metadataImageType == ThumbImage.String() && metadata.Thumb == "" ||
-				metadataImageType == ArtImage.String() && metadata.Art == "" {
+			if metadataImageType == ThumbImage.String() && itemMetadata.Thumb == "" ||
+				metadataImageType == ArtImage.String() && itemMetadata.Art == "" {
 				http.Error(writer, "Image not found", http.StatusInternalServerError)
 
 				return
 			}
 
+			var imageURI string
+
 			if metadataImageType == ThumbImage.String() {
-				imageHash = metadata.Thumb
+				imageURI = itemMetadata.Thumb
 			} else if metadataImageType == ArtImage.String() {
-				imageHash = metadata.Art
+				imageURI = itemMetadata.Art
 			}
+
+			_, imageHash := metadata.GetURIComponents(imageURI)
 
 			prefix := imageHash[0:2]
 
@@ -158,7 +163,11 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 					shouldCache = true
 
 					// Set this back to the original, since we need to generate the image with the proper size
-					imagePath = filepath.Join(baseDirectory, "0x0.webp")
+					if metadataImageType == ThumbImage.String() {
+						imagePath = metadata.GetFilepathForURI(itemMetadata.Thumb, itemMetadata, ThumbImage.String())
+					} else if metadataImageType != ArtImage.String() {
+						imagePath = metadata.GetFilepathForURI(itemMetadata.Art, itemMetadata, ArtImage.String())
+					}
 				default:
 					http.Error(writer, "Failed to stat image", http.StatusInternalServerError)
 
@@ -166,7 +175,11 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 				}
 			} else {
 				// 0x0 means we want the original image
-				imagePath = filepath.Join(baseDirectory, "0x0.webp")
+				if metadataImageType == ThumbImage.String() {
+					imagePath = metadata.GetFilepathForURI(itemMetadata.Thumb, itemMetadata, ThumbImage.String())
+				} else if metadataImageType != ArtImage.String() {
+					imagePath = metadata.GetFilepathForURI(itemMetadata.Art, itemMetadata, ArtImage.String())
+				}
 
 				// Defaut images are always cached. If it's not, there's a problem
 				isCached = true

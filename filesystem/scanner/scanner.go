@@ -252,9 +252,29 @@ func scanDirectory(directory, root string, library database.Library) {
 						UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
 					}
 
-					if media.MusicBrainzArtistID != "" {
+					var hasMusicBrainzArtistID bool
+
+					for _, identifier := range artist.ExternalIdentifiers {
+						if identifier.IdentifierType == sdk.MusicbrainzArtistIdentifier {
+							hasMusicBrainzArtistID = true
+
+							break
+						}
+					}
+
+					if !hasMusicBrainzArtistID {
+						var musicBrainzArtistID string
+
+						for _, identifier := range media.Identifiers {
+							if identifier.IdentifierType == sdk.MusicbrainzArtistIdentifier {
+								musicBrainzArtistID = identifier.Identifier
+
+								break
+							}
+						}
+
 						artist.ExternalIdentifiers = append(artist.ExternalIdentifiers, database.ExternalIdentifier{
-							Identifier:     strings.Trim(strings.TrimSpace(media.MusicBrainzArtistID), "\x00"),
+							Identifier:     strings.Trim(strings.TrimSpace(musicBrainzArtistID), "\x00"),
 							IdentifierType: sdk.MusicbrainzArtistIdentifier,
 						})
 					}
@@ -279,14 +299,33 @@ func scanDirectory(directory, root string, library database.Library) {
 						Title:     media.AlbumName,
 						ParentID:  artist.ID,
 						LibraryID: library.ID,
-						Thumb:     media.Thumb,
 						Type:      database.MusicAlbumItem,
 						UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
 					}
 
-					if media.MusicBrainzAlbumID != "" {
+					var hasMusicBrainzReleaseID bool
+
+					for _, identifier := range artist.ExternalIdentifiers {
+						if identifier.IdentifierType == sdk.MusicbrainzReleaseIdentifier {
+							hasMusicBrainzReleaseID = true
+
+							break
+						}
+					}
+
+					if !hasMusicBrainzReleaseID {
+						var musicBrainzReleaseID string
+
+						for _, identifier := range media.Identifiers {
+							if identifier.IdentifierType == sdk.MusicbrainzArtistIdentifier {
+								musicBrainzReleaseID = identifier.Identifier
+
+								break
+							}
+						}
+
 						album.ExternalIdentifiers = append(album.ExternalIdentifiers, database.ExternalIdentifier{
-							Identifier:     strings.Trim(strings.TrimSpace(media.MusicBrainzAlbumID), "\x00"),
+							Identifier:     strings.Trim(strings.TrimSpace(musicBrainzReleaseID), "\x00"),
 							IdentifierType: sdk.MusicbrainzReleaseIdentifier,
 						})
 					}

@@ -6,12 +6,14 @@ import (
 	"math"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/agnivade/levenshtein"
 	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/helpers"
+	"github.com/meteorae/meteorae-server/helpers/metadata"
 	"github.com/meteorae/meteorae-server/sdk"
 	"github.com/meteorae/meteorae-server/utils"
 	"github.com/rs/zerolog/log"
@@ -32,6 +34,10 @@ var (
 )
 
 var tmdbAPI *tmdb.TMDb = tmdb.Init(config)
+
+func GetIdentifier() string {
+	return "tv.meteorae.agents.tv"
+}
 
 func GetName() string {
 	return "Meteorae TV Agent"
@@ -115,9 +121,14 @@ func GetSearchResults(item database.ItemMetadata) ([]sdk.Item, error) {
 				OriginalTitle: result.OriginalName,
 				ReleaseDate:   releaseDate,
 				MatchScore:    uint(matchScore),
+				Identifiers: []sdk.Identifier{
+					{
+						IdentifierType: sdk.TmdbIdentifier,
+						Identifier:     fmt.Sprintf("%d", result.ID),
+					},
+				},
 			},
 			Popularity: result.Popularity,
-			TmdbID:     result.ID,
 		}
 
 		results = append(results, seriesResult)
@@ -131,23 +142,43 @@ func GetSearchResults(item database.ItemMetadata) ([]sdk.Item, error) {
 	return results, nil
 }
 
-func GetMetadata(item database.ItemMetadata) (database.ItemMetadata, error) {
+func GetMetadata(item database.ItemMetadata) (sdk.Item, error) {
+	log.Debug().Uint("item_id", item.ID).Str("title", item.Title).Msgf("Getting metadata for TV show")
+
 	// Series
 	results, err := GetSearchResults(item)
 	if err != nil {
 		log.Err(err).Msgf("Failed to search for movie %s", item.Title)
 
-		return database.ItemMetadata{}, err
+		return nil, err
 	}
 
 	if len(results) == 0 {
-		return database.ItemMetadata{}, nil
+		return nil, errNoResultsFound
 	}
 
 	resultShow := results[0]
 
-	if media, ok := resultShow.(sdk.TVShow); ok {
-		seriesData, err := tmdbAPI.GetTvInfo(media.TmdbID, map[string]string{})
+	// Get the TMDb ID
+	var tmdbID int
+
+	for _, identifier := range resultShow.GetIdentifiers() {
+		if identifier.IdentifierType == sdk.TmdbIdentifier {
+			parsedID, err := strconv.ParseInt(identifier.Identifier, 10, 32)
+			if err != nil {
+				log.Err(err).Msgf("Failed to parse TMDb ID %s", identifier.Identifier)
+
+				return nil, err
+			}
+
+			tmdbID = int(parsedID)
+
+			break
+		}
+	}
+
+	if media, ok := resultShow.(sdk.TVShow); ok && tmdbID != 0 {
+		seriesData, err := tmdbAPI.GetTvInfo(tmdbID, map[string]string{})
 		if err != nil {
 			log.Err(err).Msgf("failed to fetch information for series \"%s\"", item.Title)
 		}
@@ -159,6 +190,8 @@ func GetMetadata(item database.ItemMetadata) (database.ItemMetadata, error) {
 			releaseDate = time.Time{}
 		}
 
+		media.ReleaseDate = releaseDate
+
 		languageTag, err := language.Parse(seriesData.OriginalLanguage)
 		if err != nil {
 			log.Err(err).Msgf("Failed to parse original language for movie \"%s\", using Undefined", item.Title)
@@ -166,14 +199,28 @@ func GetMetadata(item database.ItemMetadata) (database.ItemMetadata, error) {
 			languageTag = language.Und
 		}
 
+		media.Language = languageTag.String()
+
 		var artHash string
 
 		if seriesData.BackdropPath != "" {
 			artPath := fmt.Sprintf("https://image.tmdb.org/t/p/original/%s", seriesData.BackdropPath)
 
-			artHash, err = helpers.SaveExternalImageToCache(artPath)
+			artHash, err = helpers.SaveExternalImageToCache(artPath, GetIdentifier(), item, "art")
 			if err != nil {
 				log.Err(err).Msgf("Failed to download backdrop for series \"%s\"", item.Title)
+			}
+
+			media.Art = sdk.Art{
+				Items: []sdk.ItemImage{
+					{
+						External:  true,
+						Provider:  GetIdentifier(),
+						Media:     metadata.GetURIForAgent(GetIdentifier(), artHash),
+						URL:       artPath,
+						SortOrder: 1,
+					},
+				},
 			}
 		}
 
@@ -182,23 +229,37 @@ func GetMetadata(item database.ItemMetadata) (database.ItemMetadata, error) {
 		if seriesData.PosterPath != "" {
 			posterPath := fmt.Sprintf("https://image.tmdb.org/t/p/original/%s", seriesData.PosterPath)
 
-			posterHash, err = helpers.SaveExternalImageToCache(posterPath)
+			posterHash, err = helpers.SaveExternalImageToCache(posterPath, GetIdentifier(), item, "poster")
 			if err != nil {
 				log.Err(err).Msgf("failed to download poster for series \"%s\"", item.Title)
 			}
+
+			media.Thumb = sdk.Posters{
+				Items: []sdk.ItemImage{
+					{
+						External:  true,
+						Provider:  GetIdentifier(),
+						Media:     metadata.GetURIForAgent(GetIdentifier(), posterHash),
+						URL:       posterPath,
+						SortOrder: 1,
+					},
+				},
+			}
 		}
 
-		return database.ItemMetadata{
-			Title:            seriesData.Name,
-			OriginalTitle:    seriesData.OriginalName,
-			SortTitle:        utils.CleanSortTitle(seriesData.Name),
-			ReleaseDate:      releaseDate,
-			Summary:          seriesData.Overview,
-			OriginalLanguage: languageTag.String(),
-			Thumb:            posterHash,
-			Art:              artHash,
-		}, nil
+		media.UUID = item.UUID
+
+		if seriesData.ExternalIDs != nil {
+			if seriesData.ExternalIDs.TvdbID != 0 {
+				media.Identifiers = append(media.Identifiers, sdk.Identifier{
+					IdentifierType: sdk.TvdbIdentifier,
+					Identifier:     fmt.Sprintf("%d", (*seriesData).ExternalIDs.TvdbID),
+				})
+			}
+		}
+
+		return media, nil
 	}
 
-	return database.ItemMetadata{}, errors.New("unsupported item type")
+	return nil, errors.New("got unexpected item type")
 }

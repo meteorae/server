@@ -19,9 +19,12 @@ func CleanSortTitle(str string) string {
 
 func RemoveUnwantedCharacters(str string) string {
 	reg := regexp.MustCompile(`(_|,|\.|\(|\)|\[|\]|-|:)`)
-	res := reg.ReplaceAllString(str, " ")
+	result := reg.ReplaceAllString(str, " ")
 
-	return strings.TrimSpace(res)
+	// Split on " Aka "
+	result = strings.Split(result, " Aka ")[0]
+
+	return strings.TrimSpace(result)
 }
 
 func FindNamedMatches(regex *regexp.Regexp, str string) map[string]string {
