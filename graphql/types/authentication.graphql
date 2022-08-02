@@ -1,0 +1,27 @@
+extend type Query {
+  "Query the specified user."
+  user(id: ID!): User
+  "Query all users."
+  users(limit: Int = 20, offset: Int = 0): [User]
+}
+
+extend type Mutation {
+  "Authenticate user with the provided username and password."
+  login(username: String!, password: String!): AuthPayload!
+  "Create a new user with the provided username and password."
+  register(username: String!, password: String!): AuthPayload!
+}
+
+"User account information."
+type User {
+  id: ID!
+  username: String!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+"Authentication payload returned on successful login."
+type AuthPayload {
+  token: String!
+  user: User!
+}

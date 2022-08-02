@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/adrg/xdg"
@@ -19,7 +20,7 @@ import (
 	"github.com/gorilla/schema"
 	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/helpers"
-	"github.com/meteorae/meteorae-server/utils"
+	"github.com/meteorae/meteorae-server/helpers/metadata"
 	"github.com/rs/zerolog/log"
 )
 
@@ -59,10 +60,10 @@ func NewImageHandler() (*ImageHandler, error) {
 
 func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *http.Request) {
 	// Require authentication, to avoid non-users slamming the API with external image requests
-	user := utils.GetUserFromContext(request.Context())
+	/*user := utils.GetUserFromContext(request.Context())
 	if user == nil {
 		http.Error(writer, "Unauthorized", http.StatusUnauthorized)
-	}
+	}*/
 
 	isCached := false
 	shouldCache := false
@@ -108,25 +109,36 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 				return
 			}
 
-			metadata, err := database.GetItemByID(metadataID)
+			itemID, err := strconv.ParseUint(metadataID, 10, 32)
+			if err != nil {
+				http.Error(writer, "Invalid metadata ID", http.StatusBadRequest)
+
+				return
+			}
+
+			itemMetadata, err := database.GetItemByID(uint(itemID))
 			if err != nil {
 				log.Err(err).Msg("Failed to get metadata")
 
 				return
 			}
 
-			if metadataImageType == ThumbImage.String() && metadata.Thumb == "" ||
-				metadataImageType == ArtImage.String() && metadata.Art == "" {
+			if metadataImageType == ThumbImage.String() && itemMetadata.Thumb == "" ||
+				metadataImageType == ArtImage.String() && itemMetadata.Art == "" {
 				http.Error(writer, "Image not found", http.StatusInternalServerError)
 
 				return
 			}
 
+			var imageURI string
+
 			if metadataImageType == ThumbImage.String() {
-				imageHash = metadata.Thumb
+				imageURI = itemMetadata.Thumb
 			} else if metadataImageType == ArtImage.String() {
-				imageHash = metadata.Art
+				imageURI = itemMetadata.Art
 			}
+
+			_, imageHash := metadata.GetURIComponents(imageURI)
 
 			prefix := imageHash[0:2]
 
@@ -141,13 +153,21 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 
 				switch {
 				case errors.Is(err, nil):
+					log.Debug().Str("path", imagePath).Msg("Cached image found")
+
 					isCached = true
 				case errors.Is(err, os.ErrNotExist):
+					log.Debug().Str("path", imagePath).Msg("Cached image not found")
+
 					isCached = false
 					shouldCache = true
 
 					// Set this back to the original, since we need to generate the image with the proper size
-					imagePath = filepath.Join(baseDirectory, "0x0.webp")
+					if metadataImageType == ThumbImage.String() {
+						imagePath = metadata.GetFilepathForURI(itemMetadata.Thumb, itemMetadata, ThumbImage.String())
+					} else if metadataImageType != ArtImage.String() {
+						imagePath = metadata.GetFilepathForURI(itemMetadata.Art, itemMetadata, ArtImage.String())
+					}
 				default:
 					http.Error(writer, "Failed to stat image", http.StatusInternalServerError)
 
@@ -155,7 +175,11 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 				}
 			} else {
 				// 0x0 means we want the original image
-				imagePath = filepath.Join(baseDirectory, "0x0.webp")
+				if metadataImageType == ThumbImage.String() {
+					imagePath = metadata.GetFilepathForURI(itemMetadata.Thumb, itemMetadata, ThumbImage.String())
+				} else if metadataImageType != ArtImage.String() {
+					imagePath = metadata.GetFilepathForURI(itemMetadata.Art, itemMetadata, ArtImage.String())
+				}
 
 				// Defaut images are always cached. If it's not, there's a problem
 				isCached = true
@@ -242,10 +266,12 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 			}
 		}
 
+		var export []byte
+
 		// We store images internally in WebP for size and quality reasons.
 		// If the client doesn't support it, we convert it to JPEG
 		if isCached && !supportsWebP(acceptList) {
-			export, _, err := image.ExportJpeg(vips.NewJpegExportParams())
+			export, _, err = image.ExportJpeg(vips.NewJpegExportParams())
 			if err != nil {
 				log.Err(err).Msg("Failed to set image format")
 				http.Error(writer, "Failed to set image format", http.StatusInternalServerError)
@@ -253,20 +279,24 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 				return
 			}
 
-			buffer = *bytes.NewBuffer(export)
-		}
+			writer.Header().Set("Content-Type", "image/jpeg")
+		} else {
+			export, _, err = image.ExportWebp(vips.NewWebpExportParams())
+			if err != nil {
+				log.Err(err).Msg("Failed to set image format")
+				http.Error(writer, "Failed to set image format", http.StatusInternalServerError)
 
-		export, _, err := image.ExportJpeg(vips.NewJpegExportParams())
-		if err != nil {
-			log.Err(err).Msg("Failed to set image format")
-			http.Error(writer, "Failed to set image format", http.StatusInternalServerError)
+				return
+			}
 
-			return
+			writer.Header().Set("Content-Type", "image/webp")
 		}
 
 		buffer = *bytes.NewBuffer(export)
 
-		writer.Header().Set("Cache-Control", "max-age=604800")
+		writer.Header().Set("Cache-Control", "max-age=259200")
+		writer.Header().Set("Content-Length", strconv.Itoa(len(buffer.Bytes())))
+		writer.Header().Set("ETag", imageHash)
 
 		_, err = io.Copy(writer, &buffer)
 		if err != nil {
@@ -278,6 +308,8 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 
 		return
 	}
+
+	request.Body.Close()
 }
 
 func supportsWebP(acceptList []string) bool {

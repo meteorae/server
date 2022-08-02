@@ -4,22 +4,22 @@ import "C"
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
-	_ "github.com/99designs/gqlgen/cmd"
 	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/getsentry/sentry-go"
+	"github.com/meteorae/meteorae-server/agents"
 	_ "github.com/meteorae/meteorae-server/config"
 	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/helpers"
 	_ "github.com/meteorae/meteorae-server/logging"
-	_ "github.com/meteorae/meteorae-server/resolvers/all"
+	"github.com/meteorae/meteorae-server/scanners"
 	"github.com/meteorae/meteorae-server/server"
+	"github.com/meteorae/meteorae-server/tasks"
 	"github.com/panjf2000/ants/v2"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
@@ -28,10 +28,12 @@ import (
 var serverShutdownTimeout = 10 * time.Second
 
 func main() {
-	defer ants.Release()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
+	// If crash reporting is enabled, initialize Sentry.
+	// We do this first so that we can capture any panics that occur during startup.
 	enableReporting := viper.GetBool("crash_reporting")
-
 	if enableReporting {
 		err := sentry.Init(sentry.ClientOptions{
 			Dsn:     "https://9ad21ea087cb4de1a5d2cfb6f36d354b@o725130.ingest.sentry.io/61632320",
@@ -45,11 +47,17 @@ func main() {
 		}
 	}
 
+	// Release all the workers when the server shuts down
+	defer ants.Release()
+
+	// Give the user some basic information about which version of Meteorae is running and on what
 	log.Info().Msgf("Starting Meteorae %s", helpers.Version)
+	log.Info().Msgf("Language: %s", helpers.SystemLocale)
 	log.Info().Msgf("Build Date: %s", helpers.BuildDate)
 	log.Info().Msgf("Git Commit: %s", helpers.GitCommit)
-	log.Info().Msgf("Go Version: %s", helpers.GoVersion)
+	log.Info().Msgf("Go Runtime Version: %s", helpers.GoVersion)
 	log.Info().Msgf("OS / Arch: %s", helpers.OsArch)
+	log.Info().Msgf("Processor: %d-core %s", helpers.CPUCoreCount, helpers.CPUName)
 
 	// Initialize the database
 	err := database.NewDatabase(log.Logger)
@@ -59,9 +67,24 @@ func main() {
 		return
 	}
 
+	// Initialize VIPS for image processing
 	vips.Startup(nil)
 	defer vips.Shutdown()
 
+	scanners.InitScannersManager()
+	agents.InitAgentsManager()
+
+	// Initialize the task queue
+	err = tasks.StartTaskQueues()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to initialize task queues")
+
+		return
+	}
+
+	defer tasks.StopTaskQueues()
+
+	// Initialize the web server and all its components
 	srv, err := server.GetWebServer()
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to initialize web server")
@@ -69,34 +92,30 @@ func main() {
 		return
 	}
 
-	go func() {
-		log.Info().Msg("Starting the web server…")
+	log.Info().Msg("Starting the web server…")
 
-		if err := srv.ListenAndServe(); !errors.Is(err, nil) {
-			if !errors.Is(err, http.ErrServerClosed) {
-				log.Err(err).Msg("The web server encountered an error")
-			} else {
-				log.Info().Msg("The web server stopped")
-			}
+	// Initializing the server in a goroutine so that
+	// it won't block the graceful shutdown handling below
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Err(err).Msg("The web server encountered an error")
+
+			return
 		}
 	}()
 
-	c := make(chan os.Signal, 1)
-	// TODO: Handle SIGKILL, SIGQUIT and SIGTERM
-	signal.Notify(c, os.Interrupt)
+	<-ctx.Done()
 
-	// Block until we get our signal
-	<-c
+	stop()
+	log.Info().Msg("Shutting down gracefully…")
 
-	log.Info().Msg("Received a SIGINT signal, shutting down gracefully…")
-
-	ctx, cancel := context.WithTimeout(context.Background(), serverShutdownTimeout)
+	// Shutdown the web server and force-quit if it takes too long
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err = srv.Shutdown(ctx)
-	if err != nil {
-		log.Err(err).Msg("The web server encountered an error while shutting down")
-	}
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Error().Err(err).Msg("Failed to gracefully shutdown web server")
 
-	log.Info().Msg("Shutting down…")
+		return
+	}
 }

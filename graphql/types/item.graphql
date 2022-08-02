@@ -1,0 +1,45 @@
+extend type Query {
+  "Query the specified item."
+  item(id: ID!): Item
+  "Query all items."
+  items(limit: Int = 20, offset: Int = 0, libraryId: ID!): ItemsResult
+  "Query the children of the provided item."
+  children(limit: Int = 20, offset: Int = 0, item: ID!): ItemsResult
+}
+
+type ItemsResult {
+  items: [Item]
+  total: Int
+}
+
+extend type Subscription {
+  onItemAdded: Item!
+  onItemUpdated: Item!
+}
+
+type Image {
+  hash: String
+  url: String
+}
+
+"Item information."
+type Item {
+  id: ID!
+  title: String!
+  sortTitle: String!
+  startDate: String
+  endDate: String
+  summary: String
+  artist: Item
+  series: Item
+  season: Item
+  index: Int!
+  thumb: Image
+  art: Image
+  type: String!
+  createdAt: Time!
+  updatedAt: Time!
+  deletedAt: Time!
+  isRefreshing: Boolean!
+  isAnalyzing: Boolean!
+}

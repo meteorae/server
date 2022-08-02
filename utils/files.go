@@ -6,10 +6,12 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/meteorae/meteorae-server/database"
 	"github.com/rs/zerolog/log"
 )
 
-// Supported image formats for ingestion. Non-supported common formats needing support from libvips are commented out.
+// SupportedImageFormats lists the image formats supported for ingestion.
+// Non-supported common formats needing support from libvips are commented out.
 // TODO: Check support for RAW formats.
 var SupportedImageFormats = []string{
 	".aiff",
@@ -35,6 +37,34 @@ func IsImageFile(path string) bool {
 	return IsStringInSlice(ext, SupportedImageFormats)
 }
 
+func IsFileExists(path string) bool {
+	info, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false
+	}
+
+	return !info.IsDir()
+}
+
+func IsFileReadable(path string) bool {
+	if _, err := os.Stat(path); err != nil {
+		return false
+	}
+
+	return true
+}
+
+func GetFileSize(path string) (int64, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		log.Err(err).Msgf("Failed to get file size for %s", path)
+
+		return 0, err
+	}
+
+	return info.Size(), nil
+}
+
 func HashFilePath(path string) ([]byte, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -57,4 +87,25 @@ func HashFileBytes(fileBytes []byte) ([]byte, error) {
 	}
 
 	return h.Sum(nil), nil
+}
+
+func ChunkMediaSlice(slice []database.ItemMetadata, chunkSize int) [][]database.ItemMetadata {
+	var chunks [][]database.ItemMetadata
+
+	for {
+		if len(slice) == 0 {
+			break
+		}
+
+		// necessary check to avoid slicing beyond
+		// slice capacity
+		if len(slice) < chunkSize {
+			chunkSize = len(slice)
+		}
+
+		chunks = append(chunks, slice[0:chunkSize])
+		slice = slice[chunkSize:]
+	}
+
+	return chunks
 }

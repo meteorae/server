@@ -1,0 +1,29 @@
+type Query {
+  serverInfo: ServerInfo!
+}
+
+type Mutation {
+  completeOnboarding: ServerInfo
+}
+
+type Subscription {
+  newUpdateAvailable: UpdateInfo
+}
+
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}
+
+type ServerInfo {
+  version: String!
+  onboarding: Boolean!
+}
+
+type UpdateInfo {
+  version: String!
+  url: String!
+}
+
+scalar Time

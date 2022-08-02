@@ -13,7 +13,7 @@ import (
 var errInvalidCredentials = errors.New("invalid credentials")
 
 type User struct {
-	ID        uint64    `gorm:"primary_key" json:"id"`
+	ID        uint      `gorm:"primary_key" json:"id"`
 	Username  string    `gorm:"uniqueIndex;not null" json:"username"`
 	Password  string    `gorm:"not null" json:"password"`
 	CreatedAt time.Time `json:"createdAt"`
@@ -52,10 +52,10 @@ func CreateUser(username, password string) (*User, error) {
 }
 
 // Returns the requested fields from the specified user ID.
-func GetUserByID(id string) (*User, error) {
+func GetUserByID(id uint) (*User, error) {
 	var user User
 
-	if results := db.First(&user, id); results.Error != nil {
+	if results := db.Where("id = ?", id).First(&user); results.Error != nil {
 		return nil, fmt.Errorf("failed to get user: %w", results.Error)
 	}
 

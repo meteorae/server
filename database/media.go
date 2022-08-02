@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/meteorae/meteorae-server/sdk"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/vansante/go-ffprobe.v2"
 	"gorm.io/datatypes"
@@ -12,51 +13,25 @@ import (
 )
 
 type MediaPart struct {
-	ID               uint64 `gorm:"primary_key" json:"id"`
+	ID               uint   `gorm:"primary_key" json:"id"`
 	Hash             string `gorm:"not null"`
 	OpenSubtitleHash string
 	AniDBCRC         string
 	AcoustID         string
-	FilePath         string `gorm:"index;unique;not null"`
-	Size             int64  `gorm:"not null"`
-	ItemMetadataID   uint64
+	FilePath         string         `gorm:"index;not null"`
+	Size             int64          `gorm:"not null"`
+	ItemMetadataID   uint           `gorm:"not null"`
 	MediaStreams     []MediaStream  `json:"mediaStreams"`
 	CreatedAt        time.Time      `json:"createdAt"`
 	UpdatedAt        time.Time      `json:"updatedAt"`
 	DeletedAt        gorm.DeletedAt `gorm:"index"`
 }
 
-type IdentifierType int8
-
-const (
-	ImdbIdentifier IdentifierType = iota
-	TmdbIdentifier
-	AnidbIdentifier
-	TvdbIdentifier
-	MusicbrainzIdentifier
-	FacebookIdentifier
-	TwitterIdentifier
-	InstagramIdentifier
-)
-
-func (d IdentifierType) String() string {
-	return [...]string{
-		"IMDB ID",
-		"TheMovieDB ID",
-		"AniDB ID",
-		"TVDB ID",
-		"MusicBrainz ID",
-		"Facebook ID",
-		"Twitter ID",
-		"Instagram ID",
-	}[d]
-}
-
 type ExternalIdentifier struct {
-	ID             uint64         `gorm:"primary_key" json:"id"`
-	IdentifierType IdentifierType `gorm:"not null"`
-	Identifier     string         `gorm:"not null"`
-	MovieID        uint64         `gorm:"not null"`
+	ID             uint               `gorm:"primary_key" json:"id"`
+	IdentifierType sdk.IdentifierType `gorm:"not null"`
+	Identifier     string             `gorm:"not null"`
+	ItemMetadataID uint               `gorm:"not null"`
 }
 
 type StreamType int8
@@ -72,14 +47,14 @@ func (d StreamType) String() string {
 }
 
 type MediaStream struct {
-	ID         uint64     `gorm:"primary_key" json:"id"`
+	ID         uint       `gorm:"primary_key" json:"id"`
 	Title      string     `json:"title"`
 	StreamType StreamType `gorm:"not null"`
 	Language   string     `json:"language"`
 	Index      int        `gorm:"not null"`
 	// This is technically a MediaStreamInfo
 	MediaStreamInfo datatypes.JSON `json:"mediaStreamInfo"`
-	MediaPartID     uint64         `gorm:"not null"`
+	MediaPartID     uint           `gorm:"not null"`
 	CreatedAt       time.Time      `json:"createdAt"`
 	UpdatedAt       time.Time      `json:"updatedAt"`
 }
@@ -133,7 +108,7 @@ func CreateMediaStream(
 	language string,
 	index int,
 	streamInfo datatypes.JSON,
-	mediaPartID uint64,
+	mediaPartID uint,
 ) error {
 	mediaStream := MediaStream{
 		Title:           title,
@@ -163,6 +138,17 @@ func CreateMediaPart(mediaPart MediaPart) (*MediaPart, error) {
 	}
 
 	return &mediaPart, nil
+}
+
+func GetMediaParts(metadataID uint) ([]MediaPart, error) {
+	var mediaPart []MediaPart
+
+	result := db.Where("item_metadata_id = ?", metadataID).Find(&mediaPart)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return mediaPart, nil
 }
 
 func GetMediaPart(metadataID, mediaPartID string) (*MediaPart, error) {
