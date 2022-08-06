@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	gqlHandler "github.com/99designs/gqlgen/graphql/handler"
@@ -50,17 +51,25 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		// Look for a bearer token first.
 		auth := request.Header.Get("Authorization")
+		if auth != "" {
+			auth = strings.TrimPrefix(auth, "Bearer ")
+		}
 
+		// If we don't have a bearer token, look for one in the query parameters.
+		// This is mainly intended for image/file requests, and clients that can't add headers for some reason.
+		if auth == "" {
+			auth = request.URL.Query().Get("X-Auth-Token")
+		}
+
+		// If we still don't have a bearer token, the user is not authenticated.
 		if auth == "" {
 			log.Debug().Msg("No authorization header")
 			next.ServeHTTP(writer, request)
 
 			return
 		}
-
-		bearer := "Bearer "
-		auth = auth[len(bearer):]
 
 		validate, err := helpers.ValidateJwt(auth)
 		if err != nil || !validate.Valid {
