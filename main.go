@@ -36,7 +36,7 @@ func main() {
 	enableReporting := viper.GetBool("crash_reporting")
 	if enableReporting {
 		err := sentry.Init(sentry.ClientOptions{
-			Dsn:     "https://9ad21ea087cb4de1a5d2cfb6f36d354b@o725130.ingest.sentry.io/61632320",
+			Dsn:     "https://9ad21ea087cb4de1a5d2cfb6f36d354b@o725130.ingest.sentry.io/6163232",
 			Debug:   viper.GetBool("verbose"),
 			Release: fmt.Sprintf("meteorae-server@%s", helpers.Version),
 		})

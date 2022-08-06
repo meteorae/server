@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"math"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -68,7 +67,10 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 	isCached := false
 	shouldCache := false
 
-	var imageHash string
+	var (
+		imageHash string
+		prefix    string
+	)
 
 	var imageQuery ImageQuery
 	if err := schema.NewDecoder().Decode(&imageQuery, request.URL.Query()); err != nil {
@@ -82,15 +84,6 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 
 	if imageQuery.URL != "" {
 		var buffer bytes.Buffer
-
-		// If it's an external URL, we can download it, check if it's an image, and then transcode it
-		parsedURL, err := url.ParseRequestURI(imageQuery.URL)
-		if err != nil {
-			log.Err(err).Msg("Failed to parse URL")
-			http.Error(writer, "Invalid URL", http.StatusBadRequest)
-
-			return
-		}
 
 		if strings.HasPrefix(imageQuery.URL, "/") {
 			match := validInternalURLRegexp.FindStringSubmatch(imageQuery.URL)
@@ -140,7 +133,7 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 
 			_, imageHash := metadata.GetURIComponents(imageURI)
 
-			prefix := imageHash[0:2]
+			prefix = imageHash[0:2]
 
 			baseDirectory := filepath.Join(handler.imageCachePath, prefix, imageHash)
 
@@ -164,9 +157,9 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 
 					// Set this back to the original, since we need to generate the image with the proper size
 					if metadataImageType == ThumbImage.String() {
-						imagePath = metadata.GetFilepathForURI(itemMetadata.Thumb, itemMetadata, ThumbImage.String())
+						imagePath = metadata.GetCombinedFilepathForURI(itemMetadata.Thumb, itemMetadata, ThumbImage.String())
 					} else if metadataImageType != ArtImage.String() {
-						imagePath = metadata.GetFilepathForURI(itemMetadata.Art, itemMetadata, ArtImage.String())
+						imagePath = metadata.GetCombinedFilepathForURI(itemMetadata.Art, itemMetadata, ArtImage.String())
 					}
 				default:
 					http.Error(writer, "Failed to stat image", http.StatusInternalServerError)
@@ -193,24 +186,6 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 			}
 
 			buffer = *bytes.NewBuffer(data)
-		} else {
-			// We don't cache external images, so we don't need to check if it's already cached
-			response, err := http.Get(parsedURL.String())
-			if err != nil {
-				log.Err(err).Msg("Failed to download image")
-				http.Error(writer, "Failed to download image", http.StatusInternalServerError)
-
-				return
-			}
-			defer response.Body.Close()
-
-			_, err = io.Copy(&buffer, response.Body)
-			if err != nil {
-				log.Err(err).Msg("Failed to read image")
-				http.Error(writer, "Failed to read image", http.StatusInternalServerError)
-
-				return
-			}
 		}
 
 		image, err := vips.NewImageFromReader(&buffer)
@@ -242,7 +217,6 @@ func (handler *ImageHandler) HTTPHandler(writer http.ResponseWriter, request *ht
 			}
 
 			if shouldCache {
-				prefix := imageHash[0:2]
 				baseDirectory := filepath.Join(handler.imageCachePath, prefix, imageHash)
 				imagePath := filepath.Join(baseDirectory, fmt.Sprintf("%dx%d.webp", imageQuery.Width, imageQuery.Height))
 

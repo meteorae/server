@@ -1,6 +1,7 @@
 package scanners
 
 import (
+	"github.com/meteorae/meteorae-server/models"
 	"github.com/meteorae/meteorae-server/scanners/audio"
 	"github.com/meteorae/meteorae-server/scanners/filter"
 	"github.com/meteorae/meteorae-server/scanners/movie"
@@ -14,8 +15,9 @@ import (
 )
 
 type Scanner struct {
-	Name     string
-	ScanFunc func(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions []string, root string)
+	Name       string
+	Identifier string
+	ScanFunc   func(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions []string, root string)
 }
 
 var scanners = map[string][]Scanner{}
@@ -23,25 +25,29 @@ var scanners = map[string][]Scanner{}
 func InitScannersManager() {
 	scanners["internal"] = []Scanner{
 		{
-			Name: audio.GetName(),
+			Name:       audio.GetName(),
+			Identifier: "tv.meteorae.scanners.audio",
 			ScanFunc: func(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions []string, root string) {
 				audio.Scan(path, files, dirs, mediaList, extensions, root)
 			},
 		},
 		{
-			Name: video.GetName(),
+			Name:       video.GetName(),
+			Identifier: "tv.meteorae.scanners.video",
 			ScanFunc: func(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions []string, root string) {
 				video.Scan(path, files, dirs, mediaList, extensions, root)
 			},
 		},
 		{
-			Name: stack.GetName(),
+			Name:       stack.GetName(),
+			Identifier: "tv.meteorae.scanners.stack",
 			ScanFunc: func(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions []string, root string) {
 				stack.Scan(path, files, dirs, mediaList, extensions, root)
 			},
 		},
 		{
-			Name: filter.GetName(),
+			Name:       filter.GetName(),
+			Identifier: "tv.meteorae.scanners.filter",
 			ScanFunc: func(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions []string, root string) {
 				filter.Scan(path, files, dirs, mediaList, extensions, root)
 			},
@@ -49,13 +55,15 @@ func InitScannersManager() {
 	}
 	scanners["movie"] = []Scanner{
 		{
-			Name: movie.GetName(),
+			Name:       movie.GetName(),
+			Identifier: "tv.meteorae.scanners.movie",
 			ScanFunc: func(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions []string, root string) {
 				movie.Scan(path, files, dirs, mediaList, extensions, root)
 			},
 		},
 		{
-			Name: simpleMovie.GetName(),
+			Name:       simpleMovie.GetName(),
+			Identifier: "tv.meteorae.scanners.simpleMovie",
 			ScanFunc: func(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions []string, root string) {
 				simpleMovie.Scan(path, files, dirs, mediaList, extensions, root)
 			},
@@ -63,7 +71,8 @@ func InitScannersManager() {
 	}
 	scanners["music"] = []Scanner{
 		{
-			Name: music.GetName(),
+			Name:       music.GetName(),
+			Identifier: "tv.meteorae.scanners.music",
 			ScanFunc: func(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions []string, root string) {
 				music.Scan(path, files, dirs, mediaList, extensions, root)
 			},
@@ -71,7 +80,8 @@ func InitScannersManager() {
 	}
 	scanners["photo"] = []Scanner{
 		{
-			Name: photos.GetName(),
+			Name:       photos.GetName(),
+			Identifier: "tv.meteorae.scanners.photo",
 			ScanFunc: func(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions []string, root string) {
 				photos.Scan(path, files, dirs, mediaList, extensions, root)
 			},
@@ -79,7 +89,8 @@ func InitScannersManager() {
 	}
 	scanners["tv"] = []Scanner{
 		{
-			Name: tv.GetName(),
+			Name:       tv.GetName(),
+			Identifier: "tv.meteorae.scanners.tv",
 			ScanFunc: func(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions []string, root string) {
 				tv.Scan(path, files, dirs, mediaList, extensions, root)
 			},
@@ -87,11 +98,14 @@ func InitScannersManager() {
 	}
 }
 
-func GetScannerNamesForLibraryType(libraryType string) []string {
-	names := make([]string, 0, len(scanners[libraryType]))
+func GetScannerNamesForLibraryType(libraryType string) []*models.Scanner {
+	names := make([]*models.Scanner, 0, len(scanners[libraryType]))
 
 	for _, scanner := range scanners[libraryType] {
-		names = append(names, scanner.Name)
+		names = append(names, &models.Scanner{
+			Name:       scanner.Name,
+			Identifier: scanner.Identifier,
+		})
 	}
 
 	return names
@@ -99,7 +113,7 @@ func GetScannerNamesForLibraryType(libraryType string) []string {
 
 func GetScanFuncByName(libraryType, name string) func(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions []string, root string) {
 	for _, scanner := range scanners[libraryType] {
-		if scanner.Name == name {
+		if scanner.Identifier == name {
 			return scanner.ScanFunc
 		}
 	}

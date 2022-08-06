@@ -74,13 +74,13 @@ func (r *queryResolver) Libraries(ctx context.Context) ([]*database.Library, err
 	return libraries, nil
 }
 
-func (r *queryResolver) Scanners(ctx context.Context, libraryType string) ([]string, error) {
+func (r *queryResolver) Scanners(ctx context.Context, libraryType string) ([]*models.Scanner, error) {
 	scanners := scanners.GetScannerNamesForLibraryType(libraryType)
 
 	return scanners, nil
 }
 
-func (r *queryResolver) Agents(ctx context.Context, libraryType string) ([]string, error) {
+func (r *queryResolver) Agents(ctx context.Context, libraryType string) ([]*models.Agent, error) {
 	libraryTypeValue, err := database.LibraryTypeFromString(libraryType)
 	if err != nil {
 		return nil, fmt.Errorf("invalid library type: %w", err)

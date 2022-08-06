@@ -8,12 +8,69 @@ import (
 	"github.com/google/uuid"
 )
 
+type ItemType uint
+
+func (t ItemType) String() string {
+	switch t {
+	case MovieItem:
+		return "Movie"
+	case MusicAlbumItem:
+		return "MusicAlbum"
+	case MusicMediumItem:
+		return "MusicMedium"
+	case MusicTrackItem:
+		return "MusicTrack"
+	case TVSeasonItem:
+		return "TVSeason"
+	case TVShowItem:
+		return "TVShow"
+	case TVEpisodeItem:
+		return "TVEpisode"
+	case ImageItem:
+		return "Image"
+	case ImageAlbumItem:
+		return "ImageAlbum"
+	case PersonItem:
+		return "Person"
+	case CollectionItem:
+		return "Collection"
+	case VideoClipItem:
+		return "VideoClip"
+	case UnknownItem:
+		return "Unknown"
+	}
+
+	return "Unknown"
+}
+
+const (
+	MovieItem ItemType = iota
+	MusicAlbumItem
+	MusicMediumItem
+	MusicTrackItem
+	TVShowItem
+	TVSeasonItem
+	TVEpisodeItem
+	ImageItem
+	ImageAlbumItem
+	PersonItem
+	CollectionItem
+	VideoClipItem
+	UnknownItem
+)
+
 type Item interface {
 	IsItem()
-	GetUUID() string
+	GetID() uint
+	SetID(uint)
+	GetTitle() string
+	GetReleaseDate() time.Time
+	GetUUID() uuid.UUID
+	SetUUID(uuid.UUID)
 	GetIdentifiers() []Identifier
 	GetThumbs() []ItemImage
 	GetArt() []ItemImage
+	GetType() ItemType
 }
 
 type ItemImage struct {
@@ -36,10 +93,12 @@ type Posters struct {
 }
 
 type ItemInfo struct {
-	UUID          uuid.UUID
+	ID            uint         `xml:"id,attr"`
+	UUID          uuid.UUID    `xml:"uuid,attr"`
 	Title         string       `xml:"title"`
+	SortTitle     string       `xml:"sort_title"`
 	OriginalTitle string       `xml:"original_title"`
-	ReleaseDate   time.Time    `xml:"release_date"`
+	ReleaseDate   time.Time    `xml:"release_date" json:"startDate"`
 	Parts         []string     `xml:"-"`
 	Thumb         Posters      `xml:"posters"`
 	Art           Art          `xml:"art"`
@@ -47,12 +106,37 @@ type ItemInfo struct {
 	Identifiers   []Identifier `xml:"identifier"`
 	MatchScore    uint         `xml:"-"`
 	LibraryID     uint         `xml:"-"`
+	CreatedAt     time.Time    `xml:"-"`
+	UpdatedAt     time.Time    `xml:"-"`
+	DeletedAt     time.Time    `xml:"-"`
+	IsRefreshing  bool         `xml:"-" json:"isRefreshing"`
+	IsAnalyzing   bool         `xml:"-" json:"isAnalyzing"`
 }
 
 func (i ItemInfo) IsItem() {}
 
-func (i ItemInfo) GetUUID() string {
-	return i.UUID.String()
+func (i ItemInfo) GetID() uint {
+	return i.ID
+}
+
+func (i ItemInfo) SetID(id uint) {
+	i.ID = id
+}
+
+func (i ItemInfo) GetTitle() string {
+	return i.Title
+}
+
+func (i ItemInfo) GetReleaseDate() time.Time {
+	return i.ReleaseDate
+}
+
+func (i ItemInfo) GetUUID() uuid.UUID {
+	return i.UUID
+}
+
+func (i ItemInfo) SetUUID(uuid uuid.UUID) {
+	i.UUID = uuid
 }
 
 func (i ItemInfo) GetIdentifiers() []Identifier {
@@ -65,6 +149,10 @@ func (i ItemInfo) GetThumbs() []ItemImage {
 
 func (i ItemInfo) GetArt() []ItemImage {
 	return i.Art.Items
+}
+
+func (i ItemInfo) GetType() ItemType {
+	return UnknownItem
 }
 
 type IdentifierType int8
@@ -99,12 +187,13 @@ func (d IdentifierType) String() string {
 
 type Identifier struct {
 	XMLName        xml.Name       `xml:"external_identifier"`
-	IdentifierType IdentifierType `xml:"type,attr"`
-	Identifier     string         `xml:"value,attr"`
+	IdentifierType IdentifierType `xml:"type,attr" json:"type"`
+	Identifier     string         `xml:"value,attr" json:"value"`
 }
 
 // A Movie represents information about an individual movie, obtained through scanning or through an agent.
 type Movie struct {
+	XMLName xml.Name `xml:"movie"`
 	*ItemInfo
 	Tagline    string
 	Summary    string
@@ -115,8 +204,13 @@ type Movie struct {
 	// Credits       []Credit
 }
 
+func (m Movie) GetType() ItemType {
+	return MovieItem
+}
+
 // A TVShow represents information about a TV series, obtained through scanning or through an agent.
 type TVShow struct {
+	XMLName xml.Name `xml:"tvshow"`
 	*ItemInfo
 	Tagline    string
 	Summary    string
@@ -125,14 +219,27 @@ type TVShow struct {
 	Studios    []string
 	Countries  []string
 	// Credits       []Credit
+}
+
+func (t TVShow) GetType() ItemType {
+	return TVShowItem
+}
+
+type TVSeason struct {
+	XMLName xml.Name `xml:"season"`
+	*ItemInfo
+	Summary     string
 	SeriesTitle string
-	Season      int
-	Episode     int
+}
+
+func (t TVSeason) GetType() ItemType {
+	return TVSeasonItem
 }
 
 // A TVEpisode represents information about an individual episode of a TV series,
 // obtained through scanning or through an agent.
 type TVEpisode struct {
+	XMLName xml.Name `xml:"tvepisode"`
 	*ItemInfo
 	Tagline    string
 	Summary    string
@@ -142,20 +249,40 @@ type TVEpisode struct {
 	Countries  []string
 	// Credits       []Credit
 	SeriesTitle string
+	SeriesID    uint
+	SeasonTitle string
 	Season      int
+	SeasonID    uint
 	Episode     int
 }
 
+func (t TVEpisode) GetType() ItemType {
+	return TVEpisodeItem
+}
+
 type MusicAlbum struct {
+	XMLName xml.Name `xml:"album"`
 	*ItemInfo
 	AlbumArtist string
 	Artist      []string
 	ArtistThumb string
 }
 
+func (m MusicAlbum) GetType() ItemType {
+	return MusicAlbumItem
+}
+
+type MusicMedium struct {
+	XMLName xml.Name `xml:"medium"`
+	*ItemInfo
+	Title       string
+	AlbumArtist string
+}
+
 // A MusicTrack represents information about an individual track of a music album,
 // obtained through scanning or through an agent.
 type MusicTrack struct {
+	XMLName xml.Name `xml:"track"`
 	*ItemInfo
 	AlbumArtist string
 	AlbumName   string
@@ -164,10 +291,24 @@ type MusicTrack struct {
 	Artist      []string
 }
 
+func (m MusicTrack) GetType() ItemType {
+	return MusicTrackItem
+}
+
 type Image struct {
+	XMLName xml.Name `xml:"image"`
 	*ItemInfo
 }
 
+func (i Image) GetType() ItemType {
+	return ImageItem
+}
+
 type Video struct {
+	XMLName xml.Name `xml:"video"`
 	*ItemInfo
+}
+
+func (i Video) GetType() ItemType {
+	return VideoClipItem
 }

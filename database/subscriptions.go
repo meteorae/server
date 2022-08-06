@@ -2,11 +2,13 @@ package database
 
 import (
 	"sync"
+
+	"github.com/meteorae/meteorae-server/sdk"
 )
 
 type Subscriptions struct {
-	ItemAddedObservers      map[string]chan *ItemMetadata
-	ItemUpdatedObservers    map[string]chan *ItemMetadata
+	ItemAddedObservers      map[string]chan sdk.Item
+	ItemUpdatedObservers    map[string]chan sdk.Item
 	LibraryAddedObservers   map[string]chan *Library
 	LibraryUpdatedObservers map[string]chan *Library
 	mu                      sync.Mutex
@@ -24,8 +26,8 @@ var SubsciptionsManager *Subscriptions
 
 func init() {
 	SubsciptionsManager = &Subscriptions{
-		ItemAddedObservers:      make(map[string]chan *ItemMetadata),
-		ItemUpdatedObservers:    make(map[string]chan *ItemMetadata),
+		ItemAddedObservers:      make(map[string]chan sdk.Item),
+		ItemUpdatedObservers:    make(map[string]chan sdk.Item),
 		LibraryAddedObservers:   make(map[string]chan *Library),
 		LibraryUpdatedObservers: make(map[string]chan *Library),
 	}

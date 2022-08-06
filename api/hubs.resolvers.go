@@ -8,7 +8,9 @@ import (
 	"fmt"
 
 	"github.com/meteorae/meteorae-server/database"
+	"github.com/meteorae/meteorae-server/helpers/metadata"
 	"github.com/meteorae/meteorae-server/models"
+	"github.com/meteorae/meteorae-server/sdk"
 	"github.com/rs/zerolog/log"
 )
 
@@ -18,7 +20,7 @@ func (r *queryResolver) Latest(ctx context.Context, limit *int64) ([]*models.Lat
 	libraries := database.GetLibraries()
 
 	for _, library := range libraries {
-		var latestItems []*database.ItemMetadata
+		var latestItems []sdk.Item
 
 		items, err := database.GetLatestItemsFromLibrary(*library, int(*limit))
 		if err != nil {
@@ -28,7 +30,14 @@ func (r *queryResolver) Latest(ctx context.Context, limit *int64) ([]*models.Lat
 		}
 
 		for i := range items {
-			latestItems = append(latestItems, &items[i])
+			itemInfo, err := metadata.GetInfoXML(items[i])
+			if err != nil {
+				log.Err(err).Msgf("Failed to get info XML for item %d", items[i].ID)
+
+				return nil, fmt.Errorf("failed to get info XML for item %d: %w", items[i].ID, err)
+			}
+
+			latestItems = append(latestItems, itemInfo)
 		}
 
 		latest = append(latest, &models.LatestResult{

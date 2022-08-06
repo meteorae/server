@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/meteorae/meteorae-server/database"
+	"github.com/meteorae/meteorae-server/helpers/metadata"
 	"github.com/meteorae/meteorae-server/scanners"
 	"github.com/meteorae/meteorae-server/scanners/audio"
 	"github.com/meteorae/meteorae-server/scanners/photos"
@@ -42,6 +43,7 @@ func filterFiles(files []os.FileInfo) ([]string, []string) {
 func scanDirectory(directory, root string, library database.Library) {
 	var (
 		items     []database.ItemMetadata
+		itemsInfo []sdk.Item
 		mediaList []sdk.Item
 	)
 
@@ -134,7 +136,16 @@ func scanDirectory(directory, root string, library database.Library) {
 							LibraryID:   library.ID,
 							Parts:       parts,
 							UUID:        uuid.NewSHA1(library.UUID, []byte(media.Parts[0])),
-							Type:        database.MovieItem,
+							Type:        sdk.MovieItem,
+						})
+
+						itemsInfo = append(itemsInfo, sdk.Movie{
+							ItemInfo: &sdk.ItemInfo{
+								Title:       media.Title,
+								ReleaseDate: media.ReleaseDate,
+								Parts:       media.Parts,
+								UUID:        uuid.NewSHA1(library.UUID, []byte(media.Parts[0])),
+							},
 						})
 
 						continue
@@ -169,18 +180,32 @@ func scanDirectory(directory, root string, library database.Library) {
 
 				// Check if the series exists in the database.
 				// If not, create it.
-				series, err := database.GetItemByTitleAndType(media.SeriesTitle, database.TVShowItem)
+				series, err := database.GetItemByTitleAndType(media.SeriesTitle, sdk.TVShowItem)
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					series = database.ItemMetadata{
 						Title:     media.SeriesTitle,
 						LibraryID: library.ID,
-						Type:      database.TVShowItem,
+						Type:      sdk.TVShowItem,
 						UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
 					}
 
 					series, err = database.CreateItem(series)
 					if err != nil {
 						log.Err(err).Msgf("Failed to create series %s", series.Title)
+
+						continue
+					}
+
+					// Save the combined metadata.
+					err := metadata.SaveMetadataToXML(sdk.TVShow{
+						ItemInfo: &sdk.ItemInfo{
+							ID:    series.ID,
+							Title: series.Title,
+							UUID:  series.UUID,
+						},
+					}, series.Type, "combined")
+					if err != nil {
+						log.Err(err).Msgf("Failed to save combined metadata for %s", series.Title)
 
 						continue
 					}
@@ -199,13 +224,27 @@ func scanDirectory(directory, root string, library database.Library) {
 						ParentID:  series.ID,
 						Sequence:  media.Season,
 						LibraryID: library.ID,
-						Type:      database.TVSeasonItem,
+						Type:      sdk.TVSeasonItem,
 						UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
 					}
 
 					season, err = database.CreateItem(season)
 					if err != nil {
 						log.Err(err).Msgf("Failed to create season %d for series %s", media.Season, series.Title)
+
+						continue
+					}
+
+					// Save the combined metadata.
+					err := metadata.SaveMetadataToXML(sdk.TVSeason{
+						ItemInfo: &sdk.ItemInfo{
+							ID:    series.ID,
+							Title: series.Title,
+							UUID:  series.UUID,
+						},
+					}, series.Type, "combined")
+					if err != nil {
+						log.Err(err).Msgf("Failed to save combined metadata for %s", series.Title)
 
 						continue
 					}
@@ -230,7 +269,21 @@ func scanDirectory(directory, root string, library database.Library) {
 					LibraryID: library.ID,
 					Parts:     parts,
 					UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
-					Type:      database.TVEpisodeItem,
+					Type:      sdk.TVEpisodeItem,
+				})
+
+				itemsInfo = append(itemsInfo, sdk.TVEpisode{
+					ItemInfo: &sdk.ItemInfo{
+						Title: media.Title,
+						Parts: media.Parts,
+						UUID:  uuid.NewSHA1(library.UUID, []byte(fullPath)),
+					},
+					SeriesTitle: series.Title,
+					SeriesID:    series.ID,
+					SeasonTitle: season.Title,
+					SeasonID:    season.ID,
+					Season:      media.Season,
+					Episode:     media.Episode,
 				})
 			}
 
@@ -243,12 +296,12 @@ func scanDirectory(directory, root string, library database.Library) {
 
 				// Check if the album artist exists in the database.
 				// If not, create it.
-				artist, err = database.GetItemByTitleAndType(media.AlbumArtist, database.PersonItem)
+				artist, err = database.GetItemByTitleAndType(media.AlbumArtist, sdk.PersonItem)
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					artist = database.ItemMetadata{
 						Title:     media.AlbumArtist,
 						LibraryID: library.ID,
-						Type:      database.PersonItem,
+						Type:      sdk.PersonItem,
 						UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
 					}
 
@@ -293,19 +346,19 @@ func scanDirectory(directory, root string, library database.Library) {
 
 				// Check if the album exists in the database.
 				// If not, create it.
-				album, err = database.GetItemByTitleAndType(media.AlbumName, database.MusicAlbumItem)
+				album, err = database.GetItemByTitleAndType(media.AlbumName, sdk.MusicAlbumItem)
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					album = database.ItemMetadata{
 						Title:     media.AlbumName,
 						ParentID:  artist.ID,
 						LibraryID: library.ID,
-						Type:      database.MusicAlbumItem,
+						Type:      sdk.MusicAlbumItem,
 						UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
 					}
 
 					var hasMusicBrainzReleaseID bool
 
-					for _, identifier := range artist.ExternalIdentifiers {
+					for _, identifier := range album.ExternalIdentifiers {
 						if identifier.IdentifierType == sdk.MusicbrainzReleaseIdentifier {
 							hasMusicBrainzReleaseID = true
 
@@ -336,6 +389,21 @@ func scanDirectory(directory, root string, library database.Library) {
 
 						continue
 					}
+
+					// Save the combined metadata.
+					// TODO: Add identifiers
+					err := metadata.SaveMetadataToXML(sdk.MusicAlbum{
+						ItemInfo: &sdk.ItemInfo{
+							ID:    album.ID,
+							Title: album.Title,
+							UUID:  album.UUID,
+						},
+					}, album.Type, "combined")
+					if err != nil {
+						log.Err(err).Msgf("Failed to save combined metadata for %s", album.Title)
+
+						continue
+					}
 				} else if err != nil {
 					log.Err(err).Msgf("Failed to get album by title %s", media.AlbumName)
 
@@ -351,7 +419,7 @@ func scanDirectory(directory, root string, library database.Library) {
 						ParentID:  album.ID,
 						Sequence:  media.DiscIndex,
 						LibraryID: library.ID,
-						Type:      database.MusicMediumItem,
+						Type:      sdk.MusicMediumItem,
 						UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
 					}
 
@@ -382,7 +450,7 @@ func scanDirectory(directory, root string, library database.Library) {
 					LibraryID: library.ID,
 					Parts:     parts,
 					UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
-					Type:      database.MusicTrackItem,
+					Type:      sdk.MusicTrackItem,
 				})
 			}
 
@@ -400,7 +468,7 @@ func scanDirectory(directory, root string, library database.Library) {
 						album = database.ItemMetadata{
 							Title:     paths[1],
 							LibraryID: library.ID,
-							Type:      database.ImageAlbumItem,
+							Type:      sdk.ImageAlbumItem,
 							UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
 						}
 
@@ -435,7 +503,7 @@ func scanDirectory(directory, root string, library database.Library) {
 							Title:     paths[len(paths)-1],
 							LibraryID: library.ID,
 							ParentID:  parentAlbum.ID,
-							Type:      database.ImageAlbumItem,
+							Type:      sdk.ImageAlbumItem,
 							UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
 						}
 
@@ -468,7 +536,7 @@ func scanDirectory(directory, root string, library database.Library) {
 					LibraryID: library.ID,
 					Parts:     parts,
 					UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
-					Type:      database.ImageItem,
+					Type:      sdk.ImageItem,
 				})
 			}
 
@@ -486,7 +554,7 @@ func scanDirectory(directory, root string, library database.Library) {
 						album = database.ItemMetadata{
 							Title:     paths[1],
 							LibraryID: library.ID,
-							Type:      database.ImageAlbumItem,
+							Type:      sdk.ImageAlbumItem,
 							UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
 						}
 
@@ -521,7 +589,7 @@ func scanDirectory(directory, root string, library database.Library) {
 							Title:     paths[len(paths)-1],
 							LibraryID: library.ID,
 							ParentID:  parentAlbum.ID,
-							Type:      database.ImageAlbumItem,
+							Type:      sdk.ImageAlbumItem,
 							UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
 						}
 
@@ -554,7 +622,7 @@ func scanDirectory(directory, root string, library database.Library) {
 					LibraryID: library.ID,
 					Parts:     parts,
 					UUID:      uuid.NewSHA1(library.UUID, []byte(fullPath)),
-					Type:      database.VideoClipItem,
+					Type:      sdk.VideoClipItem,
 				})
 			}
 		}
@@ -565,6 +633,16 @@ func scanDirectory(directory, root string, library database.Library) {
 			err := database.CreateItemBatch(chunk)
 			if err != nil {
 				log.Err(err).Msg("Failed to create items")
+			}
+		}
+
+		for i, item := range items {
+			// TODO: We should probably check that these are the same?
+			err := metadata.SaveMetadataToXML(itemsInfo[i], item.Type, "combined")
+			if err != nil {
+				log.Err(err).Msgf("Failed to save combined metadata for %s", item.Title)
+
+				continue
 			}
 		}
 	}

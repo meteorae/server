@@ -22,21 +22,38 @@ type Image {
   url: String
 }
 
+type Identifier {
+  type: Int!
+  name: String!
+  value: String!
+}
+
 "Item information."
-type Item {
+interface Item {
   id: ID!
   title: String!
   sortTitle: String!
   startDate: String
-  endDate: String
-  summary: String
-  artist: Item
-  series: Item
-  season: Item
-  index: Int!
   thumb: Image
   art: Image
-  type: String!
+  identifiers: [Identifier]
+  createdAt: Time!
+  updatedAt: Time!
+  deletedAt: Time!
+  isRefreshing: Boolean!
+  isAnalyzing: Boolean!
+}
+
+type Movie implements Item {
+  id: ID!
+  title: String!
+  sortTitle: String!
+  startDate: String
+  tagline: String
+  summary: String
+  thumb: Image
+  art: Image
+  identifiers: [Identifier]
   createdAt: Time!
   updatedAt: Time!
   deletedAt: Time!

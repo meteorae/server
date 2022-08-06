@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/agnivade/levenshtein"
-	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/helpers"
 	"github.com/meteorae/meteorae-server/helpers/metadata"
 	"github.com/meteorae/meteorae-server/sdk"
@@ -35,29 +34,21 @@ var (
 
 var tmdbAPI *tmdb.TMDb = tmdb.Init(config)
 
-func GetIdentifier() string {
-	return "tv.meteorae.agents.tv"
-}
-
-func GetName() string {
-	return "Meteorae TV Agent"
-}
-
 // FIXME: Kingdom (2019) is matching to Kingdom (2017). Seems like there's an issue with the
 //        date or we're incorrectly lowering the proper match's score.
-func GetSearchResults(item database.ItemMetadata) ([]sdk.Item, error) {
+func GetSearchResults(item sdk.Item) ([]sdk.Item, error) {
 	options := map[string]string{
 		"language":      "en-US", // TODO: Make this configurable
 		"include_adult": "false", // TODO: Make this configurable
 	}
 
-	if !item.ReleaseDate.IsZero() {
-		options["year"] = fmt.Sprintf("%d", item.ReleaseDate.Year())
+	if !item.GetReleaseDate().IsZero() {
+		options["year"] = fmt.Sprintf("%d", item.GetReleaseDate().Year())
 	}
 
-	searchResults, err := tmdbAPI.SearchTv(item.Title, options)
+	searchResults, err := tmdbAPI.SearchTv(item.GetTitle(), options)
 	if err != nil {
-		log.Err(err).Msgf("Failed to search for series %s", item.Title)
+		log.Err(err).Msgf("Failed to search for series %s", item.GetTitle())
 
 		return []sdk.Item{}, err
 	}
@@ -74,7 +65,7 @@ func GetSearchResults(item database.ItemMetadata) ([]sdk.Item, error) {
 			releaseDate = time.Time{}
 		}
 
-		searchTitle := yearRegex.ReplaceAllString(item.Title, "")
+		searchTitle := yearRegex.ReplaceAllString(item.GetTitle(), "")
 		foundTitle := yearRegex.ReplaceAllString(result.Name, "")
 
 		searchTitle = prefixRegex.ReplaceAllString(searchTitle, "")
@@ -100,8 +91,8 @@ func GetSearchResults(item database.ItemMetadata) ([]sdk.Item, error) {
 		}
 
 		// If we have both dates, compare them to adjust the score. The further apart they are, the less likely it's a match.
-		if !item.ReleaseDate.IsZero() && !releaseDate.IsZero() {
-			difference := item.ReleaseDate.Year() - releaseDate.Year()
+		if !item.GetReleaseDate().IsZero() && !releaseDate.IsZero() {
+			difference := item.GetReleaseDate().Year() - releaseDate.Year()
 
 			if difference == 0 {
 				matchScore += 10
@@ -142,13 +133,13 @@ func GetSearchResults(item database.ItemMetadata) ([]sdk.Item, error) {
 	return results, nil
 }
 
-func GetMetadata(item database.ItemMetadata) (sdk.Item, error) {
-	log.Debug().Uint("item_id", item.ID).Str("title", item.Title).Msgf("Getting metadata for TV show")
+func GetMetadata(item sdk.Item) (sdk.Item, error) {
+	log.Debug().Uint("item_id", item.GetID()).Str("title", item.GetTitle()).Msgf("Getting metadata for TV show")
 
 	// Series
 	results, err := GetSearchResults(item)
 	if err != nil {
-		log.Err(err).Msgf("Failed to search for movie %s", item.Title)
+		log.Err(err).Msgf("Failed to search for movie %s", item.GetTitle())
 
 		return nil, err
 	}
@@ -180,45 +171,49 @@ func GetMetadata(item database.ItemMetadata) (sdk.Item, error) {
 	if media, ok := resultShow.(sdk.TVShow); ok && tmdbID != 0 {
 		seriesData, err := tmdbAPI.GetTvInfo(tmdbID, map[string]string{})
 		if err != nil {
-			log.Err(err).Msgf("failed to fetch information for series \"%s\"", item.Title)
+			log.Err(err).Msgf("failed to fetch information for series \"%s\"", item.GetTitle())
 		}
 
 		releaseDate, err := time.Parse("2006-01-02", seriesData.FirstAirDate)
 		if err != nil {
-			log.Err(err).Msgf("Failed to parse release date for series \"%s\"", item.Title)
+			log.Err(err).Msgf("Failed to parse release date for series \"%s\"", item.GetTitle())
 
 			releaseDate = time.Time{}
 		}
 
 		media.ReleaseDate = releaseDate
 
-		languageTag, err := language.Parse(seriesData.OriginalLanguage)
-		if err != nil {
-			log.Err(err).Msgf("Failed to parse original language for movie \"%s\", using Undefined", item.Title)
+		var languageTag string
 
-			languageTag = language.Und
+		languageBase, err := language.ParseBase(seriesData.OriginalLanguage)
+		if err != nil {
+			log.Err(err).Msgf("Failed to parse original language for movie \"%s\", using Undefined", item.GetTitle())
+
+			languageTag = language.Und.String()
+		} else {
+			languageTag = languageBase.String()
 		}
 
-		media.Language = languageTag.String()
+		media.Language = languageTag
 
 		var artHash string
 
 		if seriesData.BackdropPath != "" {
 			artPath := fmt.Sprintf("https://image.tmdb.org/t/p/original/%s", seriesData.BackdropPath)
 
-			artHash, err = helpers.SaveExternalImageToCache(artPath, GetIdentifier(), item, "art")
+			artHash, err = helpers.SaveExternalImageToCache(artPath, "tv.meteorae.agents.tmdb", item, "art")
 			if err != nil {
-				log.Err(err).Msgf("Failed to download backdrop for series \"%s\"", item.Title)
+				log.Err(err).Msgf("Failed to download backdrop for series \"%s\"", item.GetTitle())
 			}
 
 			media.Art = sdk.Art{
 				Items: []sdk.ItemImage{
 					{
 						External:  true,
-						Provider:  GetIdentifier(),
-						Media:     metadata.GetURIForAgent(GetIdentifier(), artHash),
+						Provider:  "tv.meteorae.agents.tmdb",
+						Media:     metadata.GetURIForAgent("tv.meteorae.agents.tmdb", artHash),
 						URL:       artPath,
-						SortOrder: 1,
+						SortOrder: 0,
 					},
 				},
 			}
@@ -229,25 +224,25 @@ func GetMetadata(item database.ItemMetadata) (sdk.Item, error) {
 		if seriesData.PosterPath != "" {
 			posterPath := fmt.Sprintf("https://image.tmdb.org/t/p/original/%s", seriesData.PosterPath)
 
-			posterHash, err = helpers.SaveExternalImageToCache(posterPath, GetIdentifier(), item, "poster")
+			posterHash, err = helpers.SaveExternalImageToCache(posterPath, "tv.meteorae.agents.tmdb", item, "thumb")
 			if err != nil {
-				log.Err(err).Msgf("failed to download poster for series \"%s\"", item.Title)
+				log.Err(err).Msgf("failed to download poster for series \"%s\"", item.GetTitle())
 			}
 
 			media.Thumb = sdk.Posters{
 				Items: []sdk.ItemImage{
 					{
 						External:  true,
-						Provider:  GetIdentifier(),
-						Media:     metadata.GetURIForAgent(GetIdentifier(), posterHash),
+						Provider:  "tv.meteorae.agents.tmdb",
+						Media:     metadata.GetURIForAgent("tv.meteorae.agents.tmdb", posterHash),
 						URL:       posterPath,
-						SortOrder: 1,
+						SortOrder: 0,
 					},
 				},
 			}
 		}
 
-		media.UUID = item.UUID
+		media.UUID = item.GetUUID()
 
 		if seriesData.ExternalIDs != nil {
 			if seriesData.ExternalIDs.TvdbID != 0 {

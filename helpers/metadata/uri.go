@@ -8,6 +8,7 @@ import (
 
 	"github.com/adrg/xdg"
 	"github.com/meteorae/meteorae-server/database"
+	"github.com/meteorae/meteorae-server/sdk"
 )
 
 var validURIRegex = regexp.MustCompile(`^metadata://([a-zA-Z\.]*)_([A-Fa-f0-9]{64})$`)
@@ -43,6 +44,25 @@ func GetURIComponents(uri string) (string, string) {
 	return parts[1], parts[2]
 }
 
+func GetCombinedFilepathForURI(uri string, item database.ItemMetadata, filetype string) string {
+	if !IsValidMetadataURI(uri) {
+		return ""
+	}
+
+	UUID := strings.ReplaceAll(item.UUID.String(), "-", "")
+	UUIDPrefix := UUID[:2]
+
+	cleanURI := strings.TrimPrefix(uri, "metadata://")
+
+	metadataDir, err := xdg.DataFile(
+		filepath.Join("meteorae", "metadata", item.Type.String(), UUIDPrefix, UUID, "combined", filetype, cleanURI))
+	if err != nil {
+		return ""
+	}
+
+	return metadataDir
+}
+
 func GetFilepathForURI(uri string, item database.ItemMetadata, filetype string) string {
 	if !IsValidMetadataURI(uri) {
 		return ""
@@ -53,7 +73,7 @@ func GetFilepathForURI(uri string, item database.ItemMetadata, filetype string) 
 	return GetFilepathForAgentAndHash(agent, hash, item.UUID.String(), item.Type, filetype)
 }
 
-func GetFilepathForAgentAndHash(agent string, hash string, UUID string, itemType database.ItemType, filetype string) string {
+func GetFilepathForAgentAndHash(agent string, hash string, UUID string, itemType sdk.ItemType, filetype string) string {
 	// Remove dashes from the UUID.
 	UUID = strings.ReplaceAll(UUID, "-", "")
 	UUIDPrefix := UUID[:2]

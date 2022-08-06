@@ -1,4 +1,4 @@
-package fanart
+package client
 
 import (
 	"encoding/json"
@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-// ImageInfo represent an image with its associated infos
+// ImageInfo represent an image with its associated infos.
 type ImageInfo struct {
 	ID    string `json:"id"`
 	URL   string `json:"url"`
@@ -14,7 +14,7 @@ type ImageInfo struct {
 	Likes int    `json:"likes"`
 }
 
-// UnmarshalJSON is a custom unmarshal function to handle likes as ints
+// UnmarshalJSON is a custom unmarshal function to handle likes as ints.
 func (i *ImageInfo) UnmarshalJSON(data []byte) error {
 	aux := struct {
 		ID    *string `json:"id"`
@@ -41,7 +41,7 @@ func (i *ImageInfo) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// GetBestImage returns the best image based on the likes
+// GetBestImage returns the best image based on the likes.
 func GetBestImage(imgs []*ImageInfo) *ImageInfo {
 	size := len(imgs)
 	switch size {

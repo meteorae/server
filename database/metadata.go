@@ -6,56 +6,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/imdario/mergo"
+	"github.com/meteorae/meteorae-server/sdk"
 	"github.com/rs/zerolog/log"
-	"gorm.io/gorm"
-)
-
-type ItemType uint
-
-func (t ItemType) String() string {
-	switch t {
-	case MovieItem:
-		return "Movie"
-	case MusicAlbumItem:
-		return "MusicAlbum"
-	case MusicMediumItem:
-		return "MusicMedium"
-	case MusicTrackItem:
-		return "MusicTrack"
-	case TVSeasonItem:
-		return "TVSeason"
-	case TVShowItem:
-		return "TVShow"
-	case TVEpisodeItem:
-		return "TVEpisode"
-	case ImageItem:
-		return "Image"
-	case ImageAlbumItem:
-		return "ImageAlbum"
-	case PersonItem:
-		return "Person"
-	case CollectionItem:
-		return "Collection"
-	case VideoClipItem:
-		return "VideoClip"
-	}
-
-	return "Unknown"
-}
-
-const (
-	MovieItem ItemType = iota
-	MusicAlbumItem
-	MusicMediumItem
-	MusicTrackItem
-	TVShowItem
-	TVSeasonItem
-	TVEpisodeItem
-	ImageItem
-	ImageAlbumItem
-	PersonItem
-	CollectionItem
-	VideoClipItem
 )
 
 type ItemMetadata struct {
@@ -65,7 +17,7 @@ type ItemMetadata struct {
 	OriginalTitle       string               `gorm:"type:VARCHAR(255)" json:"originalTitle"`
 	Tagline             string               `gorm:"type:VARCHAR(255)" json:"tagline"`
 	Summary             string               `json:"summary"`
-	Type                ItemType             `gorm:"not null;type:INT" json:"type"`
+	Type                sdk.ItemType         `gorm:"not null;type:INT" json:"type"`
 	UUID                uuid.UUID            `gorm:"not null;type:UUID" json:"uuid"`
 	ExternalIdentifiers []ExternalIdentifier `gorm:"foreignKey:ItemMetadataID"`
 	ReleaseDate         time.Time            `json:"releaseDate"`
@@ -80,17 +32,18 @@ type ItemMetadata struct {
 	Thumb               string               `json:"thumb"`
 	Art                 string               `json:"art"`
 	// ExtraInfo        datatypes.JSON `json:"extraInfo"`
-	Parts        []MediaPart `gorm:"foreignKey:ItemMetadataID" json:"mediaPart"`
-	LibraryID    uint
-	CreatedAt    time.Time `json:"createdAt"`
-	UpdatedAt    time.Time `json:"updatedAt"`
-	DeletedAt    time.Time `json:"deleteAt"`
-	IsRefreshing bool      `gorm:"-" json:"isRefreshing"`
-	IsAnalyzing  bool      `gorm:"-" json:"isAnalyzing"`
+	Parts     []MediaPart `gorm:"foreignKey:ItemMetadataID" json:"mediaPart"`
+	LibraryID uint
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	DeletedAt time.Time `json:"deleteAt"`
 }
 
+/*
 func (item *ItemMetadata) AfterCreate(*gorm.DB) error {
 	for _, observer := range SubsciptionsManager.ItemAddedObservers {
+		itemInfo, err := metadata.Get
+
 		observer <- item
 	}
 
@@ -100,6 +53,34 @@ func (item *ItemMetadata) AfterCreate(*gorm.DB) error {
 func (item *ItemMetadata) AfterUpdate(*gorm.DB) error {
 	for _, observer := range SubsciptionsManager.ItemUpdatedObservers {
 		observer <- item
+	}
+
+	return nil
+}
+*/
+
+// This should only be used for the initial seeding of info.xml.
+func (item ItemMetadata) ToItem() sdk.Item {
+	identifiers := []sdk.Identifier{}
+
+	for _, identifier := range item.ExternalIdentifiers {
+		identifiers = append(identifiers, sdk.Identifier{
+			IdentifierType: identifier.IdentifierType,
+			Identifier:     identifier.Identifier,
+		})
+	}
+
+	switch item.Type {
+	case sdk.MovieItem:
+		return sdk.Movie{
+			ItemInfo: &sdk.ItemInfo{
+				ID:          item.ID,
+				UUID:        item.UUID,
+				Title:       item.Title,
+				ReleaseDate: item.ReleaseDate,
+				Identifiers: identifiers,
+			},
+		}
 	}
 
 	return nil
@@ -147,7 +128,7 @@ func GetItemByUUID(uuid uuid.UUID) (ItemMetadata, error) {
 	return item, nil
 }
 
-func GetItemByLibrayAndType(library Library, itemType ItemType) ([]ItemMetadata, error) {
+func GetItemByLibrayAndType(library Library, itemType sdk.ItemType) ([]ItemMetadata, error) {
 	var items []ItemMetadata
 
 	result := db.Where("library_id = ? AND type = ?", library.ID, itemType).Find(&items)
@@ -158,7 +139,7 @@ func GetItemByLibrayAndType(library Library, itemType ItemType) ([]ItemMetadata,
 	return items, nil
 }
 
-func GetItemByUUIDAndType(uuid uuid.UUID, itemType ItemType) (ItemMetadata, error) {
+func GetItemByUUIDAndType(uuid uuid.UUID, itemType sdk.ItemType) (ItemMetadata, error) {
 	var item ItemMetadata
 
 	result := db.Where("uuid = ? AND type = ?", uuid, itemType).First(&item)
@@ -169,7 +150,7 @@ func GetItemByUUIDAndType(uuid uuid.UUID, itemType ItemType) (ItemMetadata, erro
 	return item, nil
 }
 
-func GetItemByTitleAndType(title string, itemType ItemType) (ItemMetadata, error) {
+func GetItemByTitleAndType(title string, itemType sdk.ItemType) (ItemMetadata, error) {
 	var item ItemMetadata
 
 	result := db.Where("title = ? AND type = ?", title, itemType).First(&item)
@@ -189,7 +170,7 @@ func GetItemsFromLibrary(library Library, limit, offset *int64) ([]*ItemMetadata
 		result := db.
 			Limit(int(*limit)).
 			Offset(int(*offset)).
-			Where("library_id = ? AND type = ?", library.ID, MusicAlbumItem).
+			Where("library_id = ? AND type = ?", library.ID, sdk.MusicAlbumItem).
 			Find(&items)
 		if result.Error != nil {
 			return nil, result.Error
@@ -213,7 +194,7 @@ func GetItemsCountFromLibrary(library Library) (int64, error) {
 
 	switch library.Type {
 	case MusicLibrary:
-		result := db.Model(&ItemMetadata{}).Where("library_id = ? AND type = ?", library.ID, MusicAlbumItem).Count(&count)
+		result := db.Model(&ItemMetadata{}).Where("library_id = ? AND type = ?", library.ID, sdk.MusicAlbumItem).Count(&count)
 		if result.Error != nil {
 			return 0, result.Error
 		}
@@ -228,7 +209,7 @@ func GetItemsCountFromLibrary(library Library) (int64, error) {
 }
 
 // Returns the first child of a given item with a given type.
-func GetChildFromItem(parentItemID uint, itemType ItemType) (ItemMetadata, error) {
+func GetChildFromItem(parentItemID uint, itemType sdk.ItemType) (ItemMetadata, error) {
 	var item ItemMetadata
 
 	result := db.
@@ -285,7 +266,7 @@ func GetLatestItemsFromLibrary(library Library, limit int) ([]ItemMetadata, erro
 		// Eventually replace this by properly grouped episodes
 		itemsResult := db.
 			Limit(limit).
-			Where("library_id = ? AND type = ?", library.ID, TVShowItem).
+			Where("library_id = ? AND type = ?", library.ID, sdk.TVShowItem).
 			Order("updated_at desc").
 			Find(&items)
 		if itemsResult.Error != nil {
@@ -294,7 +275,7 @@ func GetLatestItemsFromLibrary(library Library, limit int) ([]ItemMetadata, erro
 	} else if library.Type == MusicLibrary {
 		itemsResult := db.
 			Limit(limit).
-			Where("library_id = ? AND type = ?", library.ID, MusicAlbumItem).
+			Where("library_id = ? AND type = ?", library.ID, sdk.MusicAlbumItem).
 			Order("created_at desc").
 			Find(&items)
 		if itemsResult.Error != nil {
@@ -322,11 +303,16 @@ func CreateItemBatch(itemList []ItemMetadata) error {
 }
 
 func (i *ItemMetadata) Update(update ItemMetadata) error {
+	itemID := i.ID
+	update.ID = 0
+
 	if result := db.Model(&i).Where("id = ?", i.ID).Updates(update); result.Error != nil {
 		return result.Error
 	}
 
-	if err := mergo.Merge(i, update, mergo.WithOverride); err != nil {
+	update.ID = itemID
+
+	if err := mergo.Merge(i, update, mergo.WithAppendSlice); err != nil {
 		log.Err(err).Msg("failed to merge updates into item")
 	}
 

@@ -18,7 +18,13 @@ autobind:
 models:
   Item:
     model:
-      - "github.com/meteorae/meteorae-server/database.ItemMetadata"
+      - "github.com/meteorae/meteorae-server/sdk.Item"
+  Identifier:
+    model:
+      - "github.com/meteorae/meteorae-server/sdk.Identifier"
+  Movie:
+    model:
+      - "github.com/meteorae/meteorae-server/sdk.Movie"
   ID:
     model:
       - github.com/99designs/gqlgen/graphql.ID

@@ -4,9 +4,9 @@ extend type Query {
   "Query all libraries."
   libraries: [Library]
   "Query the availabel scanners for a library type."
-  scanners(libraryType: String!): [String!]
+  scanners(libraryType: String!): [Scanner!]
   "Query the available agents for a library type."
-  agents(libraryType: String!): [String!]
+  agents(libraryType: String!): [Agent!]
 }
 
 extend type Mutation {
@@ -23,6 +23,16 @@ extend type Mutation {
 
 extend type Subscription {
   onLibraryAdded: Library!
+}
+
+type Agent {
+  name: String!
+  identifier: String!
+}
+
+type Scanner {
+  name: String!
+  identifier: String!
 }
 
 "Library information."

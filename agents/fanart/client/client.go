@@ -1,4 +1,4 @@
-package fanart
+package client
 
 import (
 	"encoding/json"
@@ -8,17 +8,17 @@ import (
 	"github.com/meteorae/meteorae-server/helpers"
 )
 
-// DefaultEndpoint represents the default endpoint of the API
+// DefaultEndpoint represents the default endpoint of the API.
 var DefaultEndpoint = "https://webservice.fanart.tv/v3"
 
-// Client represents an API client
+// Client represents an API client.
 type Client struct {
 	Endpoint string
 	APIKey   string
 	Client   *http.Client
 }
 
-// New returns a new client
+// New returns a new client.
 func New() *Client {
 	return &Client{
 		Endpoint: DefaultEndpoint,

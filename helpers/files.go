@@ -12,8 +12,8 @@ import (
 
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/davidbyttow/govips/v2/vips"
-	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/helpers/metadata"
+	"github.com/meteorae/meteorae-server/sdk"
 	"github.com/meteorae/meteorae-server/utils"
 )
 
@@ -196,7 +196,7 @@ func EnsurePathExists(path string) error {
 
 // Saves a remote image file to the image cache.
 // Returns the hash of the image file.
-func SaveExternalImageToCache(fileURL string, agent string, item database.ItemMetadata, filetype string) (string, error) {
+func SaveExternalImageToCache(fileURL string, agent string, item sdk.Item, filetype string) (string, error) {
 	var fileBuffer bytes.Buffer
 
 	response, err := http.Get(fileURL) //#nosec
@@ -215,7 +215,7 @@ func SaveExternalImageToCache(fileURL string, agent string, item database.ItemMe
 
 // Internal method to generate the hash of the image file and save it to the cache.
 // Returns the hash of the image file.
-func SaveImageToCache(file []byte, agent string, item database.ItemMetadata, filetype string) (string, error) {
+func SaveImageToCache(file []byte, agent string, item sdk.Item, filetype string) (string, error) {
 	hash, err := utils.HashFileBytes(file)
 	if err != nil {
 		return "", fmt.Errorf("failed to hash remote image file: %w", err)
@@ -223,7 +223,7 @@ func SaveImageToCache(file []byte, agent string, item database.ItemMetadata, fil
 
 	fileHash := hex.EncodeToString(hash)
 
-	imageCachePath := metadata.GetFilepathForAgentAndHash(agent, fileHash, item.UUID.String(), item.Type, filetype)
+	imageCachePath := metadata.GetFilepathForAgentAndHash(agent, fileHash, item.GetUUID().String(), item.GetType(), filetype)
 
 	fileBuffer := bytes.NewBuffer(file)
 
