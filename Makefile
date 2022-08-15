@@ -9,7 +9,7 @@ GIT_COMMIT = $(shell git rev-parse HEAD)
 GIT_DIRTY = $(shell test -n "`git status --porcelain`" && echo "+CHANGES" || true)
 BUILD_DATE = $(shell date '+%Y-%m-%d-%H:%M:%S')
 
-TAGS = json1,icu
+TAGS = json1
 
 clean:
 	rm -f $(BIN_NAME)-linux-x64
@@ -32,22 +32,22 @@ endif
 build-windows:
 	export GOOS=windows
 	export GOARCH=amd64
-	go build -tags ${TAGS} -ldflags "-X github.com/meteorae/meteorae-server/helpers.GitCommit=${GIT_COMMIT}${GIT_DIRTY} -X github.com/meteorae/meteorae-server/helpers.BuildDate=${BUILD_DATE}" -o bin/windows-x64/$(BIN_NAME)-win-x64.exe main.go
+	go build -tags ${TAGS} -ldflags "-X github.com/meteorae/meteorae-server/helpers.Version=${VERSION} -X github.com/meteorae/meteorae-server/helpers.GitCommit=${GIT_COMMIT}${GIT_DIRTY} -X github.com/meteorae/meteorae-server/helpers.BuildDate=${BUILD_DATE}" -o bin/windows-x64/$(BIN_NAME)-win-x64.exe main.go
 
 build-linux:
 	export GOOS=linux
 	export GOARCH=amd64
-	go build -tags ${TAGS} -ldflags "-X github.com/meteorae/meteorae-server/helpers.GitCommit=${GIT_COMMIT}${GIT_DIRTY} -X github.com/meteorae/meteorae-server/helpers.BuildDate=${BUILD_DATE}" -o bin/linux-x64/$(BIN_NAME)-linux-x64 main.go
+	go build -tags ${TAGS} -ldflags "-X github.com/meteorae/meteorae-server/helpers.Version=${VERSION} -X github.com/meteorae/meteorae-server/helpers.GitCommit=${GIT_COMMIT}${GIT_DIRTY} -X github.com/meteorae/meteorae-server/helpers.BuildDate=${BUILD_DATE}" -o bin/linux-x64/$(BIN_NAME)-linux-x64 main.go
 
 build-darwin-intel:
 	export GOOS=darwin
 	export GOARCH=amd64
-	go build -tags ${TAGS} -ldflags "-X github.com/meteorae/meteorae-server/helpers.GitCommit=${GIT_COMMIT}${GIT_DIRTY} -X github.com/meteorae/meteorae-server/helpers.BuildDate=${BUILD_DATE}" -o bin/darwin-x64/$(BIN_NAME)-darwin-intel main.go
+	go build -tags ${TAGS} -ldflags "-X github.com/meteorae/meteorae-server/helpers.Version=${VERSION} -X github.com/meteorae/meteorae-server/helpers.GitCommit=${GIT_COMMIT}${GIT_DIRTY} -X github.com/meteorae/meteorae-server/helpers.BuildDate=${BUILD_DATE}" -o bin/darwin-x64/$(BIN_NAME)-darwin-intel main.go
 
 build-darwin-apple:
 	export GOOS=darwin
 	export GOARCH=arm64
-	go build -tags ${TAGS} -ldflags "-X github.com/meteorae/meteorae-server/helpers.GitCommit=${GIT_COMMIT}${GIT_DIRTY} -X github.com/meteorae/meteorae-server/helpers.BuildDate=${BUILD_DATE}" -o bin/darwin-arm64/$(BIN_NAME)-darwin-apple main.go
+	go build -tags ${TAGS} -ldflags "-X github.com/meteorae/meteorae-server/helpers.Version=${VERSION} -X github.com/meteorae/meteorae-server/helpers.GitCommit=${GIT_COMMIT}${GIT_DIRTY} -X github.com/meteorae/meteorae-server/helpers.BuildDate=${BUILD_DATE}" -o bin/darwin-arm64/$(BIN_NAME)-darwin-apple main.go
 
 run:
 ifeq ($(OS),Windows_NT)

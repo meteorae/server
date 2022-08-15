@@ -1,0 +1,9 @@
+extend type Query {
+  "Query latest content for all libraries."
+  latest(limit: Int = 20): [LatestResult]
+}
+
+type LatestResult {
+  library: Library!
+  items: [Item!]!
+}

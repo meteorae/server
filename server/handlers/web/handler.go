@@ -3,6 +3,7 @@ package web
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/fs"
@@ -10,11 +11,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/adrg/xdg"
 	"github.com/mholt/archiver/v3"
 	"github.com/rs/zerolog/log"
 )
+
+const clientDownloadTimeout = 10 * time.Second
 
 func EnsureWebClient() error {
 	webAssetsLocation, dataFileErr := xdg.DataFile("meteorae/assets")
@@ -30,19 +34,32 @@ func EnsureWebClient() error {
 	case os.IsNotExist(fsStatErr):
 		log.Debug().Msg("Web client not found, downloading from GitHub")
 
-		// TODO: Ideally we should go through Github's API to get the version as well
-		resp, err := http.Get("https://github.com/meteorae/web/releases/latest/download/web.zip")
+		ctx, cancel := context.WithTimeout(context.TODO(), clientDownloadTimeout)
+		defer cancel()
+
+		req, err := http.NewRequestWithContext(
+			ctx,
+			http.MethodGet,
+			"https://github.com/meteorae/web/releases/latest/download/web.zip",
+			nil)
+		if err != nil {
+			return fmt.Errorf("failed to create request: %w", err)
+		}
+
+		client := http.DefaultClient
+
+		res, err := client.Do(req)
 		if err != nil {
 			return fmt.Errorf("failed to download web client: %w", err)
 		}
-		defer resp.Body.Close()
+		defer res.Body.Close()
 
 		webClientZipFile, err := os.CreateTemp("", "meteorae-web-client-*.zip")
 		if err != nil {
 			return fmt.Errorf("failed to create temp file for web client: %w", err)
 		}
 
-		_, err = io.Copy(webClientZipFile, resp.Body)
+		_, err = io.Copy(webClientZipFile, res.Body)
 		if err != nil {
 			return fmt.Errorf("failed to copy web client archive: %w", err)
 		}
@@ -89,10 +106,14 @@ func (h SPAHandler) ServeHTTP(writer http.ResponseWriter, reader *http.Request) 
 		return
 	}
 
+	// React is configured with a base path of "/web", so we need to remove it
+	// from the path before we can serve the SPA.
+	path = strings.TrimPrefix(path, "/web")
+
 	log.Debug().Str("path", filepath.Join("web", path)).Msg("Serving file")
 
 	fileStat, fsStatErr := fs.Stat(serverRoot, filepath.Join("web", path))
-	if os.IsNotExist(fsStatErr) || fileStat.IsDir() && path == "/" {
+	if os.IsNotExist(fsStatErr) || fileStat.IsDir() && path == "" {
 		indexFile, indexOpenErr := serverRoot.Open(filepath.Join("web", "index.html"))
 		if indexOpenErr != nil {
 			log.Error().Err(indexOpenErr).Msg("Failed to open index.html")

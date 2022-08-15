@@ -1,0 +1,50 @@
+extend type Query {
+  "Query the specified library."
+  library(id: ID!): Library
+  "Query all libraries."
+  libraries: [Library]
+  "Query the availabel scanners for a library type."
+  scanners(libraryType: String!): [Scanner!]
+  "Query the available agents for a library type."
+  agents(libraryType: String!): [Agent!]
+}
+
+extend type Mutation {
+  "Add a new library of the specified type, with the provided name, language and location. This will trigger a scan for all locations provided."
+  addLibrary(
+    type: String!
+    name: String!
+    language: String!
+    locations: [String!]!
+    scanner: String!
+    agent: String!
+  ): Library!
+}
+
+extend type Subscription {
+  onLibraryAdded: Library!
+}
+
+type Agent {
+  name: String!
+  identifier: String!
+}
+
+type Scanner {
+  name: String!
+  identifier: String!
+}
+
+"Library information."
+type Library {
+  id: ID!
+  name: String!
+  type: String!
+  language: String!
+  locations: [String!]!
+  scanner: String!
+  agent: String!
+  createdAt: Time!
+  updatedAt: Time!
+  scannedAt: Time!
+}

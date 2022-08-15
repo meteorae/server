@@ -14,7 +14,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-var db *gorm.DB //nolint:varnamelen
+var db *gorm.DB //nolint:varnamelen,gochecknoglobals // Has to be accessible to other modules in the package.
 
 func NewDatabase(zerologger zerolog.Logger) error {
 	newLogger := logger.New(
@@ -58,6 +58,7 @@ var allModels = []interface{}{
 	&LibraryLocation{},
 	&MediaPart{},
 	&ItemMetadata{},
+	&MetadataRelationship{},
 	&MediaStream{},
 }
 
@@ -67,7 +68,7 @@ func initSchema(transaction *gorm.DB) error {
 		return fmt.Errorf("failed to run database initialization migrations: %w", err)
 	}
 
-	// Create the virtual tables
+	// Create the virtual tables for FTS4
 	result := transaction.Exec(
 		/* sql */ `CREATE VIRTUAL TABLE fts4_item_metadata USING fts4(
 			content=item_metadata,

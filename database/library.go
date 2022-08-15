@@ -4,6 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 var errInvalidLibraryType = errors.New("invalid library type")
@@ -11,12 +14,10 @@ var errInvalidLibraryType = errors.New("invalid library type")
 type LibraryType string
 
 const (
-	MovieLibrary      LibraryType = "movie"
-	AnimeMovieLibrary LibraryType = "animeMovie"
-	TVLibrary         LibraryType = "tv"
-	AnimeTVLibrary    LibraryType = "animeTV"
-	MusicLibrary      LibraryType = "music"
-	ImageLibrary      LibraryType = "image"
+	MovieLibrary LibraryType = "movie"
+	TVLibrary    LibraryType = "tv"
+	MusicLibrary LibraryType = "music"
+	ImageLibrary LibraryType = "photo"
 )
 
 func (l LibraryType) String() string {
@@ -46,23 +47,15 @@ func (l *LibraryType) UnmarshalText(text []byte) error {
 		*l = MovieLibrary
 
 		return nil
-	case "animeMovie":
-		*l = AnimeMovieLibrary
-
-		return nil
 	case "tv":
 		*l = TVLibrary
-
-		return nil
-	case "animeTV":
-		*l = AnimeTVLibrary
 
 		return nil
 	case "music":
 		*l = MusicLibrary
 
 		return nil
-	case "image":
+	case "photo":
 		*l = ImageLibrary
 
 		return nil
@@ -72,22 +65,45 @@ func (l *LibraryType) UnmarshalText(text []byte) error {
 }
 
 type Library struct {
-	ID               uint64            `gorm:"primary_key" json:"id"`
+	ID               uint              `gorm:"primary_key" json:"id"`
 	Name             string            `json:"name"`
 	Type             LibraryType       `json:"type"`
+	UUID             uuid.UUID         `json:"uuid"`
 	Language         string            `json:"language"`
 	LibraryLocations []LibraryLocation `gorm:"not null" json:"libraryLocations"`
+	Scanner          string            `json:"scanner"`
+	Agent            string            `json:"agent"`
+	Settings         string            `json:"settings"`
+	Children         []ItemMetadata    `gorm:"foreignKey:ParentID"`
 	CreatedAt        time.Time         `json:"createdAt"`
 	UpdatedAt        time.Time         `json:"updatedAt"`
 	ScannedAt        time.Time         `json:"scannedAt"`
+
+	IsScanning bool `gorm:"-" json:"isScanning"`
 }
 
 func (Library) TableName() string {
 	return "libraries"
 }
 
+func (library *Library) AfterCreate(*gorm.DB) error {
+	for _, observer := range SubsciptionsManager.LibraryAddedObservers {
+		observer <- library
+	}
+
+	return nil
+}
+
+func (library *Library) AfterUpdate(*gorm.DB) error {
+	for _, observer := range SubsciptionsManager.LibraryUpdatedObservers {
+		observer <- library
+	}
+
+	return nil
+}
+
 type LibraryLocation struct {
-	ID        uint64    `gorm:"primary_key" json:"id"`
+	ID        uint      `gorm:"primary_key" json:"id"`
 	LibraryID uint64    `gorm:"not null"`
 	RootPath  string    `gorm:"not null" json:"rootPath"`
 	Available bool      `gorm:"not null" json:"available"`
@@ -96,8 +112,12 @@ type LibraryLocation struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-func CreateLibrary(name, language, typeArg string, locations []string) (*Library, []LibraryLocation, error) {
-	var libraryLocations []LibraryLocation //nolint:prealloc
+func CreateLibrary(
+	name, language, typeArg string,
+	locations []string,
+	scanner, agent string,
+) (*Library, []LibraryLocation, error) {
+	libraryLocations := make([]LibraryLocation, 0, len(locations))
 	for _, location := range locations {
 		libraryLocations = append(libraryLocations, LibraryLocation{
 			RootPath:  location,
@@ -115,6 +135,8 @@ func CreateLibrary(name, language, typeArg string, locations []string) (*Library
 		Type:             libraryType,
 		Language:         language,
 		LibraryLocations: libraryLocations,
+		Scanner:          scanner,
+		Agent:            agent,
 	}
 
 	if result := db.Create(&library); result.Error != nil {

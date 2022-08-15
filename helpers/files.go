@@ -2,222 +2,102 @@ package helpers
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"net/http"
 	"os"
-	"path/filepath"
+	"time"
 
-	"github.com/adrg/xdg"
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/davidbyttow/govips/v2/vips"
+	"github.com/meteorae/meteorae-server/helpers/metadata"
+	"github.com/meteorae/meteorae-server/sdk"
 	"github.com/meteorae/meteorae-server/utils"
 )
 
-var (
-	BaseDirectoryMode = 0o755
-	BaseFileMode      = 0o600
-)
-
-var (
+const (
+	BaseDirectoryMode        = 0o755
+	BaseFileMode             = 0o600
 	BaseDirectoryPermissions = os.FileMode(BaseDirectoryMode)
 	BaseFilePermissions      = os.FileMode(BaseFileMode)
+	imageDownloadTimeout     = 10 * time.Second
 )
 
-var VideoFileExtensions = []string{
-	".m4v",
-	".3gp",
-	".nsv",
-	".ts",
-	".ty",
-	".strm",
-	".rm",
-	".rmvb",
-	".ifo",
-	".mov",
-	".qt",
-	".divx",
-	".xvid",
-	".bivx",
-	".vob",
-	".nrg",
-	".img",
-	".iso",
-	".pva",
-	".wmv",
-	".asf",
-	".asx",
-	".ogm",
-	".m2v",
-	".avi",
-	".bin",
-	".dvr-ms",
-	".mpg",
-	".mpeg",
-	".mp4",
-	".mkv",
-	".avc",
-	".vp3",
-	".svq3",
-	".nuv",
-	".viv",
-	".dv",
-	".fli",
-	".flv",
-	".001",
-	".tp",
-}
+func GetIgnoredFileGlobs() []string {
+	return []string{
+		// Unix hidden files, includes macOS-specific files
+		"**/.*",
 
-var AudioFileExtensions = []string{
-	".nsv",
-	".m4a",
-	".flac",
-	".aac",
-	".strm",
-	".pls",
-	".rm",
-	".mpa",
-	".wav",
-	".wma",
-	".ogg",
-	".opus",
-	".mp3",
-	".mp2",
-	".mod",
-	".amf",
-	".669",
-	".dmf",
-	".dsm",
-	".far",
-	".gdm",
-	".imf",
-	".it",
-	".m15",
-	".med",
-	".okt",
-	".s3m",
-	".stm",
-	".sfx",
-	".ult",
-	".uni",
-	".xm",
-	".sid",
-	".ac3",
-	".dts",
-	".cue",
-	".aif",
-	".aiff",
-	".ape",
-	".mac",
-	".mpc",
-	".mp+",
-	".mpp",
-	".shn",
-	".wv",
-	".nsf",
-	".spc",
-	".gym",
-	".adplug",
-	".adx",
-	".dsp",
-	".adp",
-	".ymf",
-	".ast",
-	".afc",
-	".hps",
-	".xsp",
-	".acc",
-	".m4b",
-	".oga",
-	".dsf",
-	".mka",
-}
+		// Sample files
+		"**/sample.?",
+		"**/sample.??",
+		"**/sample.???",  // Matches sample.mkv
+		"**/sample.????", // Matches sample.webm
+		"**/sample.?????",
+		"**/*.sample.?",
+		"**/*.sample.??",
+		"**/*.sample.???",
+		"**/*.sample.????",
+		"**/*.sample.?????",
+		"**/sample/*",
 
-var BookFileExtensions = []string{
-	".azw",
-	".azw3",
-	".cb7",
-	".cbr",
-	".cbt",
-	".cbz",
-	".epub",
-	".mobi",
-	".pdf",
-}
+		// Metadata directories
+		"**/metadata/**",
+		"**/metadata",
 
-var IgnoredFileGlobs = []string{
-	// Unix hidden files, includes macOS-specific files
-	"**/.*",
+		// Kodi-compatible metadata
+		"**/extrafanart/**",
+		"**/extrafanart",
+		"**/extrathumbs/**",
+		"**/extrathumbs",
+		"**/.actors/**",
+		"**/.actors",
 
-	// Sample files
-	"**/sample.?",
-	"**/sample.??",
-	"**/sample.???",  // Matches sample.mkv
-	"**/sample.????", // Matches sample.webm
-	"**/sample.?????",
-	"**/*.sample.?",
-	"**/*.sample.??",
-	"**/*.sample.???",
-	"**/*.sample.????",
-	"**/*.sample.?????",
-	"**/sample/*",
+		// Western Digital directories
+		"**/.wd_tv/**",
+		"**/.wd_tv",
 
-	// Metadata directories
-	"**/metadata/**",
-	"**/metadata",
+		// Unix lost files
+		"**/lost+found/**",
+		"**/lost+found",
 
-	// Kodi-compatible metadata
-	"**/extrafanart/**",
-	"**/extrafanart",
-	"**/extrathumbs/**",
-	"**/extrathumbs",
-	"**/.actors/**",
-	"**/.actors",
+		// Synology
+		"**/eaDir/**",
+		"**/eaDir",
+		"**/@eaDir/**",
+		"**/@eaDir",
+		"**/#recycle/**",
+		"**/#recycle",
 
-	// Western Digital directories
-	"**/.wd_tv/**",
-	"**/.wd_tv",
+		// Qnap
+		"**/@Recycle/**",
+		"**/@Recycle",
+		"**/.@__thumb/**",
+		"**/.@__thumb",
 
-	// Unix lost files
-	"**/lost+found/**",
-	"**/lost+found",
+		// Windows
+		"**/$RECYCLE.BIN/**",
+		"**/$RECYCLE.BIN",
+		"**/System Volume Information/**",
+		"**/System Volume Information",
 
-	// Synology
-	"**/eaDir/**",
-	"**/eaDir",
-	"**/@eaDir/**",
-	"**/@eaDir",
-	"**/#recycle/**",
-	"**/#recycle",
+		// Windows thumbnail cache
+		"**/thumbs.db",
 
-	// Qnap
-	"**/@Recycle/**",
-	"**/@Recycle",
-	"**/.@__thumb/**",
-	"**/.@__thumb",
-
-	// Windows
-	"**/$RECYCLE.BIN/**",
-	"**/$RECYCLE.BIN",
-	"**/System Volume Information/**",
-	"**/System Volume Information",
-
-	// Windows thumbnail cache
-	"**/thumbs.db",
-
-	// Resilio directories
-	"**/*.bts",
-	"**/*.sync",
+		// Resilio directories
+		"**/*.bts",
+		"**/*.sync",
+	}
 }
 
 // Given a path and a DirEntry, returns whether the given path should be ignored.
 func ShouldIgnore(path string, d fs.DirEntry) bool {
 	isMatched := false
 
-	for _, ext := range IgnoredFileGlobs {
+	for _, ext := range GetIgnoredFileGlobs() {
 		match, err := doublestar.Match(ext, path)
 		if err != nil {
 			// If the glob fails, be safe and don't ignore the file
@@ -238,51 +118,53 @@ func EnsurePathExists(path string) error {
 	return fmt.Errorf("failed to ensure path exists: %w", os.MkdirAll(path, BaseDirectoryPermissions))
 }
 
-// Saves a local image file to the image cache.
-// Returns the hash of the image file.
-func SaveLocalImageToCache(filePath string) (string, error) {
-	file, err := os.ReadFile(filePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to open local image file: %w", err)
-	}
-
-	return saveImageToCache(file)
-}
-
 // Saves a remote image file to the image cache.
 // Returns the hash of the image file.
-func SaveExternalImageToCache(filePath string) (string, error) {
+func SaveExternalImageToCache(fileURL, agent string, item sdk.Item, filetype string) (string, error) {
 	var fileBuffer bytes.Buffer
 
-	response, err := http.Get(filePath) //#nosec
-	if err != nil {
-		return "", fmt.Errorf("failed to fetch image \"%s\": %w", filePath, err)
-	}
-	defer response.Body.Close()
+	ctx, cancel := context.WithTimeout(context.TODO(), imageDownloadTimeout)
+	defer cancel()
 
-	_, err = io.Copy(&fileBuffer, response.Body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fileURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	client := http.DefaultClient
+
+	res, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to download web client: %w", err)
+	}
+	defer res.Body.Close()
+
+	// TODO: We should check if the file is an image before we save it.
+
+	_, err = io.Copy(&fileBuffer, res.Body)
 	if err != nil {
 		return "", fmt.Errorf("failed to copy remote image into memory: %w", err)
 	}
 
-	return saveImageToCache(fileBuffer.Bytes())
+	return SaveImageToCache(fileBuffer.Bytes(), agent, item, filetype)
 }
 
 // Internal method to generate the hash of the image file and save it to the cache.
 // Returns the hash of the image file.
-func saveImageToCache(file []byte) (string, error) {
+func SaveImageToCache(file []byte, agent string, item sdk.Item, filetype string) (string, error) {
 	hash, err := utils.HashFileBytes(file)
 	if err != nil {
 		return "", fmt.Errorf("failed to hash remote image file: %w", err)
 	}
 
 	fileHash := hex.EncodeToString(hash)
-	prefix := fileHash[0:2]
 
-	imageCachePath, err := xdg.CacheFile("meteorae/images")
-	if err != nil {
-		return "", fmt.Errorf("failed to get image cache path: %w", err)
-	}
+	imageCachePath := metadata.GetFilepathForAgentAndHash(
+		agent,
+		fileHash,
+		item.GetUUID().String(),
+		item.GetType(),
+		filetype)
 
 	fileBuffer := bytes.NewBuffer(file)
 
@@ -296,16 +178,7 @@ func saveImageToCache(file []byte) (string, error) {
 		return "", fmt.Errorf("failed to set image format: %w", err)
 	}
 
-	cachedFilePath := filepath.Join(imageCachePath, prefix, fileHash)
-
-	err = os.MkdirAll(cachedFilePath, BaseDirectoryPermissions)
-	if err != nil {
-		return "", fmt.Errorf("failed to create image cache directory: %w", err)
-	}
-
-	cachedFilePath = filepath.Join(cachedFilePath, "0x0.webp")
-
-	err = ioutil.WriteFile(cachedFilePath, export, BaseFilePermissions)
+	err = os.WriteFile(imageCachePath, export, BaseFilePermissions)
 	if err != nil {
 		return "", fmt.Errorf("failed to write image to disk: %w", err)
 	}

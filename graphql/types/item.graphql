@@ -1,0 +1,62 @@
+extend type Query {
+  "Query the specified item."
+  item(id: ID!): Item
+  "Query all items."
+  items(limit: Int = 20, offset: Int = 0, libraryId: ID!): ItemsResult
+  "Query the children of the provided item."
+  children(limit: Int = 20, offset: Int = 0, item: ID!): ItemsResult
+}
+
+type ItemsResult {
+  items: [Item]
+  total: Int
+}
+
+extend type Subscription {
+  onItemAdded: Item!
+  onItemUpdated: Item!
+}
+
+type Image {
+  hash: String
+  url: String
+}
+
+type Identifier {
+  type: Int!
+  name: String!
+  value: String!
+}
+
+"Item information."
+interface Item {
+  id: ID!
+  title: String!
+  sortTitle: String!
+  startDate: String
+  thumb: Image
+  art: Image
+  identifiers: [Identifier]
+  createdAt: Time!
+  updatedAt: Time!
+  deletedAt: Time!
+  isRefreshing: Boolean!
+  isAnalyzing: Boolean!
+}
+
+type Movie implements Item {
+  id: ID!
+  title: String!
+  sortTitle: String!
+  startDate: String
+  tagline: String
+  summary: String
+  thumb: Image
+  art: Image
+  identifiers: [Identifier]
+  createdAt: Time!
+  updatedAt: Time!
+  deletedAt: Time!
+  isRefreshing: Boolean!
+  isAnalyzing: Boolean!
+}
