@@ -62,15 +62,14 @@ const (
 type Item interface {
 	IsItem()
 	GetID() uint
-	SetID(uint)
 	GetTitle() string
 	GetReleaseDate() time.Time
 	GetUUID() uuid.UUID
-	SetUUID(uuid.UUID)
 	GetIdentifiers() []Identifier
 	GetThumbs() []ItemImage
 	GetArt() []ItemImage
 	GetType() ItemType
+	GetParts() []string
 }
 
 type ItemImage struct {
@@ -119,10 +118,6 @@ func (i ItemInfo) GetID() uint {
 	return i.ID
 }
 
-func (i ItemInfo) SetID(id uint) {
-	i.ID = id
-}
-
 func (i ItemInfo) GetTitle() string {
 	return i.Title
 }
@@ -133,10 +128,6 @@ func (i ItemInfo) GetReleaseDate() time.Time {
 
 func (i ItemInfo) GetUUID() uuid.UUID {
 	return i.UUID
-}
-
-func (i ItemInfo) SetUUID(uuid uuid.UUID) {
-	i.UUID = uuid
 }
 
 func (i ItemInfo) GetIdentifiers() []Identifier {
@@ -153,6 +144,10 @@ func (i ItemInfo) GetArt() []ItemImage {
 
 func (i ItemInfo) GetType() ItemType {
 	return UnknownItem
+}
+
+func (i ItemInfo) GetParts() []string {
+	return i.Parts
 }
 
 type IdentifierType int8

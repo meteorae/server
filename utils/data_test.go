@@ -37,14 +37,14 @@ func TestIsStringInSlice(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		tc := tc //nolint:varnamelen
+	for _, tt := range tests {
+		tt := tt
 
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := utils.IsStringInSlice(tc.args.a, tc.args.list); got != tc.want {
-				t.Errorf("IsStringInSlice() = %v, want %v", got, tc.want)
+			if got := utils.IsStringInSlice(tt.args.a, tt.args.list); got != tt.want {
+				t.Errorf("IsStringInSlice() = %v, want %v", got, tt.want)
 			}
 		})
 	}

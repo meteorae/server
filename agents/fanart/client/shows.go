@@ -1,9 +1,11 @@
 package client
 
+import "context"
+
 // ShowResult represents the result for a show.
 type ShowResult struct {
 	Name   string `json:"name"`
-	TvdbID string `json:"thetvdb_id"` //nolint:tagliatelle
+	TvdbID string `json:"thetvdb_id"` //nolint:tagliatelle // TheMovieDB uses snake_case for the field names.
 
 	Backgrounds   []*ImageInfo `json:"showbackground"`
 	Banners       []*ImageInfo `json:"tvbanner"`
@@ -20,11 +22,11 @@ type ShowResult struct {
 }
 
 // GetShowImages returns the images for a show.
-func (c *Client) GetShowImages(tvdbID string) (*ShowResult, error) {
+func (c *Client) GetShowImages(ctx context.Context, tvdbID string) (*ShowResult, error) {
 	url := c.Endpoint + "/tv/" + tvdbID
 
 	var sr ShowResult
-	if err := c.get(url, &sr); err != nil {
+	if err := c.get(ctx, url, &sr); err != nil {
 		return nil, err
 	}
 

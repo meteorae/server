@@ -14,7 +14,7 @@ import (
 	"gopkg.in/vansante/go-ffprobe.v2"
 )
 
-var ffprobeProcessTimeout = 5 * time.Second
+const ffprobeProcessTimeout = 5 * time.Second
 
 func AnalyzeAudio(mediaPart database.MediaPart) error {
 	log.Debug().Msgf("Analyzing %s", mediaPart.FilePath)
@@ -101,9 +101,9 @@ func getFfprobeData(mediaPart database.MediaPart) error {
 			BitsPerSample:      stream.BitsPerSample,
 		}
 
-		jsonStreamInfo, err := json.Marshal(streamInfo)
-		if err != nil {
-			return fmt.Errorf("could not marshal stream info: %w", err)
+		jsonStreamInfo, jsonErr := json.Marshal(streamInfo)
+		if jsonErr != nil {
+			return fmt.Errorf("could not marshal stream info: %w", jsonErr)
 		}
 
 		var streamType database.StreamType
@@ -121,10 +121,10 @@ func getFfprobeData(mediaPart database.MediaPart) error {
 			return nil
 		}
 
-		err = database.CreateMediaStream(stream.Tags.Title, streamType, stream.Tags.Language,
+		jsonErr = database.CreateMediaStream(stream.Tags.Title, streamType, stream.Tags.Language,
 			stream.Index, jsonStreamInfo, mediaPart.ID)
-		if err != nil {
-			return fmt.Errorf("could not create stream: %w", err)
+		if jsonErr != nil {
+			return fmt.Errorf("could not create stream: %w", jsonErr)
 		}
 	}
 

@@ -1,9 +1,8 @@
 package main
 
-import "C"
-
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os/signal"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/getsentry/sentry-go"
-	"github.com/meteorae/meteorae-server/agents"
 	_ "github.com/meteorae/meteorae-server/config"
 	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/helpers"
@@ -25,7 +23,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var serverShutdownTimeout = 10 * time.Second
+const serverShutdownTimeout = 10 * time.Second
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -52,17 +50,17 @@ func main() {
 
 	// Give the user some basic information about which version of Meteorae is running and on what
 	log.Info().Msgf("Starting Meteorae %s", helpers.Version)
-	log.Info().Msgf("Language: %s", helpers.SystemLocale)
+	log.Info().Msgf("Language: %s", helpers.GetSystemLocale())
 	log.Info().Msgf("Build Date: %s", helpers.BuildDate)
 	log.Info().Msgf("Git Commit: %s", helpers.GitCommit)
-	log.Info().Msgf("Go Runtime Version: %s", helpers.GoVersion)
-	log.Info().Msgf("OS / Arch: %s", helpers.OsArch)
-	log.Info().Msgf("Processor: %d-core %s", helpers.CPUCoreCount, helpers.CPUName)
+	log.Info().Msgf("Go Runtime Version: %s", helpers.GetGoVersion())
+	log.Info().Msgf("OS / Arch: %s", helpers.GetOsArch())
+	log.Info().Msgf("Processor: %d-core %s", helpers.GetCPUCoreCount(), helpers.GetCPUName())
 
 	// Initialize the database
-	err := database.NewDatabase(log.Logger)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to initialize database")
+	getWebServerErr := database.NewDatabase(log.Logger)
+	if getWebServerErr != nil {
+		log.Error().Err(getWebServerErr).Msg("Failed to initialize database")
 
 		return
 	}
@@ -72,12 +70,11 @@ func main() {
 	defer vips.Shutdown()
 
 	scanners.InitScannersManager()
-	agents.InitAgentsManager()
 
 	// Initialize the task queue
-	err = tasks.StartTaskQueues()
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to initialize task queues")
+	getWebServerErr = tasks.StartTaskQueues()
+	if getWebServerErr != nil {
+		log.Error().Err(getWebServerErr).Msg("Failed to initialize task queues")
 
 		return
 	}
@@ -85,9 +82,9 @@ func main() {
 	defer tasks.StopTaskQueues()
 
 	// Initialize the web server and all its components
-	srv, err := server.GetWebServer()
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to initialize web server")
+	srv, getWebServerErr := server.GetWebServer()
+	if getWebServerErr != nil {
+		log.Error().Err(getWebServerErr).Msg("Failed to initialize web server")
 
 		return
 	}
@@ -97,8 +94,9 @@ func main() {
 	// Initializing the server in a goroutine so that
 	// it won't block the graceful shutdown handling below
 	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Err(err).Msg("The web server encountered an error")
+		if serverListenErr := srv.ListenAndServe(); serverListenErr != nil &&
+			!errors.Is(serverListenErr, http.ErrServerClosed) {
+			log.Err(serverListenErr).Msg("The web server encountered an error")
 
 			return
 		}
@@ -110,11 +108,11 @@ func main() {
 	log.Info().Msg("Shutting down gracefully…")
 
 	// Shutdown the web server and force-quit if it takes too long
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), serverShutdownTimeout)
 	defer cancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
-		log.Error().Err(err).Msg("Failed to gracefully shutdown web server")
+	if serverShutdownErr := srv.Shutdown(ctx); serverShutdownErr != nil {
+		log.Error().Err(serverShutdownErr).Msg("Failed to gracefully shutdown web server")
 
 		return
 	}

@@ -170,15 +170,15 @@ func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions 
 				previousAlbumArtist = track.AlbumArtist
 			}
 
-			if strings.ToLower(previousAlbum) != strings.ToLower(track.AlbumName) {
+			if !strings.EqualFold(previousAlbum, track.AlbumName) {
 				sameAlbum = false
 			}
 
-			if strings.ToLower(previousArtist) != strings.ToLower(track.Artist[0]) {
+			if !strings.EqualFold(previousArtist, track.Artist[0]) {
 				sameArtist = false
 			}
 
-			if strings.ToLower(previousAlbumArtist) != strings.ToLower(track.AlbumArtist) {
+			if !strings.EqualFold(previousAlbumArtist, track.AlbumArtist) {
 				sameAlbumArtist = false
 			}
 

@@ -15,7 +15,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func (r *mutationResolver) Login(ctx context.Context, username string, password string) (*models.AuthPayload, error) {
+func (r *mutationResolver) Login(ctx context.Context, username, password string) (*models.AuthPayload, error) {
 	user, err := database.GetUserByName(username)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get user")
@@ -29,9 +29,9 @@ func (r *mutationResolver) Login(ctx context.Context, username string, password 
 	}
 
 	if match {
-		token, err := helpers.GenerateJwt(user.ID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate JWT: %w", err)
+		token, jwtGenerateErr := helpers.GenerateJwt(user.ID)
+		if jwtGenerateErr != nil {
+			return nil, fmt.Errorf("failed to generate JWT: %w", jwtGenerateErr)
 		}
 
 		return &models.AuthPayload{
@@ -43,15 +43,15 @@ func (r *mutationResolver) Login(ctx context.Context, username string, password 
 	return nil, errInvalidCredentials
 }
 
-func (r *mutationResolver) Register(ctx context.Context, username string, password string) (*models.AuthPayload, error) {
+func (r *mutationResolver) Register(ctx context.Context, username, password string) (*models.AuthPayload, error) {
 	user, err := database.CreateUser(username, password)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
-	token, err := helpers.GenerateJwt(user.ID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate JWT: %w", err)
+	token, jwtGenerateErr := helpers.GenerateJwt(user.ID)
+	if jwtGenerateErr != nil {
+		return nil, fmt.Errorf("failed to generate JWT: %w", jwtGenerateErr)
 	}
 
 	return &models.AuthPayload{
@@ -76,14 +76,14 @@ func (r *queryResolver) User(ctx context.Context, id string) (*database.User, er
 	return user, nil
 }
 
-func (r *queryResolver) Users(ctx context.Context, limit *int64, offset *int64) ([]*database.User, error) {
+func (r *queryResolver) Users(ctx context.Context, limit, offset *int64) ([]*database.User, error) {
 	users := database.GetUsers()
 
 	return users, nil
 }
 
 func (r *userResolver) ID(ctx context.Context, obj *database.User) (string, error) {
-	return strconv.FormatUint(uint64(obj.ID), 10), nil //nolint:gomnd
+	return strconv.FormatUint(uint64(obj.ID), 10), nil
 }
 
 // User returns models.UserResolver implementation.

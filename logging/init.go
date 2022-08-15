@@ -2,7 +2,6 @@ package logging
 
 import (
 	"io"
-	"io/ioutil"
 	stdlog "log"
 	"os"
 
@@ -31,7 +30,7 @@ func init() {
 	}
 
 	// Standard logging has no level and kind of sucks.
-	stdlog.SetOutput(ioutil.Discard)
+	stdlog.SetOutput(io.Discard)
 }
 
 func newRollingFile() io.Writer {

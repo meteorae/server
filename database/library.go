@@ -117,7 +117,7 @@ func CreateLibrary(
 	locations []string,
 	scanner, agent string,
 ) (*Library, []LibraryLocation, error) {
-	var libraryLocations []LibraryLocation //nolint:prealloc
+	libraryLocations := make([]LibraryLocation, 0, len(locations))
 	for _, location := range locations {
 		libraryLocations = append(libraryLocations, LibraryLocation{
 			RootPath:  location,

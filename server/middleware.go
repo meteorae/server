@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -15,7 +16,6 @@ import (
 	gqlPlayground "github.com/99designs/gqlgen/graphql/playground"
 	sentrygin "github.com/getsentry/sentry-go/gin"
 	"github.com/gin-contrib/cors"
-
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/websocket"
@@ -36,10 +36,14 @@ import (
 	"gorm.io/gorm"
 )
 
-var (
-	writeTimeout = 15 * time.Second
-	readTimeout  = 15 * time.Second
+const (
+	keepAliveInterval = 10 * time.Second
+	maxUploadSize     = 1024 << 20       // 1GB
+	readHeaderTimeout = 60 * time.Second // Same as the default for Nginx
+	lruCacheSize      = 1000
 )
+
+var errGraphQL = errors.New("unexpected graphql error")
 
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
@@ -79,7 +83,13 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		customClaim, _ := validate.Claims.(*helpers.JwtClaim)
+		customClaim, ok := validate.Claims.(*helpers.JwtClaim)
+		if !ok {
+			log.Error().Msg("Invalid token")
+			http.Error(writer, "Invalid token", http.StatusForbidden)
+
+			return
+		}
 
 		account, err := database.GetUserByID(customClaim.UserID)
 		if err != nil {
@@ -98,35 +108,11 @@ func AuthMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// TODO: Move this to GraphQL.
-func setupHandler(writer http.ResponseWriter, request *http.Request) {
-	userCount := database.GetUsersCount()
-
-	if userCount == 0 {
-		_, err := writer.Write([]byte("true"))
-		if err != nil {
-			log.Error().Msg(err.Error())
-		}
-	} else {
-		_, err := writer.Write([]byte("false"))
-		if err != nil {
-			log.Error().Msg(err.Error())
-		}
-	}
-}
-
-func GetWebServer() (*http.Server, error) {
-	// Setup webserver and serve GraphQL handler
-	router := gin.New()
-
-	router.UseH2C = true
-
+func getQueryHandler() *gqlHandler.Server {
 	recoverFunc := func(ctx context.Context, err interface{}) error {
 		log.Error().Interface("error", err).Msg("A GraphQL error occurred")
 
-		message := fmt.Sprintf("Internal system error. Error <%v>", err)
-
-		return errors.New(message)
+		return errGraphQL
 	}
 
 	queryHandler := gqlHandler.New(models.NewExecutableSchema(models.Config{Resolvers: &api.Resolver{}}))
@@ -137,23 +123,22 @@ func GetWebServer() (*http.Server, error) {
 				return true
 			},
 		},
-		KeepAlivePingInterval: 10 * time.Second,
+		KeepAlivePingInterval: keepAliveInterval,
 	})
 	queryHandler.AddTransport(gqlTransport.Options{})
 	queryHandler.AddTransport(gqlTransport.GET{})
 	queryHandler.AddTransport(gqlTransport.POST{})
 	queryHandler.AddTransport(gqlTransport.MultipartForm{
-		MaxUploadSize: 1024 << 20, // 1GB
+		MaxUploadSize: maxUploadSize,
 	})
 
-	queryHandler.SetQueryCache(gqlLru.New(1000))
+	queryHandler.SetQueryCache(gqlLru.New(lruCacheSize))
 	queryHandler.Use(gqlExtension.Introspection{})
 
-	transcodeHandler, err := transcode.NewImageHandler()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create image handler: %w", err)
-	}
+	return queryHandler
+}
 
+func getLoggingHandler() alice.Chain {
 	loggingHandler := alice.New()
 	loggingHandler = loggingHandler.Append(hlog.NewHandler(log.Logger))
 	loggingHandler = loggingHandler.Append(hlog.AccessHandler(
@@ -170,6 +155,22 @@ func GetWebServer() (*http.Server, error) {
 	loggingHandler = loggingHandler.Append(hlog.UserAgentHandler("user_agent"))
 	loggingHandler = loggingHandler.Append(hlog.RefererHandler("referer"))
 	loggingHandler = loggingHandler.Append(hlog.RequestIDHandler("req_id", "Request-Id"))
+
+	return loggingHandler
+}
+
+func GetWebServer() (*http.Server, error) {
+	// Setup webserver and serve GraphQL handler
+	router := gin.New()
+
+	router.UseH2C = true
+
+	transcodeHandler, err := transcode.NewImageHandler()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create image handler: %w", err)
+	}
+
+	loggingHandler := getLoggingHandler()
 
 	err = web.EnsureWebClient()
 	if err != nil {
@@ -193,16 +194,22 @@ func GetWebServer() (*http.Server, error) {
 	}))
 	router.Use(cors.Default())
 
-	router.Any("/graphql", gin.WrapH(queryHandler))
+	router.Any("/graphql", gin.WrapH(
+		loggingHandler.Then(
+			handlers.CompressHandler(
+				getQueryHandler()))))
 	router.GET("/playground", gin.WrapH(
-		handlers.CompressHandler(
-			gqlPlayground.Handler("GraphQL playground", "/query"))))
+		loggingHandler.Then(
+			handlers.CompressHandler(
+				gqlPlayground.Handler("GraphQL playground", "/query")))))
 	router.GET("/image/transcode", gin.WrapH(
-		handlers.CompressHandler(
-			http.HandlerFunc(transcodeHandler.HTTPHandler))))
+		loggingHandler.Then(
+			handlers.CompressHandler(
+				http.HandlerFunc(transcodeHandler.HTTPHandler)))))
 	router.GET("/library/{metadata}/{part}/file.{ext}", gin.WrapH(
-		http.HandlerFunc(library.MediaPartHTTPHandler)))
-	router.GET("/web", gin.WrapH(handlers.CompressHandler(spa)))
+		loggingHandler.Then(
+			http.HandlerFunc(library.MediaPartHTTPHandler))))
+	router.GET("/web", gin.WrapH(loggingHandler.Then(handlers.CompressHandler(spa))))
 
 	// TODO: If we're not in HTTP/2, we should keep the connection alive
 
@@ -211,7 +218,9 @@ func GetWebServer() (*http.Server, error) {
 	port := viper.GetInt("port")
 
 	return &http.Server{
-		Addr:    fmt.Sprintf(":%d", port),
+		Addr:    net.JoinHostPort("", fmt.Sprint(port)),
 		Handler: h2c.NewHandler(router, &h2s),
+		// Set ReadHeaderTimeout to protect from Slowloris attacks.
+		ReadHeaderTimeout: readHeaderTimeout,
 	}, nil
 }

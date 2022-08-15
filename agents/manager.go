@@ -5,6 +5,7 @@ import (
 
 	"github.com/imdario/mergo"
 	"github.com/meteorae/meteorae-server/agents/fanart"
+	"github.com/meteorae/meteorae-server/agents/musicbrainz"
 	"github.com/meteorae/meteorae-server/agents/themoviedb"
 	"github.com/meteorae/meteorae-server/database"
 	"github.com/meteorae/meteorae-server/helpers/metadata"
@@ -14,58 +15,60 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// Scanners are organised by item type.
-var scanners = map[database.LibraryType]map[string][]sdk.Agent{}
+var errNoAgentsFound = fmt.Errorf("no agents found")
 
-func InitAgentsManager() {
-	// TODO: Agents should be populated from plugins.
+func getAgents() map[database.LibraryType]map[string][]sdk.Agent {
+	agents := map[database.LibraryType]map[string][]sdk.Agent{}
 
 	tmdbMovieAgent := themoviedb.MoviePlugin.GetMovieAgent()
 	tmdbTVAgent := themoviedb.TVPlugin.GetTVAgent()
 
 	fanartMovieAgent := fanart.MoviePlugin.GetMovieAgent()
 
-	scanners[database.MovieLibrary] = map[string][]sdk.Agent{
+	musicbrainzAlbumAgent := musicbrainz.AlbumPlugin.GetAlbumAgent()
+
+	agents[database.MovieLibrary] = map[string][]sdk.Agent{
 		tmdbMovieAgent.Identifier: {
 			*tmdbMovieAgent,
 			*fanartMovieAgent,
 		},
 	}
 
-	scanners[database.TVLibrary] = map[string][]sdk.Agent{
+	agents[database.TVLibrary] = map[string][]sdk.Agent{
 		tmdbTVAgent.Identifier: {
 			*tmdbTVAgent,
 		},
 	}
 
-	/*scanners[database.MusicLibrary] = map[string][]Agent{
-		musicAgent.GetIdentifier(): {
-			{
-				Identifier:           musicAgent.GetIdentifier(),
-				Name:                 musicAgent.GetName(),
-				GetMetadataFunc:      musicAgent.GetMetadata,
-				GetSearchResultsFunc: musicAgent.GetSearchResults,
-			},
+	agents[database.MusicLibrary] = map[string][]sdk.Agent{
+		musicbrainzAlbumAgent.Identifier: {
+			*musicbrainzAlbumAgent,
 		},
-	}*/
+	}
+
+	return agents
 }
 
 func GetAgentNamesForLibraryType(libraryType database.LibraryType) []*models.Agent {
-	scannerNames := make([]*models.Agent, 0, len(scanners[libraryType]))
+	agents := getAgents()
 
-	for identifier, agent := range scanners[libraryType] {
-		scannerNames = append(scannerNames, &models.Agent{
+	agentsNames := make([]*models.Agent, 0, len(agents[libraryType]))
+
+	for identifier, agent := range agents[libraryType] {
+		agentsNames = append(agentsNames, &models.Agent{
 			// All components for an agent should have the same name, so take the first one.
 			Name:       agent[0].Name,
 			Identifier: identifier,
 		})
 	}
 
-	return scannerNames
+	return agentsNames
 }
 
 func GetAgentComponentsByName(name string, libraryType database.LibraryType) []sdk.Agent {
-	for agent, components := range scanners[libraryType] {
+	agents := getAgents()
+
+	for agent, components := range agents[libraryType] {
 		if agent == name {
 			return components
 		}
@@ -78,7 +81,7 @@ func RefreshItemMetadata(item database.ItemMetadata, library database.Library) e
 	// Get the agent for this item.
 	components := GetAgentComponentsByName(library.Agent, library.Type)
 	if len(components) == 0 {
-		return fmt.Errorf("no agents found for item type: %s", item.Type)
+		return errNoAgentsFound
 	}
 
 	var combinedItem sdk.Item
@@ -139,7 +142,10 @@ func RefreshItemMetadata(item database.ItemMetadata, library database.Library) e
 			return fmt.Errorf("failed to save metadata for item: %w", err)
 		}
 
-		mergo.Merge(item, item, mergo.WithAppendSlice)
+		err = mergo.Merge(&item, item, mergo.WithAppendSlice)
+		if err != nil {
+			return fmt.Errorf("failed to merge metadata for item: %w", err)
+		}
 
 		if combinedItem == nil {
 			combinedItem = updatedItem
@@ -179,6 +185,8 @@ func RefreshLibraryMetadata(library database.Library) error {
 		itemTypeToRefresh = sdk.TVShowItem
 	case database.MusicLibrary:
 		itemTypeToRefresh = sdk.MusicAlbumItem
+	case database.ImageLibrary:
+		itemTypeToRefresh = sdk.ImageAlbumItem
 	}
 
 	// Get all the items for this library.
@@ -192,9 +200,9 @@ func RefreshLibraryMetadata(library database.Library) error {
 		item := items[i]
 
 		err = tasks.MetadataRefreshQueue.Submit(func() {
-			err := RefreshItemMetadata(item, library)
-			if err != nil {
-				log.Err(err).Stack().Msgf("Failed to refresh metadata for item: %s", item.Title)
+			refreshErr := RefreshItemMetadata(item, library)
+			if refreshErr != nil {
+				log.Err(refreshErr).Stack().Msgf("Failed to refresh metadata for item: %s", item.Title)
 			}
 		})
 		if err != nil {

@@ -15,7 +15,7 @@ import (
 )
 
 func (r *queryResolver) Latest(ctx context.Context, limit *int64) ([]*models.LatestResult, error) {
-	var latest []*models.LatestResult
+	latest := make([]*models.LatestResult, 0)
 
 	libraries := database.GetLibraries()
 
@@ -30,11 +30,11 @@ func (r *queryResolver) Latest(ctx context.Context, limit *int64) ([]*models.Lat
 		}
 
 		for i := range items {
-			itemInfo, err := metadata.GetInfoXML(items[i])
-			if err != nil {
-				log.Err(err).Msgf("Failed to get info XML for item %d", items[i].ID)
+			itemInfo, getInfoErr := metadata.GetInfoXML(items[i])
+			if getInfoErr != nil {
+				log.Err(getInfoErr).Msgf("Failed to get info XML for item %d", items[i].ID)
 
-				return nil, fmt.Errorf("failed to get info XML for item %d: %w", items[i].ID, err)
+				return nil, fmt.Errorf("failed to get info XML for item %d: %w", items[i].ID, getInfoErr)
 			}
 
 			latestItems = append(latestItems, itemInfo)

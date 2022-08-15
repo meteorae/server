@@ -70,9 +70,30 @@ func (item ItemMetadata) ToItem() sdk.Item {
 		})
 	}
 
-	switch item.Type {
+	// TODO: Support all item types.
+	switch item.Type { //nolint:exhaustive // To be expanded.
 	case sdk.MovieItem:
 		return sdk.Movie{
+			ItemInfo: &sdk.ItemInfo{
+				ID:          item.ID,
+				UUID:        item.UUID,
+				Title:       item.Title,
+				ReleaseDate: item.ReleaseDate,
+				Identifiers: identifiers,
+			},
+		}
+	case sdk.TVShowItem:
+		return sdk.TVShow{
+			ItemInfo: &sdk.ItemInfo{
+				ID:          item.ID,
+				UUID:        item.UUID,
+				Title:       item.Title,
+				ReleaseDate: item.ReleaseDate,
+				Identifiers: identifiers,
+			},
+		}
+	case sdk.MusicAlbumItem:
+		return sdk.MusicAlbum{
 			ItemInfo: &sdk.ItemInfo{
 				ID:          item.ID,
 				UUID:        item.UUID,
@@ -165,7 +186,7 @@ func GetItemByTitleAndType(title string, itemType sdk.ItemType) (ItemMetadata, e
 func GetItemsFromLibrary(library Library, limit, offset *int64) ([]*ItemMetadata, error) {
 	var items []*ItemMetadata
 
-	switch library.Type {
+	switch library.Type { //nolint:exhaustive // To be expanded.
 	case MusicLibrary:
 		result := db.
 			Limit(int(*limit)).
@@ -192,7 +213,7 @@ func GetItemsFromLibrary(library Library, limit, offset *int64) ([]*ItemMetadata
 func GetItemsCountFromLibrary(library Library) (int64, error) {
 	var count int64
 
-	switch library.Type {
+	switch library.Type { //nolint:exhaustive // To be expanded.
 	case MusicLibrary:
 		result := db.Model(&ItemMetadata{}).Where("library_id = ? AND type = ?", library.ID, sdk.MusicAlbumItem).Count(&count)
 		if result.Error != nil {
@@ -253,7 +274,9 @@ func GetChildrenCountFromItem(id uint) (int64, error) {
 func GetLatestItemsFromLibrary(library Library, limit int) ([]ItemMetadata, error) {
 	var items []ItemMetadata
 
-	if library.Type == MovieLibrary || library.Type == ImageLibrary {
+	switch {
+	case library.Type == MovieLibrary:
+	case library.Type == ImageLibrary:
 		itemsResult := db.
 			Limit(limit).
 			Where("library_id = ? AND parent_id = 0", library.ID).
@@ -262,8 +285,8 @@ func GetLatestItemsFromLibrary(library Library, limit int) ([]ItemMetadata, erro
 		if itemsResult.Error != nil {
 			return nil, fmt.Errorf("failed to get items: %w", itemsResult.Error)
 		}
-	} else if library.Type == TVLibrary {
-		// Eventually replace this by properly grouped episodes
+	case library.Type == TVLibrary:
+		// TODO: Eventually replace this by properly grouped episodes
 		itemsResult := db.
 			Limit(limit).
 			Where("library_id = ? AND type = ?", library.ID, sdk.TVShowItem).
@@ -272,7 +295,7 @@ func GetLatestItemsFromLibrary(library Library, limit int) ([]ItemMetadata, erro
 		if itemsResult.Error != nil {
 			return nil, fmt.Errorf("failed to get episodes: %w", itemsResult.Error)
 		}
-	} else if library.Type == MusicLibrary {
+	case library.Type == MusicLibrary:
 		itemsResult := db.
 			Limit(limit).
 			Where("library_id = ? AND type = ?", library.ID, sdk.MusicAlbumItem).

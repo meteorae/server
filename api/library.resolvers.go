@@ -19,7 +19,7 @@ import (
 )
 
 func (r *libraryResolver) ID(ctx context.Context, obj *database.Library) (string, error) {
-	return strconv.FormatUint(uint64(obj.ID), 10), nil //nolint:gomnd
+	return strconv.FormatUint(uint64(obj.ID), 10), nil
 }
 
 func (r *libraryResolver) Type(ctx context.Context, obj *database.Library) (string, error) {
@@ -35,7 +35,7 @@ func (r *libraryResolver) Locations(ctx context.Context, obj *database.Library) 
 	return locations, nil
 }
 
-func (r *mutationResolver) AddLibrary(ctx context.Context, typeArg string, name string, language string, locations []string, scanner string, agent string) (*database.Library, error) {
+func (r *mutationResolver) AddLibrary(ctx context.Context, typeArg, name, language string, locations []string, scanner, agent string) (*database.Library, error) {
 	library, libraryLocations, err := database.CreateLibrary(name, language, typeArg, locations, scanner, agent)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to create library")
@@ -53,7 +53,10 @@ func (r *mutationResolver) AddLibrary(ctx context.Context, typeArg string, name 
 		}
 
 		// After the scan is complete, queue up a metadata refresh.
-		agents.RefreshLibraryMetadata(*library)
+		libraryRefreshErr := agents.RefreshLibraryMetadata(*library)
+		if libraryRefreshErr != nil {
+			log.Error().Err(libraryRefreshErr).Str("library", library.Name).Msg("Failed to refresh library metadata")
+		}
 	})
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to dispatch library scan task")
@@ -92,18 +95,18 @@ func (r *queryResolver) Agents(ctx context.Context, libraryType string) ([]*mode
 }
 
 func (r *subscriptionResolver) OnLibraryAdded(ctx context.Context) (<-chan *database.Library, error) {
-	id := uuid.New().String()
+	uuid := uuid.New().String()
 	msg := make(chan *database.Library, 1)
 
 	go func() {
 		<-ctx.Done()
 		database.SubsciptionsManager.Lock()
-		delete(database.SubsciptionsManager.LibraryAddedObservers, id)
+		delete(database.SubsciptionsManager.LibraryAddedObservers, uuid)
 		database.SubsciptionsManager.Unlock()
 	}()
 	database.SubsciptionsManager.Lock()
 
-	database.SubsciptionsManager.LibraryAddedObservers[id] = msg
+	database.SubsciptionsManager.LibraryAddedObservers[uuid] = msg
 	database.SubsciptionsManager.Unlock()
 
 	return msg, nil

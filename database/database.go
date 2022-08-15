@@ -14,7 +14,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-var db *gorm.DB //nolint:varnamelen
+var db *gorm.DB //nolint:varnamelen,gochecknoglobals // Has to be accessible to other modules in the package.
 
 func NewDatabase(zerologger zerolog.Logger) error {
 	newLogger := logger.New(

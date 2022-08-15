@@ -11,6 +11,8 @@ import (
 	"github.com/meteorae/meteorae-server/utils"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/exp/maps"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 const (
@@ -208,7 +210,7 @@ func GetName() string {
 // CleanName takes a string representing a video name and returns a cleaned string along with a year.
 func CleanName(name string) (string, int) {
 	// Always ensure the name is lowercase
-	strings.ToLower(name)
+	name = strings.ToLower(name)
 
 	var year int64 = 0
 
@@ -216,7 +218,11 @@ func CleanName(name string) (string, int) {
 	yearMatch := yearRegex.FindAllString(name, -1)
 
 	if len(yearMatch) > 0 && yearMatch[len(yearMatch)-1] != "" {
-		year, _ = strconv.ParseInt(yearMatch[len(yearMatch)-1], 10, 32)
+		var yearParseErr error
+		year, yearParseErr = strconv.ParseInt(yearMatch[len(yearMatch)-1], 10, 32)
+		if yearParseErr != nil {
+			log.Debug().Str("date", yearMatch[len(yearMatch)-1]).Err(yearParseErr).Msg("Failed to parse year")
+		}
 
 		// Remove the year from the name, to allow us to break early later on.
 		// Anything after the year should be garbage.
@@ -224,7 +230,6 @@ func CleanName(name string) (string, int) {
 	}
 
 	// Remove everything in brackets
-	bracketsRegex := regexp.MustCompile(`\[[^\]]+\]`)
 	name = bracketsRegex.ReplaceAllString(name, "")
 
 	// Remove useless suffixes
@@ -331,7 +336,10 @@ func CleanName(name string) (string, int) {
 		cleanName = cleanAkaName[1]
 	}
 
-	return strings.Title(cleanName), int(year)
+	// TODO: Support multiple languages
+	titleCaser := cases.Title(language.English)
+
+	return titleCaser.String(cleanName), int(year)
 }
 
 func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions []string, root string) {
@@ -382,7 +390,7 @@ func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions 
 		}
 
 		// Remove duplicates and process the files to remove
-		filesToRemove := utils.RemoveDuplicatesFromSlice(filesToRemove)
+		filesToRemove = utils.RemoveDuplicatesFromSlice(filesToRemove)
 		for _, fileToRemove := range filesToRemove {
 			*files = utils.RemoveStringFromSlice(fileToRemove, *files)
 		}
@@ -418,7 +426,7 @@ func GetSource(name string) string {
 	words := wordsRegex.Split(name, -1)
 
 	for _, word := range words {
-		word := strings.ToLower(word)
+		word = strings.ToLower(word)
 		if utils.IsStringInSlice(word, sources) {
 			return word
 		}

@@ -43,8 +43,6 @@ var (
 		`(?i)^(?P<ep>[0-9]{1,3})$`,                                // 01
 	}
 
-	endsWithNumber = `(?i).*([0-9]{1,2})$`
-
 	endsWithEpisode = []string{`(?i)[ ]*[0-9]{1,2}x[0-9]{1,3}$`, `(?i)[ ]*S[0-9]+E[0-9]+$`}
 )
 
@@ -162,12 +160,9 @@ func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions 
 			season = paths[len(paths)-1]
 
 			compiledSeasonRegex := regexp.MustCompile(seasonRegex)
-			match := utils.FindNamedMatches(compiledSeasonRegex, seasonRegex)
+			match := utils.FindNamedMatches(compiledSeasonRegex, season)
 
-			var ok bool
-			if seasonNumber, ok = match["season"]; ok {
-				season = seasonNumber
-			}
+			seasonNumber = match["season"]
 		}
 
 		// Sometimes, episode names end up in the show name
@@ -183,12 +178,7 @@ func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions 
 			// Split filename and extension
 			baseFile := filepath.Base(file)
 			extension := filepath.Ext(file)
-			baseFile = file[:len(file)-len(extension)]
-
-			if utils.IsStringInSlice(strings.ToLower(extension), []string{".mp4", ".m4v", ".mov"}) {
-				// TODO: We should try to get iTunes Metadata from these, but how?
-				// See https://developer.apple.com/library/archive/documentation/QuickTime/QTFF/Metadata/Metadata.html
-			}
+			baseFile = strings.TrimSuffix(baseFile, extension)
 
 			for _, reges := range dateRegex {
 				compiledDateRegex := regexp.MustCompile(reges)
@@ -274,9 +264,9 @@ func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions 
 						episode = int(parsedEpisode)
 
 						if _, ok := matches["secondEp"]; ok {
-							parsedEndEpisode, err := strconv.ParseInt(matches["secondEp"], 10, 32)
-							if err != nil {
-								log.Err(err).Str("file", file).Msg("Error converting episode number to int")
+							parsedEndEpisode, secondEpParseErr := strconv.ParseInt(matches["secondEp"], 10, 32)
+							if secondEpParseErr != nil {
+								log.Err(secondEpParseErr).Str("file", file).Msg("Error converting episode number to int")
 							}
 
 							endEpisode = int(parsedEndEpisode)
@@ -302,9 +292,9 @@ func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions 
 									break
 								}
 
-								seasonNumber, err := strconv.ParseInt(season, 10, 32)
-								if err != nil {
-									log.Err(err).Str("file", file).Msg("Error converting season number to int")
+								seasonNumber, seasonParseErr := strconv.ParseInt(season, 10, 32)
+								if seasonParseErr != nil {
+									log.Err(seasonParseErr).Str("file", file).Msg("Error converting season number to int")
 
 									// Force to season 1 if we fail to convert to an integer
 									seasonNumber = 1
@@ -368,11 +358,9 @@ func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions 
 						episode = int(parsedEpisode)
 
 						if seasonNumber != "" {
-							season = seasonNumber
-
-							parsedSeasonNumber, err := strconv.ParseInt(seasonNumber, 10, 32)
-							if err != nil {
-								log.Err(err).Str("file", file).Msg("Error converting season number to int")
+							parsedSeasonNumber, seasonParseErr := strconv.ParseInt(seasonNumber, 10, 32)
+							if seasonParseErr != nil {
+								log.Err(seasonParseErr).Str("file", file).Msg("Error converting season number to int")
 
 								// Force to season 1 if we fail to convert to an integer
 								seasonNumber = "1"

@@ -137,8 +137,18 @@ linters-settings:
         strict: true
     disable:
       - fieldalignment # Too strict, and not very intuitive
+  ireturn:
+    allow:
+      - anon
+      - error
+      - empty
+      - stdlib
+      # We generally use sdk.Item as an abstraction for all item types.
+      - github.com\/meteorae\/meteorae-server\/sdk\.Item
   makezero:
     always: true
+  nestif:
+    min-complexity: 10
   nolintlint:
     allow-no-explanation: [funlen, gocognit, lll]
     require-explanation: true
@@ -150,3 +160,23 @@ linters-settings:
     all: true
   varcheck:
     exported-fields: true
+issues:
+  max-same-issues: 50
+  exclude-rules:
+    - path: "_test\\.go"
+      linters:
+        - bodyclose
+        - dupl
+        - errcheck
+        - funlen
+        - goconst
+        - gosec
+        - lll
+        - noctx
+        - wrapcheck
+        - varnamelen
+    - path: "api/"
+      linters:
+        # This is semi-generated code, so we don't want to run it through all linters.
+        - ireturn # gqlgen sometimes return interfaces.
+        - lll # gqlgen does not have any way to enforce line length.

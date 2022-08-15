@@ -10,31 +10,33 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// SupportedImageFormats lists the image formats supported for ingestion.
+// GetSupportedImageFormats returns a list of the image formats supported for ingestion.
 // Non-supported common formats needing support from libvips are commented out.
 // TODO: Check support for RAW formats.
-var SupportedImageFormats = []string{
-	".aiff",
-	// ".apng", -- https://github.com/libvips/libvips/issues/2537
-	".avif",
-	".bmp",
-	".gif",
-	".jfif",
-	".jpeg",
-	".jpg",
-	".pjpeg",
-	".pjp",
-	".png",
-	".svg",
-	".tif",
-	".tiff",
-	".webp",
+func GetSupportedImageFormats() []string {
+	return []string{
+		".aiff",
+		// ".apng", -- https://github.com/libvips/libvips/issues/2537
+		".avif",
+		".bmp",
+		".gif",
+		".jfif",
+		".jpeg",
+		".jpg",
+		".pjpeg",
+		".pjp",
+		".png",
+		".svg",
+		".tif",
+		".tiff",
+		".webp",
+	}
 }
 
 func IsImageFile(path string) bool {
 	ext := filepath.Ext(path)
 
-	return IsStringInSlice(ext, SupportedImageFormats)
+	return IsStringInSlice(ext, GetSupportedImageFormats())
 }
 
 func IsFileExists(path string) bool {
@@ -59,7 +61,7 @@ func GetFileSize(path string) (int64, error) {
 	if err != nil {
 		log.Err(err).Msgf("Failed to get file size for %s", path)
 
-		return 0, err
+		return 0, fmt.Errorf("failed to get file size for %w", err)
 	}
 
 	return info.Size(), nil
@@ -73,8 +75,8 @@ func HashFilePath(path string) ([]byte, error) {
 	defer f.Close()
 
 	h := sha256.New()
-	if _, err := h.Write([]byte(path)); err != nil {
-		return nil, fmt.Errorf("could not write to hash: %w", err)
+	if _, writeFileHashErr := h.Write([]byte(path)); writeFileHashErr != nil {
+		return nil, fmt.Errorf("could not write to hash: %w", writeFileHashErr)
 	}
 
 	return h.Sum(nil), nil
@@ -82,8 +84,8 @@ func HashFilePath(path string) ([]byte, error) {
 
 func HashFileBytes(fileBytes []byte) ([]byte, error) {
 	h := sha256.New()
-	if _, err := h.Write(fileBytes); err != nil {
-		return nil, fmt.Errorf("could not write to hash: %w", err)
+	if _, writeBytesHashErr := h.Write(fileBytes); writeBytesHashErr != nil {
+		return nil, fmt.Errorf("could not write to hash: %w", writeBytesHashErr)
 	}
 
 	return h.Sum(nil), nil

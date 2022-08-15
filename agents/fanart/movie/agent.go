@@ -5,23 +5,114 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/meteorae/meteorae-server/agents/fanart/client"
 	"github.com/meteorae/meteorae-server/helpers"
 	"github.com/meteorae/meteorae-server/helpers/metadata"
 	"github.com/meteorae/meteorae-server/sdk"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/net/context"
 )
 
-var fanartClient = client.New()
+const timeoutDelay = 5 * time.Second
 
-var errNoResultsFound = fmt.Errorf("no results found")
+var (
+	errNoTmdbIDFound       = errors.New("no TMDb ID found")
+	errNoResultsFound      = errors.New("no results found")
+	errUnsupportedItemType = errors.New("unsupported item type")
+)
+
+func getTmdbID(item sdk.Item) (int, error) {
+	for _, identifier := range item.GetIdentifiers() {
+		if identifier.IdentifierType == sdk.TmdbIdentifier {
+			parsedID, identifierParseErr := strconv.ParseInt(identifier.Identifier, 10, 32)
+			if identifierParseErr != nil {
+				log.Err(identifierParseErr).Msgf("Failed to parse TMDb ID %s", identifier.Identifier)
+
+				return 0, fmt.Errorf("failed to parse TMDb ID: %w", identifierParseErr)
+			}
+
+			return int(parsedID), nil
+		}
+	}
+
+	return 0, errNoTmdbIDFound
+}
+
+func getImages(result *client.MovieResult, item sdk.Item) (sdk.Art, sdk.Posters) {
+	sortedPosters := result.Posters
+	sort.Slice(sortedPosters, func(i, j int) bool {
+		return sortedPosters[i].Likes > sortedPosters[j].Likes
+	})
+
+	sortedArt := result.Backgrounds
+	sort.Slice(sortedArt, func(i, j int) bool {
+		return sortedArt[i].Likes > sortedArt[j].Likes
+	})
+
+	var (
+		moviePosters = sdk.Posters{
+			Items: []sdk.ItemImage{},
+		}
+		movieArt = sdk.Art{
+			Items: []sdk.ItemImage{},
+		}
+	)
+
+	if len(sortedArt) > 0 {
+		for index, art := range sortedArt {
+			if art.Lang != "en" {
+				continue
+			}
+
+			artHash, artSaveErr := helpers.SaveExternalImageToCache(art.URL, "tv.meteorae.agents.fanarttv", item, "art")
+			if artSaveErr != nil {
+				log.Err(artSaveErr).Msgf("Failed to download backdrop for series \"%s\"", item.GetTitle())
+			}
+
+			movieArt.Items = append(movieArt.Items, sdk.ItemImage{
+				External:  true,
+				Provider:  "tv.meteorae.agents.fanarttv",
+				Media:     metadata.GetURIForAgent("tv.meteorae.agents.fanarttv", artHash),
+				URL:       art.URL,
+				SortOrder: uint(index),
+			})
+		}
+	}
+
+	if len(sortedPosters) > 0 {
+		for index, poster := range sortedPosters {
+			if poster.Lang != "en" {
+				continue
+			}
+
+			posterHash, posterSaveErr := helpers.SaveExternalImageToCache(
+				poster.URL, "tv.meteorae.agents.fanarttv", item, "thumb")
+			if posterSaveErr != nil {
+				log.Err(posterSaveErr).Msgf("Failed to download backdrop for series \"%s\"", item.GetTitle())
+			}
+
+			moviePosters.Items = append(moviePosters.Items, sdk.ItemImage{
+				External:  true,
+				Provider:  "tv.meteorae.agents.fanarttv",
+				Media:     metadata.GetURIForAgent("tv.meteorae.agents.fanarttv", posterHash),
+				URL:       poster.URL,
+				SortOrder: uint(index),
+			})
+		}
+	}
+
+	return movieArt, moviePosters
+}
 
 func GetSearchResults(item sdk.Item) ([]sdk.Item, error) {
 	return nil, errNoResultsFound
 }
 
 func GetMetadata(item sdk.Item) (sdk.Item, error) {
+	fanartClient := client.New()
+
 	if movieItem, ok := item.(sdk.Movie); ok {
 		log.Debug().
 			Str("identifier", "tv.meteorae.agents.fanarttv").
@@ -30,83 +121,25 @@ func GetMetadata(item sdk.Item) (sdk.Item, error) {
 			Msgf("Getting metadata for movie")
 
 		// Get the TMDb ID
-		var tmdbID int
+		tmdbID, getTmdbIDErr := getTmdbID(item)
+		if getTmdbIDErr != nil {
+			log.Err(getTmdbIDErr).Msgf("Failed to get TMDb ID for %d", movieItem.ID)
 
-		for _, identifier := range item.GetIdentifiers() {
-			if identifier.IdentifierType == sdk.TmdbIdentifier {
-				parsedID, err := strconv.ParseInt(identifier.Identifier, 10, 32)
-				if err != nil {
-					log.Err(err).Msgf("Failed to parse TMDb ID %s", identifier.Identifier)
-
-					return nil, err
-				}
-
-				tmdbID = int(parsedID)
-
-				break
-			}
+			return nil, getTmdbIDErr
 		}
 
 		if tmdbID != 0 {
-			movieImages, err := fanartClient.GetMovieImages(fmt.Sprintf("%d", tmdbID))
-			if err != nil {
-				log.Err(err).Msgf("Failed to get movie images for %d", tmdbID)
+			ctx, cancel := context.WithTimeout(context.TODO(), timeoutDelay)
+			defer cancel()
 
-				return nil, err
+			movieImages, getMovieErr := fanartClient.GetMovieImages(ctx, fmt.Sprintf("%d", tmdbID))
+			if getMovieErr != nil {
+				log.Err(getMovieErr).Msgf("Failed to get movie images for %d", tmdbID)
+
+				return nil, fmt.Errorf("failed to get show images: %w", getMovieErr)
 			}
 
-			sortedPosters := movieImages.Posters
-			sort.Slice(sortedPosters, func(i, j int) bool {
-				return sortedPosters[i].Likes > sortedPosters[j].Likes
-			})
-
-			sortedArt := movieImages.Backgrounds
-			sort.Slice(sortedArt, func(i, j int) bool {
-				return sortedArt[i].Likes > sortedArt[j].Likes
-			})
-
-			var (
-				moviePosters = sdk.Posters{
-					Items: []sdk.ItemImage{},
-				}
-				movieArt = sdk.Art{
-					Items: []sdk.ItemImage{},
-				}
-			)
-
-			if len(sortedArt) > 0 {
-				for i, art := range sortedArt {
-					artHash, err := helpers.SaveExternalImageToCache(art.URL, "tv.meteorae.agents.fanarttv", item, "art")
-					if err != nil {
-						log.Err(err).Msgf("Failed to download backdrop for series \"%s\"", item.GetTitle())
-					}
-
-					movieArt.Items = append(movieArt.Items, sdk.ItemImage{
-						External:  true,
-						Provider:  "tv.meteorae.agents.fanarttv",
-						Media:     metadata.GetURIForAgent("tv.meteorae.agents.fanarttv", artHash),
-						URL:       art.URL,
-						SortOrder: uint(i),
-					})
-				}
-			}
-
-			if len(sortedPosters) > 0 {
-				for i, art := range sortedPosters {
-					posterHash, err := helpers.SaveExternalImageToCache(art.URL, "tv.meteorae.agents.fanarttv", item, "thumb")
-					if err != nil {
-						log.Err(err).Msgf("Failed to download backdrop for series \"%s\"", item.GetTitle())
-					}
-
-					moviePosters.Items = append(moviePosters.Items, sdk.ItemImage{
-						External:  true,
-						Provider:  "tv.meteorae.agents.fanarttv",
-						Media:     metadata.GetURIForAgent("tv.meteorae.agents.fanarttv", posterHash),
-						URL:       art.URL,
-						SortOrder: uint(i),
-					})
-				}
-			}
+			movieArt, moviePosters := getImages(movieImages, item)
 
 			return sdk.Movie{
 				ItemInfo: &sdk.ItemInfo{
@@ -118,8 +151,8 @@ func GetMetadata(item sdk.Item) (sdk.Item, error) {
 			}, nil
 		}
 
-		return sdk.Movie{}, errors.New("no TMDb ID found")
+		return nil, errNoTmdbIDFound
 	}
 
-	return sdk.Movie{}, errors.New("unsupported item type")
+	return nil, errUnsupportedItemType
 }

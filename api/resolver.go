@@ -6,6 +6,9 @@ import (
 	"errors"
 )
 
-var errInvalidCredentials = errors.New("invalid credentials")
+var (
+	errInvalidCredentials = errors.New("invalid credentials")
+	errInvalidItemID      = errors.New("invalid item id")
+)
 
 type Resolver struct{}

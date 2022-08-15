@@ -3,8 +3,8 @@ package metadata
 import (
 	"encoding/xml"
 	"fmt"
+	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,9 +15,11 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+var errUnsupportedItemType = fmt.Errorf("unsupported item type")
+
 func MergeItems(dst, src sdk.Item) sdk.Item {
-	if movieSrcItem, ok := src.(sdk.Movie); ok {
-		if movieDstItem, ok := dst.(sdk.Movie); ok {
+	if movieSrcItem, movieSrcOk := src.(sdk.Movie); movieSrcOk {
+		if movieDstItem, movieDstOk := dst.(sdk.Movie); movieDstOk {
 			if movieSrcItem.Title != "" {
 				movieDstItem.Title = movieSrcItem.Title
 			}
@@ -111,7 +113,7 @@ func GetInfoXML(item database.ItemMetadata) (sdk.Item, error) {
 	infoPath, err := xdg.DataFile(
 		filepath.Join("meteorae", "metadata", item.Type.String(), UUIDPrefix, UUID, "combined", "info.xml"))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get info.xml path: %w", err)
 	}
 
 	xmlFile, err := os.Open(infoPath)
@@ -125,7 +127,7 @@ func GetInfoXML(item database.ItemMetadata) (sdk.Item, error) {
 
 	defer xmlFile.Close()
 
-	byteValue, err := ioutil.ReadAll(xmlFile)
+	byteValue, err := io.ReadAll(xmlFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read info.xml: %w", err)
 	}
@@ -134,7 +136,10 @@ func GetInfoXML(item database.ItemMetadata) (sdk.Item, error) {
 	case sdk.MovieItem:
 		var movie sdk.Movie
 
-		xml.Unmarshal(byteValue, &movie)
+		movieXMLErr := xml.Unmarshal(byteValue, &movie)
+		if movieXMLErr != nil {
+			return nil, fmt.Errorf("failed to unmarshal info.xml: %w", err)
+		}
 
 		movie.ID = item.ID
 		movie.CreatedAt = item.CreatedAt
@@ -145,7 +150,10 @@ func GetInfoXML(item database.ItemMetadata) (sdk.Item, error) {
 	case sdk.TVShowItem:
 		var tvShow sdk.TVShow
 
-		xml.Unmarshal(byteValue, &tvShow)
+		tvXMLErr := xml.Unmarshal(byteValue, &tvShow)
+		if tvXMLErr != nil {
+			return nil, fmt.Errorf("failed to unmarshal info.xml: %w", tvXMLErr)
+		}
 
 		tvShow.ID = item.ID
 		tvShow.CreatedAt = item.CreatedAt
@@ -156,7 +164,10 @@ func GetInfoXML(item database.ItemMetadata) (sdk.Item, error) {
 	case sdk.MusicAlbumItem:
 		var musicAlbum sdk.MusicAlbum
 
-		xml.Unmarshal(byteValue, &musicAlbum)
+		musicAlbumXMLErr := xml.Unmarshal(byteValue, &musicAlbum)
+		if musicAlbumXMLErr != nil {
+			return nil, fmt.Errorf("failed to unmarshal info.xml: %w", musicAlbumXMLErr)
+		}
 
 		musicAlbum.ID = item.ID
 		musicAlbum.CreatedAt = item.CreatedAt
@@ -166,7 +177,7 @@ func GetInfoXML(item database.ItemMetadata) (sdk.Item, error) {
 		return &musicAlbum, nil
 	}
 
-	return nil, fmt.Errorf("unsupported item type: %s", item.Type)
+	return nil, errUnsupportedItemType
 }
 
 func SetItemImages(item sdk.Item, itemType sdk.ItemType) error {

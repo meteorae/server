@@ -15,10 +15,10 @@ func GetName() string {
 	return "Media Stack Scanner"
 }
 
-func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions []string, root string) {
+func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions []string, rootDir string) {
 	log.Debug().Str("scanner", GetName()).Msgf("Scanning %s", path)
 
-	var stackMap map[string][]sdk.Item
+	stackMap := map[string][]sdk.Item{}
 
 	stackDiffs := "123456789abcdefghijklmn"
 	stackSuffixes := []string{
@@ -83,7 +83,7 @@ func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions 
 
 									for _, suffix := range stackSuffixes {
 										if strings.HasSuffix(strings.Trim((strings.ToLower(root)), " "), suffix) {
-											root = root[:len(root)-len(suffix)]
+											root = root[:len(root)-len(suffix)] //nolint:staticcheck // This seems like a false positive?
 											foundSuffix = true
 
 											break
@@ -93,13 +93,13 @@ func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions 
 											// In this case, the name probably had a suffix, so replace it
 											name, _ := video.CleanName(root)
 
-											if mediaMovie, ok := media.(sdk.ItemInfo); ok {
+											if mediaMovie, movieOk := media.(sdk.ItemInfo); movieOk {
 												mediaMovie.Title = name
 
 												media = mediaMovie
 											}
 
-											if _, ok := stackMap[root]; ok {
+											if _, mapHasKey := stackMap[root]; mapHasKey {
 												stackMap[root] = append(stackMap[root], m2)
 											} else {
 												stackMap[root] = []sdk.Item{m1}

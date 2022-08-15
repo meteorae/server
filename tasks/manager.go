@@ -1,37 +1,42 @@
 package tasks
 
 import (
+	"fmt"
+
 	"github.com/panjf2000/ants/v2"
 	"github.com/rs/zerolog/log"
-	"github.com/vmihailenco/taskq/v3/memqueue"
 )
 
-var QueueFactory = memqueue.NewFactory()
+const (
+	libraryScanQueueSize     = 1
+	metadataRefreshQueueSize = 2
+	mediaAnalyzisQueueSize   = 2
+)
 
-var LibraryScanQueue *ants.Pool
-
-var MetadataRefreshQueue *ants.Pool
-
-var MediaAnalysisQueue *ants.Pool
+var (
+	LibraryScanQueue     *ants.Pool //nolint:gochecknoglobals // Required for now
+	MetadataRefreshQueue *ants.Pool //nolint:gochecknoglobals // Required for now
+	MediaAnalysisQueue   *ants.Pool //nolint:gochecknoglobals // Required for now
+)
 
 func StartTaskQueues() error {
 	log.Info().Msg("Starting task queues")
 
 	var err error
 
-	LibraryScanQueue, err = ants.NewPool(1)
+	LibraryScanQueue, err = ants.NewPool(libraryScanQueueSize)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create library scan queue: %w", err)
 	}
 
-	MetadataRefreshQueue, err = ants.NewPool(2)
+	MetadataRefreshQueue, err = ants.NewPool(metadataRefreshQueueSize)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create metadata refresh queue: %w", err)
 	}
 
-	MediaAnalysisQueue, err = ants.NewPool(2)
+	MediaAnalysisQueue, err = ants.NewPool(mediaAnalyzisQueueSize)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create media analysis queue: %w", err)
 	}
 
 	return nil

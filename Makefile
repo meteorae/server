@@ -9,7 +9,7 @@ GIT_COMMIT = $(shell git rev-parse HEAD)
 GIT_DIRTY = $(shell test -n "`git status --porcelain`" && echo "+CHANGES" || true)
 BUILD_DATE = $(shell date '+%Y-%m-%d-%H:%M:%S')
 
-TAGS = json1,icu
+TAGS = json1
 
 clean:
 	rm -f $(BIN_NAME)-linux-x64

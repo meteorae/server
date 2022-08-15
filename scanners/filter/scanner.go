@@ -115,7 +115,14 @@ func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions 
 		}
 
 		// Filter out broken symlinks and empty files
-		fileSize, _ := utils.GetFileSize(fullPath)
+		fileSize, err := utils.GetFileSize(fullPath)
+		if err != nil {
+			log.Err(err).Msgf("Could not get file size for %s", fullPath)
+
+			// Since we can't get a size, assume it's broken
+			filesToRemove = append(filesToRemove, file)
+		}
+
 		if !utils.IsFileExists(fullPath) || fileSize == 0 {
 			filesToRemove = append(filesToRemove, file)
 		}
@@ -132,9 +139,9 @@ func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions 
 
 		// Remove .plexignore ignored files
 		for _, ignoredFile := range plexIgnoreFiles {
-			match, err := doublestar.Match(ignoredFile, filepath.Base(path))
-			if err != nil {
-				log.Err(err).Msg("Could not match file against .plexignore")
+			match, fileMatchErr := doublestar.Match(ignoredFile, filepath.Base(path))
+			if fileMatchErr != nil {
+				log.Err(fileMatchErr).Msg("Could not match file against .plexignore")
 
 				continue
 			}
@@ -164,9 +171,9 @@ func Scan(path string, files, dirs *[]string, mediaList *[]sdk.Item, extensions 
 
 		// iterate over plexIgnoredDirs
 		for _, ignoredDir := range plexIgnoreDirs {
-			match, err := doublestar.Match(ignoredDir, filepath.Base(path))
-			if err != nil {
-				log.Err(err).Msg("Could not match directory against .plexignore")
+			match, dirMatchErr := doublestar.Match(ignoredDir, filepath.Base(path))
+			if dirMatchErr != nil {
+				log.Err(dirMatchErr).Msg("Could not match directory against .plexignore")
 			}
 
 			if match {

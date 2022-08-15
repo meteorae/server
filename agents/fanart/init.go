@@ -7,8 +7,8 @@ import (
 )
 
 var (
-	MoviePlugin sdk.MovieAgent
-	TVPlugin    sdk.TVAgent
+	MoviePlugin sdk.MovieAgent //nolint:gochecknoglobals // This is expected, since it's a plugin.
+	TVPlugin    sdk.TVAgent    //nolint:gochecknoglobals // This is expected, since it's a plugin.
 )
 
 const (

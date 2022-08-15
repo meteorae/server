@@ -1,15 +1,13 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 
 	"github.com/meteorae/meteorae-server/helpers"
 )
-
-// DefaultEndpoint represents the default endpoint of the API.
-var DefaultEndpoint = "https://webservice.fanart.tv/v3"
 
 // Client represents an API client.
 type Client struct {
@@ -21,16 +19,16 @@ type Client struct {
 // New returns a new client.
 func New() *Client {
 	return &Client{
-		Endpoint: DefaultEndpoint,
+		Endpoint: "https://webservice.fanart.tv/v3",
 		APIKey:   "84d310b84b0b62da0cb23f8355271442",
 		Client:   http.DefaultClient,
 	}
 }
 
-func (c *Client) get(url string, resType interface{}) error {
-	req, err := http.NewRequest("GET", url, nil)
+func (c *Client) get(ctx context.Context, url string, resType interface{}) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("User-Agent", fmt.Sprintf("Meteorae/%s ( https://meteorae.tv )", helpers.Version))
@@ -39,12 +37,13 @@ func (c *Client) get(url string, resType interface{}) error {
 
 	resp, err := c.Client.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to send request: %w", err)
 	}
+	defer resp.Body.Close()
 
 	// Decode the JSON response
 	if err = json.NewDecoder(resp.Body).Decode(&resType); err != nil {
-		return err
+		return fmt.Errorf("failed to decode response: %w", err)
 	}
 
 	return nil

@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"fmt"
 	"sort"
 	"strconv"
 )
@@ -27,13 +28,13 @@ func (i *ImageInfo) UnmarshalJSON(data []byte) error {
 		Lang: &i.Lang,
 	}
 	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal json: %w", err)
 	}
 
 	// Convert the likes into int
 	likes, err := strconv.Atoi(aux.Likes)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to parse likes: %w", err)
 	}
 
 	i.Likes = likes

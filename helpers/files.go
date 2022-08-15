@@ -2,13 +2,14 @@ package helpers
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/davidbyttow/govips/v2/vips"
@@ -17,163 +18,86 @@ import (
 	"github.com/meteorae/meteorae-server/utils"
 )
 
-var (
-	BaseDirectoryMode = 0o755
-	BaseFileMode      = 0o600
-)
-
-var (
+const (
+	BaseDirectoryMode        = 0o755
+	BaseFileMode             = 0o600
 	BaseDirectoryPermissions = os.FileMode(BaseDirectoryMode)
 	BaseFilePermissions      = os.FileMode(BaseFileMode)
+	imageDownloadTimeout     = 10 * time.Second
 )
 
-var AudioFileExtensions = []string{
-	".nsv",
-	".m4a",
-	".flac",
-	".aac",
-	".strm",
-	".pls",
-	".rm",
-	".mpa",
-	".wav",
-	".wma",
-	".ogg",
-	".opus",
-	".mp3",
-	".mp2",
-	".mod",
-	".amf",
-	".669",
-	".dmf",
-	".dsm",
-	".far",
-	".gdm",
-	".imf",
-	".it",
-	".m15",
-	".med",
-	".okt",
-	".s3m",
-	".stm",
-	".sfx",
-	".ult",
-	".uni",
-	".xm",
-	".sid",
-	".ac3",
-	".dts",
-	".cue",
-	".aif",
-	".aiff",
-	".ape",
-	".mac",
-	".mpc",
-	".mp+",
-	".mpp",
-	".shn",
-	".wv",
-	".nsf",
-	".spc",
-	".gym",
-	".adplug",
-	".adx",
-	".dsp",
-	".adp",
-	".ymf",
-	".ast",
-	".afc",
-	".hps",
-	".xsp",
-	".acc",
-	".m4b",
-	".oga",
-	".dsf",
-	".mka",
-}
+func GetIgnoredFileGlobs() []string {
+	return []string{
+		// Unix hidden files, includes macOS-specific files
+		"**/.*",
 
-var BookFileExtensions = []string{
-	".azw",
-	".azw3",
-	".cb7",
-	".cbr",
-	".cbt",
-	".cbz",
-	".epub",
-	".mobi",
-	".pdf",
-}
+		// Sample files
+		"**/sample.?",
+		"**/sample.??",
+		"**/sample.???",  // Matches sample.mkv
+		"**/sample.????", // Matches sample.webm
+		"**/sample.?????",
+		"**/*.sample.?",
+		"**/*.sample.??",
+		"**/*.sample.???",
+		"**/*.sample.????",
+		"**/*.sample.?????",
+		"**/sample/*",
 
-var IgnoredFileGlobs = []string{
-	// Unix hidden files, includes macOS-specific files
-	"**/.*",
+		// Metadata directories
+		"**/metadata/**",
+		"**/metadata",
 
-	// Sample files
-	"**/sample.?",
-	"**/sample.??",
-	"**/sample.???",  // Matches sample.mkv
-	"**/sample.????", // Matches sample.webm
-	"**/sample.?????",
-	"**/*.sample.?",
-	"**/*.sample.??",
-	"**/*.sample.???",
-	"**/*.sample.????",
-	"**/*.sample.?????",
-	"**/sample/*",
+		// Kodi-compatible metadata
+		"**/extrafanart/**",
+		"**/extrafanart",
+		"**/extrathumbs/**",
+		"**/extrathumbs",
+		"**/.actors/**",
+		"**/.actors",
 
-	// Metadata directories
-	"**/metadata/**",
-	"**/metadata",
+		// Western Digital directories
+		"**/.wd_tv/**",
+		"**/.wd_tv",
 
-	// Kodi-compatible metadata
-	"**/extrafanart/**",
-	"**/extrafanart",
-	"**/extrathumbs/**",
-	"**/extrathumbs",
-	"**/.actors/**",
-	"**/.actors",
+		// Unix lost files
+		"**/lost+found/**",
+		"**/lost+found",
 
-	// Western Digital directories
-	"**/.wd_tv/**",
-	"**/.wd_tv",
+		// Synology
+		"**/eaDir/**",
+		"**/eaDir",
+		"**/@eaDir/**",
+		"**/@eaDir",
+		"**/#recycle/**",
+		"**/#recycle",
 
-	// Unix lost files
-	"**/lost+found/**",
-	"**/lost+found",
+		// Qnap
+		"**/@Recycle/**",
+		"**/@Recycle",
+		"**/.@__thumb/**",
+		"**/.@__thumb",
 
-	// Synology
-	"**/eaDir/**",
-	"**/eaDir",
-	"**/@eaDir/**",
-	"**/@eaDir",
-	"**/#recycle/**",
-	"**/#recycle",
+		// Windows
+		"**/$RECYCLE.BIN/**",
+		"**/$RECYCLE.BIN",
+		"**/System Volume Information/**",
+		"**/System Volume Information",
 
-	// Qnap
-	"**/@Recycle/**",
-	"**/@Recycle",
-	"**/.@__thumb/**",
-	"**/.@__thumb",
+		// Windows thumbnail cache
+		"**/thumbs.db",
 
-	// Windows
-	"**/$RECYCLE.BIN/**",
-	"**/$RECYCLE.BIN",
-	"**/System Volume Information/**",
-	"**/System Volume Information",
-
-	// Windows thumbnail cache
-	"**/thumbs.db",
-
-	// Resilio directories
-	"**/*.bts",
-	"**/*.sync",
+		// Resilio directories
+		"**/*.bts",
+		"**/*.sync",
+	}
 }
 
 // Given a path and a DirEntry, returns whether the given path should be ignored.
 func ShouldIgnore(path string, d fs.DirEntry) bool {
 	isMatched := false
 
-	for _, ext := range IgnoredFileGlobs {
+	for _, ext := range GetIgnoredFileGlobs() {
 		match, err := doublestar.Match(ext, path)
 		if err != nil {
 			// If the glob fails, be safe and don't ignore the file
@@ -196,16 +120,28 @@ func EnsurePathExists(path string) error {
 
 // Saves a remote image file to the image cache.
 // Returns the hash of the image file.
-func SaveExternalImageToCache(fileURL string, agent string, item sdk.Item, filetype string) (string, error) {
+func SaveExternalImageToCache(fileURL, agent string, item sdk.Item, filetype string) (string, error) {
 	var fileBuffer bytes.Buffer
 
-	response, err := http.Get(fileURL) //#nosec
-	if err != nil {
-		return "", fmt.Errorf("failed to fetch image \"%s\": %w", fileURL, err)
-	}
-	defer response.Body.Close()
+	ctx, cancel := context.WithTimeout(context.TODO(), imageDownloadTimeout)
+	defer cancel()
 
-	_, err = io.Copy(&fileBuffer, response.Body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fileURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	client := http.DefaultClient
+
+	res, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to download web client: %w", err)
+	}
+	defer res.Body.Close()
+
+	// TODO: We should check if the file is an image before we save it.
+
+	_, err = io.Copy(&fileBuffer, res.Body)
 	if err != nil {
 		return "", fmt.Errorf("failed to copy remote image into memory: %w", err)
 	}
@@ -223,7 +159,12 @@ func SaveImageToCache(file []byte, agent string, item sdk.Item, filetype string)
 
 	fileHash := hex.EncodeToString(hash)
 
-	imageCachePath := metadata.GetFilepathForAgentAndHash(agent, fileHash, item.GetUUID().String(), item.GetType(), filetype)
+	imageCachePath := metadata.GetFilepathForAgentAndHash(
+		agent,
+		fileHash,
+		item.GetUUID().String(),
+		item.GetType(),
+		filetype)
 
 	fileBuffer := bytes.NewBuffer(file)
 
@@ -237,7 +178,7 @@ func SaveImageToCache(file []byte, agent string, item sdk.Item, filetype string)
 		return "", fmt.Errorf("failed to set image format: %w", err)
 	}
 
-	err = ioutil.WriteFile(imageCachePath, export, BaseFilePermissions)
+	err = os.WriteFile(imageCachePath, export, BaseFilePermissions)
 	if err != nil {
 		return "", fmt.Errorf("failed to write image to disk: %w", err)
 	}

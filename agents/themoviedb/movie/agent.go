@@ -3,6 +3,7 @@ package movie
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"time"
 
@@ -16,18 +17,186 @@ import (
 )
 
 var (
-	errNoResultsFound = fmt.Errorf("no results found")
-	apiKey            = "c9ae218044f9b20a4fcbba36d543a730" //#nosec
-	config            = tmdb.Config{
-		APIKey:   apiKey,
-		Proxies:  nil,
-		UseProxy: false,
-	}
+	errNoTmdbIDFound       = errors.New("no TMDb ID found")
+	errNoResultsFound      = errors.New("no results found")
+	errUnsupportedItemType = errors.New("unsupported item type")
 )
 
-var tmdbAPI *tmdb.TMDb = tmdb.Init(config)
+func getTmdbClient() *tmdb.TMDb {
+	return tmdb.Init(tmdb.Config{
+		APIKey:   "c9ae218044f9b20a4fcbba36d543a730",
+		Proxies:  nil,
+		UseProxy: false,
+	})
+}
+
+func getIdentifiers(movieData *tmdb.Movie) []sdk.Identifier {
+	identifiers := []sdk.Identifier{
+		{
+			IdentifierType: sdk.TmdbIdentifier,
+			Identifier:     fmt.Sprintf("%d", movieData.ID),
+		},
+	}
+
+	if movieData.ExternalIDs != nil {
+		if movieData.ExternalIDs.ImdbID != "" {
+			identifiers = append(identifiers, sdk.Identifier{
+				IdentifierType: sdk.TvdbIdentifier,
+				Identifier:     movieData.ExternalIDs.ImdbID,
+			})
+		}
+
+		if movieData.ExternalIDs.FacebookID != "" {
+			identifiers = append(identifiers, sdk.Identifier{
+				IdentifierType: sdk.FacebookIdentifier,
+				Identifier:     movieData.ExternalIDs.FacebookID,
+			})
+		}
+
+		if movieData.ExternalIDs.TwitterID != "" {
+			identifiers = append(identifiers, sdk.Identifier{
+				IdentifierType: sdk.TwitterIdentifier,
+				Identifier:     movieData.ExternalIDs.TwitterID,
+			})
+		}
+
+		if movieData.ExternalIDs.TwitterID != "" {
+			identifiers = append(identifiers, sdk.Identifier{
+				IdentifierType: sdk.TwitterIdentifier,
+				Identifier:     movieData.ExternalIDs.TwitterID,
+			})
+		}
+	}
+
+	return identifiers
+}
+
+func getImages(result tmdb.Movie, item sdk.Item) (sdk.Art, sdk.Posters) {
+	var (
+		filteredPosters []tmdb.MovieImage
+		filteredArt     []tmdb.MovieImage
+	)
+
+	if result.Images == nil {
+		return sdk.Art{}, sdk.Posters{}
+	}
+
+	for _, image := range result.Images.Posters {
+		// TODO: Make this configurable
+		if image.Iso639_1 == "en" { //nolint:nosnakecase // From external library.
+			filteredPosters = append(filteredPosters, image)
+		}
+	}
+
+	for _, image := range result.Images.Backdrops {
+		if image.Iso639_1 == "en" { //nolint:nosnakecase // From external library.
+			filteredArt = append(filteredArt, image)
+		}
+	}
+
+	sort.Slice(filteredPosters, func(i, j int) bool {
+		return filteredPosters[i].VoteAverage > filteredPosters[j].VoteAverage
+	})
+
+	sort.Slice(filteredArt, func(i, j int) bool {
+		return filteredArt[i].VoteAverage > filteredArt[j].VoteAverage
+	})
+
+	var (
+		moviePosters = sdk.Posters{
+			Items: []sdk.ItemImage{},
+		}
+		movieArt = sdk.Art{
+			Items: []sdk.ItemImage{},
+		}
+	)
+
+	if len(filteredPosters) > 0 {
+		for index, poster := range filteredPosters {
+			posterPath := fmt.Sprintf("https://image.tmdb.org/t/p/original%s", poster.FilePath)
+
+			posterHash, posterSaveErr := helpers.SaveExternalImageToCache(
+				posterPath, "tv.meteorae.agents.fanarttv", item, "thumb")
+			if posterSaveErr != nil {
+				log.Err(posterSaveErr).Msgf("Failed to download backdrop for series \"%s\"", item.GetTitle())
+			}
+
+			moviePosters.Items = append(moviePosters.Items, sdk.ItemImage{
+				External:  true,
+				Provider:  "tv.meteorae.agents.fanarttv",
+				Media:     metadata.GetURIForAgent("tv.meteorae.agents.fanarttv", posterHash),
+				URL:       poster.FilePath,
+				SortOrder: uint(index),
+			})
+		}
+	}
+
+	if len(filteredArt) > 0 {
+		for index, art := range filteredArt {
+			artPath := fmt.Sprintf("https://image.tmdb.org/t/p/original/%s", art.FilePath)
+
+			artHash, artSaveErr := helpers.SaveExternalImageToCache(artPath, "tv.meteorae.agents.fanarttv", item, "art")
+			if artSaveErr != nil {
+				log.Err(artSaveErr).Msgf("Failed to download backdrop for series \"%s\"", item.GetTitle())
+			}
+
+			movieArt.Items = append(movieArt.Items, sdk.ItemImage{
+				External:  true,
+				Provider:  "tv.meteorae.agents.fanarttv",
+				Media:     metadata.GetURIForAgent("tv.meteorae.agents.fanarttv", artHash),
+				URL:       art.FilePath,
+				SortOrder: uint(index),
+			})
+		}
+	}
+
+	return movieArt, moviePosters
+}
+
+func getTmdbID(item sdk.Item) (int, error) {
+	for _, identifier := range item.GetIdentifiers() {
+		if identifier.IdentifierType == sdk.TmdbIdentifier {
+			parsedID, identifierParseErr := strconv.ParseInt(identifier.Identifier, 10, 32)
+			if identifierParseErr != nil {
+				log.Err(identifierParseErr).Msgf("Failed to parse TMDb ID %s", identifier.Identifier)
+
+				return 0, fmt.Errorf("failed to parse TMDb ID: %w", identifierParseErr)
+			}
+
+			return int(parsedID), nil
+		}
+	}
+
+	return 0, errNoTmdbIDFound
+}
+
+func parseMovieInfo(movie *tmdb.Movie) (time.Time, string) {
+	releaseDate, movieInfoFetchErr := time.Parse("2006-01-02", movie.ReleaseDate)
+	if movieInfoFetchErr != nil {
+		log.Err(movieInfoFetchErr).Msgf("Failed to parse release date for movie \"%s\"", movie.Title)
+
+		releaseDate = time.Time{}
+	}
+
+	var languageTag string
+
+	languageBase, languageParseErr := language.ParseBase(movie.OriginalLanguage)
+	if languageParseErr != nil {
+		log.Debug().
+			Err(languageParseErr).
+			Msgf("Failed to parse original language for movie \"%s\", using Undefined", movie.Title)
+
+		languageTag = language.Und.String()
+	} else {
+		languageTag = languageBase.String()
+	}
+
+	return releaseDate, languageTag
+}
 
 func GetSearchResults(item sdk.Item) ([]sdk.Item, error) {
+	tmdbAPI := getTmdbClient()
+
 	options := map[string]string{
 		"language":      "en-US", // TODO: Make this configurable
 		"include_adult": "false", // TODO: Make this configurable
@@ -41,15 +210,15 @@ func GetSearchResults(item sdk.Item) ([]sdk.Item, error) {
 	if err != nil {
 		log.Err(err).Msgf("Failed to search for movie %s", item.GetTitle())
 
-		return []sdk.Item{}, err
+		return nil, fmt.Errorf("failed to search for movie: %w", err)
 	}
 
 	results := make([]sdk.Item, 0, len(searchResults.Results))
 
 	for _, result := range searchResults.Results {
-		releaseDate, err := time.Parse("2006-01-02", result.ReleaseDate)
-		if err != nil {
-			log.Err(err).Msgf("Failed to parse release date for movie \"%s\"", result.Title)
+		releaseDate, dateParseErr := time.Parse("2006-01-02", result.ReleaseDate)
+		if dateParseErr != nil {
+			log.Err(dateParseErr).Msgf("Failed to parse release date for movie \"%s\"", result.Title)
 
 			releaseDate = time.Time{}
 		}
@@ -74,10 +243,12 @@ func GetSearchResults(item sdk.Item) ([]sdk.Item, error) {
 		return results, nil
 	}
 
-	return []sdk.Item{}, errNoResultsFound
+	return nil, errNoResultsFound
 }
 
 func GetMetadata(item sdk.Item) (sdk.Item, error) {
+	tmdbAPI := getTmdbClient()
+
 	if movieItem, ok := item.(sdk.Movie); ok {
 		log.Debug().
 			Str("identifier", "tv.meteorae.agents.tmdb").
@@ -99,152 +270,49 @@ func GetMetadata(item sdk.Item) (sdk.Item, error) {
 		resultMovie := results[0]
 
 		// Get the TMDb ID
-		var tmdbID int
+		tmdbID, getTmdbIDErr := getTmdbID(resultMovie)
+		if getTmdbIDErr != nil {
+			log.Err(getTmdbIDErr).Msgf("Failed to get TMDb ID for %d", movieItem.ID)
 
-		for _, identifier := range resultMovie.GetIdentifiers() {
-			if identifier.IdentifierType == sdk.TmdbIdentifier {
-				parsedID, err := strconv.ParseInt(identifier.Identifier, 10, 32)
-				if err != nil {
-					log.Err(err).Msgf("Failed to parse TMDb ID %s", identifier.Identifier)
-
-					return nil, err
-				}
-
-				tmdbID = int(parsedID)
-
-				break
-			}
+			return nil, getTmdbIDErr
 		}
 
-		if _, ok := resultMovie.(sdk.Movie); ok && tmdbID != 0 {
+		if _, movieItemOk := resultMovie.(sdk.Movie); movieItemOk && tmdbID != 0 {
 			// Get the full movie details
-			movieData, err := tmdbAPI.GetMovieInfo(tmdbID, map[string]string{})
-			if err != nil {
-				log.Err(err).Msgf("failed to fetch information for movie \"%s\"", movieItem.Title)
+			movieData, movieInfoFetchErr := tmdbAPI.GetMovieInfo(tmdbID, map[string]string{})
+			if movieInfoFetchErr != nil {
+				log.Err(movieInfoFetchErr).Msgf("failed to fetch information for movie \"%s\"", movieItem.Title)
 			}
 
-			releaseDate, err := time.Parse("2006-01-02", movieData.ReleaseDate)
-			if err != nil {
-				log.Err(err).Msgf("Failed to parse release date for movie \"%s\"", movieData.Title)
+			if movieData == nil {
+				log.Debug().Msgf("No movie data found for %d", movieItem.ID)
 
-				releaseDate = time.Time{}
+				return nil, errNoResultsFound
 			}
 
-			var languageTag string
+			releaseDate, languageTag := parseMovieInfo(movieData)
 
-			languageBase, err := language.ParseBase(movieData.OriginalLanguage)
-			if err != nil {
-				log.Err(err).Msgf("Failed to parse original language for movie \"%s\", using Undefined", item.GetTitle())
+			movieArt, moviePosters := getImages(*movieData, item)
 
-				languageTag = language.Und.String()
-			} else {
-				languageTag = languageBase.String()
-			}
-
-			var (
-				artHash string
-				artPath string
-			)
-
-			if movieData.BackdropPath != "" {
-				artPath = fmt.Sprintf("https://image.tmdb.org/t/p/original/%s", movieData.BackdropPath)
-
-				artHash, err = helpers.SaveExternalImageToCache(artPath, "tv.meteorae.agents.tmdb", item, "art")
-				if err != nil {
-					log.Err(err).Msgf("Failed to download backdrop for movie \"%s\"", movieItem.Title)
-				}
-			}
-
-			var (
-				posterHash string
-				posterPath string
-			)
-
-			if movieData.PosterPath != "" {
-				posterPath = fmt.Sprintf("https://image.tmdb.org/t/p/original/%s", movieData.PosterPath)
-
-				posterHash, err = helpers.SaveExternalImageToCache(posterPath, "tv.meteorae.agents.tmdb", item, "thumb")
-				if err != nil {
-					log.Err(err).Msgf("failed to download poster for movie \"%s\"", movieItem.Title)
-				}
-			}
-
-			identifiers := []sdk.Identifier{
-				{
-					IdentifierType: sdk.TmdbIdentifier,
-					Identifier:     fmt.Sprintf("%d", movieData.ID),
-				},
-			}
-
-			if movieData.ExternalIDs != nil {
-				if movieData.ExternalIDs.ImdbID != "" {
-					identifiers = append(identifiers, sdk.Identifier{
-						IdentifierType: sdk.TvdbIdentifier,
-						Identifier:     movieData.ExternalIDs.ImdbID,
-					})
-				}
-
-				if movieData.ExternalIDs.FacebookID != "" {
-					identifiers = append(identifiers, sdk.Identifier{
-						IdentifierType: sdk.FacebookIdentifier,
-						Identifier:     movieData.ExternalIDs.FacebookID,
-					})
-				}
-
-				if movieData.ExternalIDs.TwitterID != "" {
-					identifiers = append(identifiers, sdk.Identifier{
-						IdentifierType: sdk.TwitterIdentifier,
-						Identifier:     movieData.ExternalIDs.TwitterID,
-					})
-				}
-
-				if movieData.ExternalIDs.TwitterID != "" {
-					identifiers = append(identifiers, sdk.Identifier{
-						IdentifierType: sdk.TwitterIdentifier,
-						Identifier:     movieData.ExternalIDs.TwitterID,
-					})
-				}
-			}
+			identifiers := getIdentifiers(movieData)
 
 			return sdk.Movie{
 				ItemInfo: &sdk.ItemInfo{
-					ID:            movieItem.GetID(),
+					ID:            movieItem.ID,
+					UUID:          movieItem.UUID,
 					Title:         movieData.Title,
 					OriginalTitle: movieData.OriginalTitle,
 					ReleaseDate:   releaseDate,
 					Language:      languageTag,
-					UUID:          movieItem.UUID,
 					Identifiers:   identifiers,
-					// TODO: Return all available images here.
-					Thumb: sdk.Posters{
-						Items: []sdk.ItemImage{
-							{
-								External:  true,
-								Provider:  "tv.meteorae.agents.tmdb",
-								Media:     metadata.GetURIForAgent("tv.meteorae.agents.tmdb", posterHash),
-								URL:       posterPath,
-								SortOrder: 0,
-							},
-						},
-					},
-					// TODO: Return all available images here.
-					Art: sdk.Art{
-						Items: []sdk.ItemImage{
-							{
-								External:  true,
-								Provider:  "tv.meteorae.agents.tmdb",
-								Media:     metadata.GetURIForAgent("tv.meteorae.agents.tmdb", artHash),
-								URL:       artPath,
-								SortOrder: 0,
-							},
-						},
-					},
+					Thumb:         moviePosters,
+					Art:           movieArt,
 				},
 			}, nil
 		}
 
-		return sdk.Movie{}, errors.New("failed to process search result")
+		return nil, errUnsupportedItemType
 	}
 
-	return sdk.Movie{}, errors.New("unsupported item type")
+	return nil, errUnsupportedItemType
 }

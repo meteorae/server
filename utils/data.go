@@ -1,11 +1,7 @@
 package utils
 
 import (
-	"runtime"
 	"sort"
-	"time"
-
-	"github.com/rs/zerolog/log"
 )
 
 func IsStringInSlice(a string, list []string) bool {
@@ -45,18 +41,6 @@ func RemoveDuplicatesFromSlice[T comparable](s []T) []T {
 	return result
 }
 
-func TimeTrack(start time.Time) {
-	elapsed := time.Since(start)
-
-	// Skip this function, and fetch the PC and file for its parent.
-	pc, _, _, _ := runtime.Caller(1) //nolint:dogsled
-
-	// Retrieve a function object this functions parent.
-	funcObj := runtime.FuncForPC(pc)
-
-	log.Debug().Str("function", funcObj.Name()).Msgf("Took %s", elapsed)
-}
-
 func ReverseSlice(s []string) []string {
 	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
 		s[i], s[j] = s[j], s[i]
@@ -71,19 +55,19 @@ func RankMapStringInt(values map[string]int) []string {
 		Value int
 	}
 
-	ss := make([]kv, 0, len(values))
+	stringSliceMap := make([]kv, 0, len(values))
 
 	for k, v := range values {
-		ss = append(ss, kv{k, v})
+		stringSliceMap = append(stringSliceMap, kv{k, v})
 	}
 
-	sort.Slice(ss, func(i, j int) bool {
-		return ss[i].Value > ss[j].Value
+	sort.Slice(stringSliceMap, func(i, j int) bool {
+		return stringSliceMap[i].Value > stringSliceMap[j].Value
 	})
 
-	ranked := make([]string, len(values))
+	ranked := make([]string, 0, len(values))
 
-	for i, kv := range ss {
+	for i, kv := range stringSliceMap {
 		ranked[i] = kv.Key
 	}
 

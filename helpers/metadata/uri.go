@@ -73,13 +73,13 @@ func GetFilepathForURI(uri string, item database.ItemMetadata, filetype string) 
 	return GetFilepathForAgentAndHash(agent, hash, item.UUID.String(), item.Type, filetype)
 }
 
-func GetFilepathForAgentAndHash(agent string, hash string, UUID string, itemType sdk.ItemType, filetype string) string {
+func GetFilepathForAgentAndHash(agent, hash, uuid string, itemType sdk.ItemType, filetype string) string {
 	// Remove dashes from the UUID.
-	UUID = strings.ReplaceAll(UUID, "-", "")
-	UUIDPrefix := UUID[:2]
+	uuid = strings.ReplaceAll(uuid, "-", "")
+	uuidPrefix := uuid[:2]
 
 	metadataDir, err := xdg.DataFile(
-		filepath.Join("meteorae", "metadata", itemType.String(), UUIDPrefix, UUID, agent, filetype, hash))
+		filepath.Join("meteorae", "metadata", itemType.String(), uuidPrefix, uuid, agent, filetype, hash))
 	if err != nil {
 		return ""
 	}

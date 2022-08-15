@@ -1,10 +1,12 @@
 package client
 
+import "context"
+
 // MovieResult represents the result for a movie.
 type MovieResult struct {
 	Name   string `json:"name"`
-	TmdbID string `json:"tmdb_id"` //nolint:tagliatelle
-	ImdbID string `json:"imdb_id"` //nolint:tagliatelle
+	TmdbID string `json:"tmdb_id"` //nolint:tagliatelle // TheMovieDB uses snake_case for the field names.
+	ImdbID string `json:"imdb_id"` //nolint:tagliatelle // TheMovieDB uses snake_case for the field names.
 
 	Arts        []*ImageInfo `json:"movieart"`
 	Backgrounds []*ImageInfo `json:"moviebackground"`
@@ -18,11 +20,11 @@ type MovieResult struct {
 }
 
 // GetMovieImages returns the images for a movie.
-func (c *Client) GetMovieImages(imdbID string) (*MovieResult, error) {
+func (c *Client) GetMovieImages(ctx context.Context, imdbID string) (*MovieResult, error) {
 	url := c.Endpoint + "/movies/" + imdbID
 
 	var mr MovieResult
-	if err := c.get(url, &mr); err != nil {
+	if err := c.get(ctx, url, &mr); err != nil {
 		return nil, err
 	}
 

@@ -22,7 +22,7 @@ func (s *Subscriptions) Unlock() {
 	s.mu.Unlock()
 }
 
-var SubsciptionsManager *Subscriptions
+var SubsciptionsManager *Subscriptions //nolint:gochecknoglobals // Needs to be accessed from multiple packages
 
 func init() {
 	SubsciptionsManager = &Subscriptions{

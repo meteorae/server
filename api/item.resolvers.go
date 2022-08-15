@@ -34,7 +34,7 @@ func (r *movieResolver) ID(ctx context.Context, obj *sdk.Movie) (string, error) 
 
 func (r *movieResolver) StartDate(ctx context.Context, obj *sdk.Movie) (*string, error) {
 	if obj.ReleaseDate.IsZero() {
-		return nil, nil
+		return nil, nil //nolint:nilnil // This isn't an error.
 	}
 
 	formattedDate := obj.ReleaseDate.Format("2006-01-02")
@@ -44,7 +44,7 @@ func (r *movieResolver) StartDate(ctx context.Context, obj *sdk.Movie) (*string,
 
 func (r *movieResolver) Thumb(ctx context.Context, obj *sdk.Movie) (*models.Image, error) {
 	if len(obj.Thumb.Items) == 0 {
-		return nil, nil
+		return nil, nil //nolint:nilnil // This isn't an error.
 	}
 
 	thumbURL := fmt.Sprintf("/image/transcode?url=/metadata/%d/thumb", obj.ID)
@@ -59,7 +59,7 @@ func (r *movieResolver) Thumb(ctx context.Context, obj *sdk.Movie) (*models.Imag
 
 func (r *movieResolver) Art(ctx context.Context, obj *sdk.Movie) (*models.Image, error) {
 	if len(obj.Art.Items) == 0 {
-		return nil, nil
+		return nil, nil //nolint:nilnil // This isn't an error.
 	}
 
 	artURL := fmt.Sprintf("/image/transcode?url=/metadata/%d/art", obj.ID)
@@ -73,30 +73,30 @@ func (r *movieResolver) Art(ctx context.Context, obj *sdk.Movie) (*models.Image,
 }
 
 func (r *queryResolver) Item(ctx context.Context, id string) (sdk.Item, error) {
-	itemID, err := strconv.ParseUint(id, 10, 32)
-	if err != nil {
-		return nil, fmt.Errorf("invalid item id")
+	itemID, idParseErr := strconv.ParseUint(id, 10, 32)
+	if idParseErr != nil {
+		return nil, errInvalidItemID
 	}
 
-	item, err := database.GetItemByID(uint(itemID))
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to get item")
+	item, getItemErr := database.GetItemByID(uint(itemID))
+	if getItemErr != nil {
+		log.Error().Err(getItemErr).Msg("Failed to get item")
 
-		return nil, fmt.Errorf("failed to get item: %w", err)
+		return nil, fmt.Errorf("failed to get item: %w", getItemErr)
 	}
 
-	itemInfo, err := metadata.GetInfoXML(item)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to get item info")
+	itemInfo, getInfoErr := metadata.GetInfoXML(item)
+	if getInfoErr != nil {
+		log.Error().Err(getInfoErr).Msg("Failed to get item info")
 
-		return nil, fmt.Errorf("failed to get item info: %w", err)
+		return nil, fmt.Errorf("failed to get item info: %w", getInfoErr)
 	}
 
 	// TODO; Properly handle all item types
 	return itemInfo, nil
 }
 
-func (r *queryResolver) Items(ctx context.Context, limit *int64, offset *int64, libraryID string) (*models.ItemsResult, error) {
+func (r *queryResolver) Items(ctx context.Context, limit, offset *int64, libraryID string) (*models.ItemsResult, error) {
 	library := database.GetLibrary(libraryID)
 
 	items, err := database.GetItemsFromLibrary(library, limit, offset)
@@ -116,11 +116,11 @@ func (r *queryResolver) Items(ctx context.Context, limit *int64, offset *int64, 
 	resultItems := make([]sdk.Item, 0, len(items))
 
 	for _, item := range items {
-		itemInfo, err := metadata.GetInfoXML(*item)
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to get item info")
+		itemInfo, getInfoErr := metadata.GetInfoXML(*item)
+		if getInfoErr != nil {
+			log.Error().Err(getInfoErr).Msg("Failed to get item info")
 
-			return nil, fmt.Errorf("failed to get item info: %w", err)
+			return nil, fmt.Errorf("failed to get item info: %w", getInfoErr)
 		}
 
 		resultItems = append(resultItems, itemInfo)
@@ -132,10 +132,10 @@ func (r *queryResolver) Items(ctx context.Context, limit *int64, offset *int64, 
 	}, nil
 }
 
-func (r *queryResolver) Children(ctx context.Context, limit *int64, offset *int64, item string) (*models.ItemsResult, error) {
+func (r *queryResolver) Children(ctx context.Context, limit, offset *int64, item string) (*models.ItemsResult, error) {
 	parsedItemID, err := strconv.ParseUint(item, 10, 32)
 	if err != nil {
-		return nil, fmt.Errorf("invalid item id")
+		return nil, errInvalidItemID
 	}
 
 	items, err := database.GetChildrenFromItem(uint(parsedItemID), limit, offset)
@@ -147,7 +147,7 @@ func (r *queryResolver) Children(ctx context.Context, limit *int64, offset *int6
 
 	parsedItemID, err = strconv.ParseUint(item, 10, 32)
 	if err != nil {
-		return nil, fmt.Errorf("invalid item id")
+		return nil, errInvalidItemID
 	}
 
 	count, err := database.GetChildrenCountFromItem(uint(parsedItemID))
@@ -160,11 +160,11 @@ func (r *queryResolver) Children(ctx context.Context, limit *int64, offset *int6
 	resultItems := make([]sdk.Item, 0, len(items))
 
 	for _, item := range items {
-		itemInfo, err := metadata.GetInfoXML(item)
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to get item info")
+		itemInfo, getInfoErr := metadata.GetInfoXML(item)
+		if getInfoErr != nil {
+			log.Error().Err(getInfoErr).Msg("Failed to get item info")
 
-			return nil, fmt.Errorf("failed to get item info: %w", err)
+			return nil, fmt.Errorf("failed to get item info: %w", getInfoErr)
 		}
 
 		resultItems = append(resultItems, itemInfo)
@@ -177,36 +177,36 @@ func (r *queryResolver) Children(ctx context.Context, limit *int64, offset *int6
 }
 
 func (r *subscriptionResolver) OnItemAdded(ctx context.Context) (<-chan sdk.Item, error) {
-	id := uuid.New().String()
+	uuid := uuid.New().String()
 	msg := make(chan sdk.Item, 1)
 
 	go func() {
 		<-ctx.Done()
 		database.SubsciptionsManager.Lock()
-		delete(database.SubsciptionsManager.ItemAddedObservers, id)
+		delete(database.SubsciptionsManager.ItemAddedObservers, uuid)
 		database.SubsciptionsManager.Unlock()
 	}()
 	database.SubsciptionsManager.Lock()
 
-	database.SubsciptionsManager.ItemAddedObservers[id] = msg
+	database.SubsciptionsManager.ItemAddedObservers[uuid] = msg
 	database.SubsciptionsManager.Unlock()
 
 	return msg, nil
 }
 
 func (r *subscriptionResolver) OnItemUpdated(ctx context.Context) (<-chan sdk.Item, error) {
-	id := uuid.New().String()
+	uuid := uuid.New().String()
 	msg := make(chan sdk.Item, 1)
 
 	go func() {
 		<-ctx.Done()
 		database.SubsciptionsManager.Lock()
-		delete(database.SubsciptionsManager.ItemUpdatedObservers, id)
+		delete(database.SubsciptionsManager.ItemUpdatedObservers, uuid)
 		database.SubsciptionsManager.Unlock()
 	}()
 	database.SubsciptionsManager.Lock()
 
-	database.SubsciptionsManager.ItemUpdatedObservers[id] = msg
+	database.SubsciptionsManager.ItemUpdatedObservers[uuid] = msg
 	database.SubsciptionsManager.Unlock()
 
 	return msg, nil
