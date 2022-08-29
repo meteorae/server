@@ -9,7 +9,7 @@ require (
 	github.com/panjf2000/ants/v2 v2.5.0
 	github.com/ryanbradynd05/go-tmdb v0.0.0-20201006144520-c0566c3d1506
 	github.com/spf13/viper v1.12.0
-	github.com/vektah/gqlparser/v2 v2.4.4
+	github.com/vektah/gqlparser/v2 v2.5.0
 	gopkg.in/vansante/go-ffprobe.v2 v2.0.3
 	gorm.io/datatypes v1.0.6
 	gorm.io/driver/sqlite v1.3.4
