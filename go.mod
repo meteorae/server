@@ -13,7 +13,7 @@ require (
 	gopkg.in/vansante/go-ffprobe.v2 v2.0.3
 	gorm.io/datatypes v1.0.6
 	gorm.io/driver/sqlite v1.3.4
-	gorm.io/gorm v1.23.6
+	gorm.io/gorm v1.23.10
 )
 
 require (
