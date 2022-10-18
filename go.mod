@@ -12,8 +12,8 @@ require (
 	github.com/vektah/gqlparser/v2 v2.4.4
 	gopkg.in/vansante/go-ffprobe.v2 v2.0.3
 	gorm.io/datatypes v1.0.6
-	gorm.io/driver/sqlite v1.3.4
-	gorm.io/gorm v1.23.6
+	gorm.io/driver/sqlite v1.4.3
+	gorm.io/gorm v1.24.0
 )
 
 require (
@@ -85,7 +85,7 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/justinas/alice v1.2.0
-	github.com/mattn/go-sqlite3 v1.14.13 // indirect
+	github.com/mattn/go-sqlite3 v1.14.15 // indirect
 	github.com/mholt/archiver/v3 v3.5.1
 	github.com/rs/zerolog v1.27.0
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4 // indirect
